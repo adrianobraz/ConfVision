@@ -1,18 +1,38 @@
 import socket
 import threading
 import time
+from urllib.parse import urlparse
 
 from config import MEDIAMTX_RTSP_BASE, SYNC_INTERVAL_SEC
 from detector import PersonDetector
 from xano_client import get_cameras_ativas, post_evento, post_ping
 
 
+def _path_from_stream_url(url: str) -> str:
+    parsed = urlparse(url)
+    path = parsed.path.lstrip("/")
+    if path:
+        return path
+    return ""
+
+
 def resolve_rtsp_url(camera):
     url = (camera.get("rtmp_url") or camera.get("rtsp_url") or "").strip()
     if url.startswith("rtsp://"):
         return url
-    path = url.lstrip("/") if url else f"live/cam_{camera['id']}"
-    return f"{MEDIAMTX_RTSP_BASE}/{path}"
+    if url.startswith("rtmp://"):
+        path = _path_from_stream_url(url) or f"live/cam_{camera['id']}"
+        rtsp = f"{MEDIAMTX_RTSP_BASE}/{path}"
+        print(
+            f"[WARN] camera {camera.get('id')}: URL RTMP no banco convertida para RTSP: {rtsp}"
+        )
+        return rtsp
+    if url:
+        if "://" not in url:
+            path = url.lstrip("/")
+            return f"{MEDIAMTX_RTSP_BASE}/{path}"
+        print(f"[WARN] camera {camera.get('id')}: URL desconhecida ignorada: {url}")
+    return f"{MEDIAMTX_RTSP_BASE}/live/cam_{camera['id']}"
 
 
 def loop_camera(camera, detector: PersonDetector):
