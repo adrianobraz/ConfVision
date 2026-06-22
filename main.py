@@ -16,10 +16,24 @@ def _path_from_stream_url(url: str) -> str:
     return ""
 
 
+def _rewrite_localhost_rtsp(url: str, camera_id) -> str:
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+    if host not in ("127.0.0.1", "localhost"):
+        return url
+    path = parsed.path.lstrip("/") or f"live/cam_{camera_id}"
+    rtsp = f"{MEDIAMTX_RTSP_BASE}/{path}"
+    print(
+        f"[WARN] camera {camera_id}: localhost no banco, usando MediaMTX interno: {rtsp}"
+    )
+    return rtsp
+
+
 def resolve_rtsp_url(camera):
     url = (camera.get("rtmp_url") or camera.get("rtsp_url") or "").strip()
+    camera_id = camera.get("id")
     if url.startswith("rtsp://"):
-        return url
+        return _rewrite_localhost_rtsp(url, camera_id)
     if url.startswith("rtmp://"):
         path = _path_from_stream_url(url) or f"live/cam_{camera['id']}"
         rtsp = f"{MEDIAMTX_RTSP_BASE}/{path}"
