@@ -10,43 +10,48 @@ from xano_client import get_cameras_ativas, post_evento, post_ping
 
 def _path_from_stream_url(url: str) -> str:
     parsed = urlparse(url)
-    path = parsed.path.lstrip("/")
-    if path:
-        return path
-    return ""
+    return parsed.path.lstrip("/")
 
 
-def _rewrite_localhost_rtsp(url: str, camera_id) -> str:
+def _rewrite_localhost_rtsp(url: str, stream_path: str) -> str:
     parsed = urlparse(url)
     host = (parsed.hostname or "").lower()
     if host not in ("127.0.0.1", "localhost"):
         return url
-    path = parsed.path.lstrip("/") or f"live/cam_{camera_id}"
+    path = _path_from_stream_url(url) or stream_path
     rtsp = f"{MEDIAMTX_RTSP_BASE}/{path}"
-    print(
-        f"[WARN] camera {camera_id}: localhost no banco, usando MediaMTX interno: {rtsp}"
-    )
+    print(f"[WARN] localhost no banco, usando MediaMTX interno: {rtsp}")
     return rtsp
 
 
-def resolve_rtsp_url(camera):
-    url = (camera.get("rtmp_url") or camera.get("rtsp_url") or "").strip()
+def stream_path_for(camera) -> str:
     camera_id = camera.get("id")
+    path = (camera.get("stream_path") or "").strip().lstrip("/")
+    if path:
+        return path
+    if camera_id:
+        return f"live/{camera_id}"
+    return "live/0"
+
+
+def resolve_rtsp_url(camera):
+    stream_path = stream_path_for(camera)
+    rtsp_default = f"{MEDIAMTX_RTSP_BASE}/{stream_path}"
+
+    url = (camera.get("rtmp_url") or camera.get("rtsp_url") or "").strip()
+    if not url:
+        return rtsp_default
     if url.startswith("rtsp://"):
-        return _rewrite_localhost_rtsp(url, camera_id)
+        return _rewrite_localhost_rtsp(url, stream_path)
     if url.startswith("rtmp://"):
-        path = _path_from_stream_url(url) or f"live/cam_{camera['id']}"
+        path = _path_from_stream_url(url) or stream_path
         rtsp = f"{MEDIAMTX_RTSP_BASE}/{path}"
-        print(
-            f"[WARN] camera {camera.get('id')}: URL RTMP no banco convertida para RTSP: {rtsp}"
-        )
+        print(f"[WARN] camera {camera.get('id')}: RTMP no banco, usando RTSP: {rtsp}")
         return rtsp
-    if url:
-        if "://" not in url:
-            path = url.lstrip("/")
-            return f"{MEDIAMTX_RTSP_BASE}/{path}"
-        print(f"[WARN] camera {camera.get('id')}: URL desconhecida ignorada: {url}")
-    return f"{MEDIAMTX_RTSP_BASE}/live/cam_{camera['id']}"
+    if "://" not in url:
+        return f"{MEDIAMTX_RTSP_BASE}/{url.lstrip('/')}"
+    print(f"[WARN] camera {camera.get('id')}: URL ignorada, usando path padrao: {rtsp_default}")
+    return rtsp_default
 
 
 def loop_camera(camera, detector: PersonDetector):
@@ -92,6 +97,7 @@ def main():
                     thread.start()
                     print(
                         f"[THREAD] camera id={camera_id} "
+                        f"path={stream_path_for(camera)} "
                         f"nome={camera.get('nome')} url={resolve_rtsp_url(camera)}"
                     )
         except Exception as exc:
