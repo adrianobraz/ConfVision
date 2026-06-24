@@ -3,6 +3,7 @@ import threading
 import time
 
 from bootstrap_check import validate_config
+from camera_state import is_camera_active, set_active_camera_ids
 from config import CLIP_DURACAO_SEG, SYNC_INTERVAL_SEC
 from detector import PersonDetector
 from event_capture import processar_deteccao
@@ -17,6 +18,8 @@ def loop_camera(camera, detector: PersonDetector):
     url = rtsp_url(camera_id)
 
     def on_person(conf):
+        if not is_camera_active(camera_id):
+            return
         threading.Thread(
             target=processar_deteccao,
             args=(camera, conf),
@@ -24,12 +27,19 @@ def loop_camera(camera, detector: PersonDetector):
             name=f"capture-{camera_id}",
         ).start()
 
-    while True:
+    def should_continue():
+        return is_camera_active(camera_id)
+
+    while should_continue():
         try:
-            detector.process_camera(url, conf_min, cooldown, on_person)
+            detector.process_camera(url, conf_min, cooldown, on_person, should_continue)
         except Exception as exc:
             print(f"[ERRO] camera {camera_id}: {exc}")
+            if not should_continue():
+                break
             time.sleep(5)
+
+    print(f"[THREAD] camera id={camera_id} encerrada (desativada ou sem deteccao)")
 
 
 def main():
@@ -39,13 +49,25 @@ def main():
     )
     validate_config()
     detector = PersonDetector()
-    threads = {}
+    threads: dict[int, threading.Thread] = {}
 
     while True:
         try:
             cameras = get_cameras_ativas()
+            active_ids = [c["id"] for c in cameras]
+            set_active_camera_ids(active_ids)
             post_ping(len(cameras))
-            print(f"[SYNC] {len(cameras)} camera(s) ativa(s)")
+            print(f"[SYNC] {len(cameras)} camera(s) ativa(s) ids={active_ids}")
+
+            active_set = set(active_ids)
+            for camera_id, thread in list(threads.items()):
+                if camera_id not in active_set and thread.is_alive():
+                    print(
+                        f"[SYNC] camera id={camera_id} desativada — "
+                        f"aguardando thread encerrar"
+                    )
+                elif not thread.is_alive():
+                    del threads[camera_id]
 
             for camera in cameras:
                 camera_id = camera["id"]
@@ -55,6 +77,7 @@ def main():
                         target=loop_camera,
                         args=(camera, detector),
                         daemon=True,
+                        name=f"camera-{camera_id}",
                     )
                     threads[camera_id] = thread
                     thread.start()

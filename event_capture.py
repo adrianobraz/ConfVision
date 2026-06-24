@@ -6,6 +6,7 @@ from capture import (
     record_clip_mp4,
     try_iniciar_captura,
 )
+from camera_state import is_camera_active
 from config import CLIP_DURACAO_SEG
 from storage import evento_clip_key, evento_snapshot_key, upload_bytes
 from urls import rtsp_url
@@ -14,6 +15,10 @@ from xano_client import create_evento, post_evento_clip, put_evento
 
 def processar_deteccao(camera, confianca: float):
     camera_id = camera.get("id")
+    if not is_camera_active(camera_id):
+        print(f"[CAPTURA] camera={camera_id} inativa, evento ignorado")
+        return
+
     id_franqueado = camera.get("id_franqueado")
     rtsp = rtsp_url(camera_id)
     evento_id = None

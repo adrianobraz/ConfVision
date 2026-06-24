@@ -1,5 +1,6 @@
 import os
 import time
+from typing import Callable, Optional
 
 import cv2
 from ultralytics import YOLO
@@ -23,7 +24,17 @@ class PersonDetector:
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         return cap
 
-    def process_camera(self, rtsp_url, conf_min, cooldown_sec, on_person):
+    def process_camera(
+        self,
+        rtsp_url,
+        conf_min,
+        cooldown_sec,
+        on_person,
+        should_continue: Optional[Callable[[], bool]] = None,
+    ):
+        if should_continue is None:
+            should_continue = lambda: True
+
         cap = self._open_capture(rtsp_url)
 
         if not cap.isOpened():
@@ -36,12 +47,16 @@ class PersonDetector:
         ultimo_evento = 0.0
         falhas = 0
 
-        while True:
+        while should_continue():
             ok, frame = cap.read()
+            if not should_continue():
+                break
             if not ok:
                 falhas += 1
                 print(f"[WARN] Frame perdido ({falhas}x), reconectando: {rtsp_url}")
                 cap.release()
+                if not should_continue():
+                    break
                 time.sleep(min(30, 2 * falhas))
                 cap = self._open_capture(rtsp_url)
                 if not cap.isOpened():
@@ -72,3 +87,5 @@ class PersonDetector:
                     ultimo_evento = agora
                     on_person(best_conf)
                     print(f"[EVENTO] pessoa conf={best_conf:.2f} url={rtsp_url}")
+
+        cap.release()
