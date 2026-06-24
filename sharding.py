@@ -58,9 +58,7 @@ def query_params(page: int, per_page: int) -> dict:
         params["shard_index"] = WORKER_SHARD_INDEX
         params["shard_total"] = WORKER_SHARD_TOTAL
     elif SHARD_MODE == "auto":
-        if WORKER_ID:
-            params["worker_id"] = WORKER_ID
-        elif WORKER_SHARD_TOTAL > 0 and WORKER_SHARD_INDEX >= 0:
+        if WORKER_SHARD_TOTAL > 0 and WORKER_SHARD_INDEX >= 0:
             params["shard_index"] = WORKER_SHARD_INDEX
             params["shard_total"] = WORKER_SHARD_TOTAL
     return params
