@@ -33,7 +33,6 @@ SHARD_MODE = os.getenv("SHARD_MODE", "auto").strip().lower()
 WORKER_SHARD_INDEX = int(os.getenv("WORKER_SHARD_INDEX", "-1"))
 WORKER_SHARD_TOTAL = int(os.getenv("WORKER_SHARD_TOTAL", "0"))
 MAX_CAMERAS = int(os.getenv("MAX_CAMERAS", "50"))
-QUERY_PAGE_SIZE = int(os.getenv("QUERY_PAGE_SIZE", "500"))
 
 # Fila de eventos (detecção → captura)
 EVENT_QUEUE_BACKEND = os.getenv("EVENT_QUEUE_BACKEND", "memory").strip().lower()

@@ -3,7 +3,7 @@ from typing import Any, Optional
 
 import requests
 
-from config import QUERY_PAGE_SIZE, WORKER_ID, WORKER_VERSION, XANO_BASE_URL
+from config import WORKER_ID, WORKER_VERSION, XANO_BASE_URL
 from sharding import filter_cameras, query_params
 
 
@@ -14,24 +14,13 @@ def _parse_json(response):
 
 def get_cameras_ativas():
     url = f"{XANO_BASE_URL}/vis_camera_query_ativas"
-    cameras: list[dict[str, Any]] = []
-    page = 1
+    params = query_params()
+    response = requests.get(url, params=params, timeout=30)
+    data = _parse_json(response)
 
-    while True:
-        params = query_params(page, QUERY_PAGE_SIZE)
-        response = requests.get(url, params=params, timeout=30)
-        data = _parse_json(response)
-
-        batch = data.get("dados", data) if isinstance(data, dict) else data
-        if not isinstance(batch, list):
-            batch = []
-
-        cameras.extend(batch)
-
-        paging = data.get("paging") if isinstance(data, dict) else None
-        if not paging or not batch or len(batch) < QUERY_PAGE_SIZE:
-            break
-        page += 1
+    cameras = data.get("dados", data) if isinstance(data, dict) else data
+    if not isinstance(cameras, list):
+        cameras = []
 
     return filter_cameras(cameras)
 

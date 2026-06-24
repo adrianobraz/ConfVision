@@ -50,15 +50,8 @@ def shard_label() -> str:
     return " ".join(parts)
 
 
-def query_params(page: int, per_page: int) -> dict:
-    params = {"page": page, "per_page": per_page}
+def query_params() -> dict:
+    # API 2210 aceita só worker_id opcional; hash filtra no Python (filter_cameras)
     if SHARD_MODE == "worker_id" and WORKER_ID:
-        params["worker_id"] = WORKER_ID
-    elif SHARD_MODE == "hash" and WORKER_SHARD_TOTAL > 0 and WORKER_SHARD_INDEX >= 0:
-        params["shard_index"] = WORKER_SHARD_INDEX
-        params["shard_total"] = WORKER_SHARD_TOTAL
-    elif SHARD_MODE == "auto":
-        if WORKER_SHARD_TOTAL > 0 and WORKER_SHARD_INDEX >= 0:
-            params["shard_index"] = WORKER_SHARD_INDEX
-            params["shard_total"] = WORKER_SHARD_TOTAL
-    return params
+        return {"worker_id": WORKER_ID}
+    return {}
