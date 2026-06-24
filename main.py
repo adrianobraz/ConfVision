@@ -15,6 +15,7 @@ from config import (
     WORKER_SHARD_INDEX,
     WORKER_SHARD_TOTAL,
 )
+from area_utils import areas_ativas
 from capture import cancel_camera_captures, write_detection_snapshot
 from detector import PersonDetector
 from event_queue import EventJob, get_event_queue
@@ -28,14 +29,23 @@ def loop_camera(camera, detector: PersonDetector, event_queue):
     conf_min = float(camera.get("confianca_min") or 0.5)
     cooldown = int(camera.get("cooldown_seg") or 30)
     url = rtsp_url(camera_id)
+    zonas = areas_ativas(camera.get("areas"))
 
-    def on_person(conf, frame):
+    if not zonas:
+        print(f"[AREA] camera id={camera_id} sem area cadastrada — thread encerrada")
+        return
+
+    def on_person(conf, frame, area=None):
         if not is_camera_active(camera_id):
             return
         snapshot_path = None
         try:
             snapshot_path = str(write_detection_snapshot(camera_id, frame))
-            print(f"[EVENTO] snapshot instantaneo camera={camera_id} path={snapshot_path}")
+            area_label = (area or {}).get("nome") or (area or {}).get("id")
+            print(
+                f"[EVENTO] snapshot instantaneo camera={camera_id} "
+                f"area={area_label} path={snapshot_path}"
+            )
         except Exception as exc:
             print(f"[WARN] snapshot instantaneo camera={camera_id} falhou: {exc}")
         job = EventJob(
@@ -54,14 +64,16 @@ def loop_camera(camera, detector: PersonDetector, event_queue):
 
     while should_continue():
         try:
-            detector.process_camera(url, conf_min, cooldown, on_person, should_continue)
+            detector.process_camera(
+                url, conf_min, cooldown, on_person, zonas, should_continue
+            )
         except Exception as exc:
             print(f"[ERRO] camera {camera_id}: {exc}")
             if not should_continue():
                 break
             time.sleep(5)
 
-    print(f"[THREAD] camera id={camera_id} encerrada (desativada ou sem deteccao)")
+    print(f"[THREAD] camera id={camera_id} encerrada (desativada ou sem area)")
 
 
 def main():
@@ -80,10 +92,13 @@ def main():
     while True:
         try:
             cameras = get_cameras_ativas()
-            active_ids = [c["id"] for c in cameras]
+            cameras_com_area = [
+                c for c in cameras if areas_ativas(c.get("areas"))
+            ]
+            active_ids = [c["id"] for c in cameras_com_area]
             set_active_camera_ids(active_ids)
             post_ping(
-                len(cameras),
+                len(cameras_com_area),
                 extra={
                     "shard_index": WORKER_SHARD_INDEX if WORKER_SHARD_INDEX >= 0 else None,
                     "shard_total": WORKER_SHARD_TOTAL if WORKER_SHARD_TOTAL > 0 else None,
@@ -92,7 +107,10 @@ def main():
                     "queue_backend": EVENT_QUEUE_BACKEND,
                 },
             )
-            print(f"[SYNC] {len(cameras)} camera(s) ativa(s) ids={active_ids}")
+            print(
+                f"[SYNC] {len(cameras_com_area)} camera(s) com area ids={active_ids} "
+                f"({len(cameras) - len(cameras_com_area)} sem area ignoradas)"
+            )
 
             active_set = set(active_ids)
             for camera_id, thread in list(threads.items()):
@@ -106,7 +124,7 @@ def main():
                 elif not thread.is_alive():
                     del threads[camera_id]
 
-            for camera in cameras:
+            for camera in cameras_com_area:
                 camera_id = camera["id"]
                 thread = threads.get(camera_id)
                 if thread is None or not thread.is_alive():

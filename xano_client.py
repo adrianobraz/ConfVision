@@ -12,15 +12,48 @@ def _parse_json(response):
     return response.json()
 
 
+def _as_list(data):
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):
+        payload = data.get("dados", data)
+        if isinstance(payload, list):
+            return payload
+    return []
+
+
+def get_areas_ativas():
+    url = f"{XANO_BASE_URL}/vis_camera_area_query_ativas"
+    params = query_params()
+    response = requests.get(url, params=params, timeout=30)
+    return _as_list(_parse_json(response))
+
+
+def _attach_areas(cameras, areas):
+    by_camera: dict[int, list] = {}
+    for area in areas:
+        camera_id = area.get("vis_camera_id")
+        if camera_id is None:
+            continue
+        by_camera.setdefault(int(camera_id), []).append(area)
+    for camera in cameras:
+        camera_id = camera.get("id")
+        if camera_id is None:
+            camera["areas"] = []
+            continue
+        camera["areas"] = by_camera.get(int(camera_id), [])
+    return cameras
+
+
 def get_cameras_ativas():
     url = f"{XANO_BASE_URL}/vis_camera_query_ativas"
     params = query_params()
     response = requests.get(url, params=params, timeout=30)
     data = _parse_json(response)
 
-    cameras = data.get("dados", data) if isinstance(data, dict) else data
-    if not isinstance(cameras, list):
-        cameras = []
+    cameras = _as_list(data)
+    areas = get_areas_ativas()
+    cameras = _attach_areas(cameras, areas)
 
     return filter_cameras(cameras)
 

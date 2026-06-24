@@ -5,6 +5,7 @@ from typing import Callable, Optional
 import cv2
 from ultralytics import YOLO
 
+from area_utils import areas_ativas, bbox_foot_pct, find_area_for_point
 from config import FRAME_SKIP, YOLO_DEVICE, YOLO_MODEL
 
 os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
@@ -46,10 +47,16 @@ class PersonDetector:
         conf_min,
         cooldown_sec,
         on_person,
+        areas,
         should_continue: Optional[Callable[[], bool]] = None,
     ):
         if should_continue is None:
             should_continue = lambda: True
+
+        zonas = areas_ativas(areas)
+        if not zonas:
+            print(f"[AREA] sem area ativa — deteccao ignorada: {rtsp_url}")
+            return
 
         cap = self._open_capture(rtsp_url)
 
@@ -58,10 +65,11 @@ class PersonDetector:
             time.sleep(10)
             return
 
-        print(f"[OK] Stream aberto: {rtsp_url}")
+        print(f"[OK] Stream aberto: {rtsp_url} areas={len(zonas)}")
         frame_index = 0
         ultimo_evento = 0.0
         falhas = 0
+        estava_dentro = False
 
         while should_continue():
             ok, frame = cap.read()
@@ -87,21 +95,34 @@ class PersonDetector:
             if frame_index % FRAME_SKIP != 0:
                 continue
 
+            h, w = frame.shape[:2]
             results = self.model(frame, device=self.device, verbose=False)[0]
             best_conf = 0.0
+            best_area = None
 
             for box in results.boxes:
                 if int(box.cls[0]) != 0:
                     continue
                 conf = float(box.conf[0])
-                if conf > best_conf:
+                if conf < conf_min:
+                    continue
+                cx, cy = bbox_foot_pct(box, w, h)
+                area = find_area_for_point(cx, cy, zonas)
+                if area and conf > best_conf:
                     best_conf = conf
+                    best_area = area
 
-            if best_conf >= conf_min:
+            dentro_agora = best_conf >= conf_min and best_area is not None
+            if dentro_agora and not estava_dentro:
                 agora = time.time()
                 if agora - ultimo_evento >= cooldown_sec:
                     ultimo_evento = agora
-                    on_person(best_conf, frame.copy())
-                    print(f"[EVENTO] pessoa conf={best_conf:.2f} url={rtsp_url}")
+                    on_person(best_conf, frame.copy(), best_area)
+                    area_nome = best_area.get("nome") or best_area.get("id")
+                    print(
+                        f"[EVENTO] entrou na area={area_nome} conf={best_conf:.2f} url={rtsp_url}"
+                    )
+
+            estava_dentro = dentro_agora
 
         cap.release()
