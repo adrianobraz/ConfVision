@@ -4,14 +4,24 @@ import time
 
 from bootstrap_check import validate_config
 from camera_state import is_camera_active, set_active_camera_ids
-from config import CLIP_DURACAO_SEG, SYNC_INTERVAL_SEC
+from capture_workers import start_capture_workers
+from config import (
+    CAPTURE_WORKERS,
+    CLIP_DURACAO_SEG,
+    EVENT_QUEUE_BACKEND,
+    MAX_CAMERAS,
+    SYNC_INTERVAL_SEC,
+    WORKER_SHARD_INDEX,
+    WORKER_SHARD_TOTAL,
+)
 from detector import PersonDetector
-from event_capture import processar_deteccao
+from event_queue import EventJob, get_event_queue
+from sharding import shard_label
 from urls import rtsp_url, stream_path
 from xano_client import get_cameras_ativas, post_ping
 
 
-def loop_camera(camera, detector: PersonDetector):
+def loop_camera(camera, detector: PersonDetector, event_queue):
     camera_id = camera.get("id")
     conf_min = float(camera.get("confianca_min") or 0.5)
     cooldown = int(camera.get("cooldown_seg") or 30)
@@ -20,12 +30,9 @@ def loop_camera(camera, detector: PersonDetector):
     def on_person(conf):
         if not is_camera_active(camera_id):
             return
-        threading.Thread(
-            target=processar_deteccao,
-            args=(camera, conf),
-            daemon=True,
-            name=f"capture-{camera_id}",
-        ).start()
+        job = EventJob(camera=camera, confianca=conf, detected_at=time.time())
+        if not event_queue.publish(job):
+            print(f"[FILA] cheia — evento descartado camera={camera_id} conf={conf:.2f}")
 
     def should_continue():
         return is_camera_active(camera_id)
@@ -45,9 +52,13 @@ def loop_camera(camera, detector: PersonDetector):
 def main():
     print(
         f"[START] ConfVision worker | host={socket.gethostname()} "
-        f"| clip={CLIP_DURACAO_SEG}s"
+        f"| clip={CLIP_DURACAO_SEG}s | {shard_label()}"
     )
     validate_config()
+
+    event_queue = get_event_queue()
+    start_capture_workers(CAPTURE_WORKERS, event_queue)
+
     detector = PersonDetector()
     threads: dict[int, threading.Thread] = {}
 
@@ -56,7 +67,16 @@ def main():
             cameras = get_cameras_ativas()
             active_ids = [c["id"] for c in cameras]
             set_active_camera_ids(active_ids)
-            post_ping(len(cameras))
+            post_ping(
+                len(cameras),
+                extra={
+                    "shard_index": WORKER_SHARD_INDEX if WORKER_SHARD_INDEX >= 0 else None,
+                    "shard_total": WORKER_SHARD_TOTAL if WORKER_SHARD_TOTAL > 0 else None,
+                    "max_cameras": MAX_CAMERAS,
+                    "yolo_device": detector.device,
+                    "queue_backend": EVENT_QUEUE_BACKEND,
+                },
+            )
             print(f"[SYNC] {len(cameras)} camera(s) ativa(s) ids={active_ids}")
 
             active_set = set(active_ids)
@@ -75,7 +95,7 @@ def main():
                 if thread is None or not thread.is_alive():
                     thread = threading.Thread(
                         target=loop_camera,
-                        args=(camera, detector),
+                        args=(camera, detector, event_queue),
                         daemon=True,
                         name=f"camera-{camera_id}",
                     )

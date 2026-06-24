@@ -3,7 +3,8 @@ from typing import Any, Optional
 
 import requests
 
-from config import WORKER_ID, WORKER_VERSION, XANO_BASE_URL
+from config import QUERY_PAGE_SIZE, WORKER_ID, WORKER_VERSION, XANO_BASE_URL
+from sharding import filter_cameras, query_params
 
 
 def _parse_json(response):
@@ -13,14 +14,26 @@ def _parse_json(response):
 
 def get_cameras_ativas():
     url = f"{XANO_BASE_URL}/vis_camera_query_ativas"
-    response = requests.get(url, timeout=15)
-    data = _parse_json(response)
-    cameras = data.get("dados", data) if isinstance(data, dict) else data
-    return [
-        camera
-        for camera in cameras
-        if camera.get("ativo") and camera.get("deteccao_humano")
-    ]
+    cameras: list[dict[str, Any]] = []
+    page = 1
+
+    while True:
+        params = query_params(page, QUERY_PAGE_SIZE)
+        response = requests.get(url, params=params, timeout=30)
+        data = _parse_json(response)
+
+        batch = data.get("dados", data) if isinstance(data, dict) else data
+        if not isinstance(batch, list):
+            batch = []
+
+        cameras.extend(batch)
+
+        paging = data.get("paging") if isinstance(data, dict) else None
+        if not paging or not batch or len(batch) < QUERY_PAGE_SIZE:
+            break
+        page += 1
+
+    return filter_cameras(cameras)
 
 
 def create_evento(camera, confianca, tipo="humano", status="capturando"):
@@ -91,7 +104,7 @@ def post_evento_clip(payload: dict[str, Any]):
     return _parse_json(response)
 
 
-def post_ping(cameras_ativas: int):
+def post_ping(cameras_ativas: int, extra: Optional[dict[str, Any]] = None):
     url = f"{XANO_BASE_URL}/vis_worker_ping"
     payload = {
         "worker_id": WORKER_ID,
@@ -101,6 +114,8 @@ def post_ping(cameras_ativas: int):
         "ultimo_ping_em": datetime.now(timezone.utc).isoformat(),
         "ativo": True,
     }
+    if extra:
+        payload.update(extra)
     response = requests.post(url, json=payload, timeout=15)
     return _parse_json(response)
 

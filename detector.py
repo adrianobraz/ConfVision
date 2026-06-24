@@ -5,7 +5,7 @@ from typing import Callable, Optional
 import cv2
 from ultralytics import YOLO
 
-from config import FRAME_SKIP, YOLO_MODEL
+from config import FRAME_SKIP, YOLO_DEVICE, YOLO_MODEL
 
 os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
 
@@ -13,6 +13,22 @@ os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
 class PersonDetector:
     def __init__(self):
         self.model = YOLO(YOLO_MODEL)
+        self.device = self._resolve_device()
+        print(f"[YOLO] model={YOLO_MODEL} device={self.device}")
+
+    def _resolve_device(self) -> str:
+        if YOLO_DEVICE:
+            return YOLO_DEVICE
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                name = torch.cuda.get_device_name(0)
+                print(f"[YOLO] GPU detectada: {name}")
+                return "cuda:0"
+        except Exception:
+            pass
+        return "cpu"
 
     def _open_capture(self, rtsp_url):
         if rtsp_url.startswith("rtmp://"):
@@ -71,7 +87,7 @@ class PersonDetector:
             if frame_index % FRAME_SKIP != 0:
                 continue
 
-            results = self.model(frame, verbose=False)[0]
+            results = self.model(frame, device=self.device, verbose=False)[0]
             best_conf = 0.0
 
             for box in results.boxes:

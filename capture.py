@@ -1,9 +1,8 @@
 import subprocess
-import tempfile
 import threading
 from pathlib import Path
 
-from config import CLIP_DURACAO_SEG
+from config import CAPTURE_DIR, CLIP_DURACAO_SEG
 
 _locks: dict[int, threading.Lock] = {}
 _locks_guard = threading.Lock()
@@ -28,6 +27,18 @@ def finalizar_captura(camera_id):
         lock.release()
 
 
+def evento_work_dir(evento_id: int) -> Path:
+    dest = Path(CAPTURE_DIR) / str(evento_id)
+    dest.mkdir(parents=True, exist_ok=True)
+    return dest
+
+
+def cleanup_work_dir(work_dir: Path):
+    import shutil
+
+    shutil.rmtree(work_dir, ignore_errors=True)
+
+
 def _run_ffmpeg(args, timeout_sec=60):
     result = subprocess.run(
         ["ffmpeg", "-hide_banner", "-loglevel", "error", *args],
@@ -41,65 +52,56 @@ def _run_ffmpeg(args, timeout_sec=60):
     return result
 
 
-def capture_snapshot_jpeg(rtsp_url: str) -> bytes:
-    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-        path = tmp.name
+def capture_snapshot_jpeg_file(rtsp_url: str, dest_path: str | Path):
+    dest = Path(dest_path)
+    dest.parent.mkdir(parents=True, exist_ok=True)
 
-    try:
-        _run_ffmpeg(
-            [
-                "-rtsp_transport",
-                "tcp",
-                "-i",
-                rtsp_url,
-                "-frames:v",
-                "1",
-                "-update",
-                "1",
-                "-y",
-                path,
-            ],
-            timeout_sec=30,
-        )
-        data = Path(path).read_bytes()
-        if not data:
-            raise RuntimeError("ffmpeg nao retornou imagem")
-        return data
-    finally:
-        Path(path).unlink(missing_ok=True)
+    _run_ffmpeg(
+        [
+            "-rtsp_transport",
+            "tcp",
+            "-i",
+            rtsp_url,
+            "-frames:v",
+            "1",
+            "-update",
+            "1",
+            "-y",
+            str(dest),
+        ],
+        timeout_sec=30,
+    )
+    if not dest.exists() or dest.stat().st_size == 0:
+        raise RuntimeError("ffmpeg nao retornou imagem")
 
 
-def record_clip_mp4(rtsp_url: str, duration_sec: int | None = None) -> bytes:
+def record_clip_mp4_file(rtsp_url: str, dest_path: str | Path, duration_sec: int | None = None):
+    dest = Path(dest_path)
+    dest.parent.mkdir(parents=True, exist_ok=True)
     duracao = duration_sec if duration_sec and duration_sec > 0 else CLIP_DURACAO_SEG
-    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
-        path = tmp.name
-
     timeout = max(90, duracao + 60)
-    args_encode = [
-        "-rtsp_transport",
-        "tcp",
-        "-i",
-        rtsp_url,
-        "-t",
-        str(duracao),
-        "-c:v",
-        "libx264",
-        "-preset",
-        "veryfast",
-        "-crf",
-        "28",
-        "-an",
-        "-movflags",
-        "+faststart",
-        "-y",
-        path,
-    ]
 
-    try:
-        _run_ffmpeg(args_encode, timeout_sec=timeout)
-        data = Path(path).read_bytes()
-        if not data:
-            raise RuntimeError("ffmpeg nao gerou video")
-        return data
-    finally:
-        Path(path).unlink(missing_ok=True)
+    _run_ffmpeg(
+        [
+            "-rtsp_transport",
+            "tcp",
+            "-i",
+            rtsp_url,
+            "-t",
+            str(duracao),
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "28",
+            "-an",
+            "-movflags",
+            "+faststart",
+            "-y",
+            str(dest),
+        ],
+        timeout_sec=timeout,
+    )
+    if not dest.exists() or dest.stat().st_size == 0:
+        raise RuntimeError("ffmpeg nao gerou video")

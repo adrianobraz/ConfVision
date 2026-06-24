@@ -1,4 +1,5 @@
 import boto3
+from pathlib import Path
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
@@ -71,4 +72,29 @@ def upload_bytes(key: str, data: bytes, content_type: str) -> str:
             cli.put_object(**params)
         else:
             raise RuntimeError(f"Contabo upload falhou ({code}): {exc}") from exc
+    return _public_url(key)
+
+
+def upload_file(file_path, key: str, content_type: str) -> str:
+    path = Path(file_path) if not isinstance(file_path, Path) else file_path
+    if not path.exists() or path.stat().st_size == 0:
+        raise RuntimeError(f"arquivo vazio ou inexistente: {path}")
+
+    cli = _client()
+    bucket = CONTABO_S3_BUCKET or "confvision"
+    params = {
+        "Bucket": bucket,
+        "Key": key,
+        "ContentType": content_type,
+    }
+    with path.open("rb") as body:
+        try:
+            cli.put_object(**params, Body=body, ACL="public-read")
+        except ClientError as exc:
+            code = exc.response.get("Error", {}).get("Code", "")
+            if code in ("AccessControlListNotSupported", "InvalidArgument"):
+                body.seek(0)
+                cli.put_object(**params, Body=body)
+            else:
+                raise RuntimeError(f"Contabo upload falhou ({code}): {exc}") from exc
     return _public_url(key)
