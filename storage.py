@@ -1,5 +1,6 @@
 import boto3
 from botocore.config import Config
+from botocore.exceptions import ClientError
 
 from config import (
     CONTABO_S3_ACCESS_KEY,
@@ -17,7 +18,9 @@ def _enabled():
 
 def _client():
     if not _enabled():
-        raise RuntimeError("upload Contabo nao configurado no worker")
+        raise RuntimeError(
+            "upload Contabo nao configurado no worker — defina CONTABO_S3_ACCESS_KEY e CONTABO_S3_SECRET_KEY no .env do FoxPro"
+        )
     endpoint = CONTABO_S3_ENDPOINT or "https://usc1.contabostorage.com"
     return boto3.client(
         "s3",
@@ -54,11 +57,18 @@ def evento_clip_key(id_franqueado, vis_evento_id: int, seq: int) -> str:
 def upload_bytes(key: str, data: bytes, content_type: str) -> str:
     cli = _client()
     bucket = CONTABO_S3_BUCKET or "confvision"
-    cli.put_object(
-        Bucket=bucket,
-        Key=key,
-        Body=data,
-        ContentType=content_type,
-        ACL="public-read",
-    )
+    params = {
+        "Bucket": bucket,
+        "Key": key,
+        "Body": data,
+        "ContentType": content_type,
+    }
+    try:
+        cli.put_object(**params, ACL="public-read")
+    except ClientError as exc:
+        code = exc.response.get("Error", {}).get("Code", "")
+        if code in ("AccessControlListNotSupported", "InvalidArgument"):
+            cli.put_object(**params)
+        else:
+            raise RuntimeError(f"Contabo upload falhou ({code}): {exc}") from exc
     return _public_url(key)

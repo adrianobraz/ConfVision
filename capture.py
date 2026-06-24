@@ -1,8 +1,31 @@
 import subprocess
 import tempfile
+import threading
 from pathlib import Path
 
 from config import CLIP_DURACAO_SEG
+
+_locks: dict[int, threading.Lock] = {}
+_locks_guard = threading.Lock()
+
+
+def _lock_camera(camera_id) -> threading.Lock:
+    cid = int(camera_id)
+    with _locks_guard:
+        if cid not in _locks:
+            _locks[cid] = threading.Lock()
+        return _locks[cid]
+
+
+def try_iniciar_captura(camera_id) -> bool:
+    lock = _lock_camera(camera_id)
+    return lock.acquire(blocking=False)
+
+
+def finalizar_captura(camera_id):
+    lock = _lock_camera(camera_id)
+    if lock.locked():
+        lock.release()
 
 
 def _run_ffmpeg(args, timeout_sec=60):
@@ -51,16 +74,21 @@ def record_clip_mp4(rtsp_url: str, duration_sec: int | None = None) -> bytes:
     with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
         path = tmp.name
 
-    timeout = max(60, duracao + 30)
-    args_copy = [
+    timeout = max(90, duracao + 60)
+    args_encode = [
         "-rtsp_transport",
         "tcp",
         "-i",
         rtsp_url,
         "-t",
         str(duracao),
-        "-c",
-        "copy",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "28",
+        "-an",
         "-movflags",
         "+faststart",
         "-y",
@@ -68,32 +96,7 @@ def record_clip_mp4(rtsp_url: str, duration_sec: int | None = None) -> bytes:
     ]
 
     try:
-        try:
-            _run_ffmpeg(args_copy, timeout_sec=timeout)
-        except RuntimeError:
-            _run_ffmpeg(
-                [
-                    "-rtsp_transport",
-                    "tcp",
-                    "-i",
-                    rtsp_url,
-                    "-t",
-                    str(duracao),
-                    "-c:v",
-                    "libx264",
-                    "-preset",
-                    "veryfast",
-                    "-crf",
-                    "28",
-                    "-an",
-                    "-movflags",
-                    "+faststart",
-                    "-y",
-                    path,
-                ],
-                timeout_sec=timeout,
-            )
-
+        _run_ffmpeg(args_encode, timeout_sec=timeout)
         data = Path(path).read_bytes()
         if not data:
             raise RuntimeError("ffmpeg nao gerou video")

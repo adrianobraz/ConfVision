@@ -2,6 +2,7 @@ import socket
 import threading
 import time
 
+from bootstrap_check import validate_config
 from config import CLIP_DURACAO_SEG, SYNC_INTERVAL_SEC
 from detector import PersonDetector
 from event_capture import processar_deteccao
@@ -36,6 +37,7 @@ def main():
         f"[START] ConfVision worker | host={socket.gethostname()} "
         f"| clip={CLIP_DURACAO_SEG}s"
     )
+    validate_config()
     detector = PersonDetector()
     threads = {}
 
