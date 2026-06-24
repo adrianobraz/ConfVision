@@ -18,13 +18,17 @@ class EventJob:
     camera: dict[str, Any]
     confianca: float
     detected_at: float
+    snapshot_path: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        data = {
             "camera": self.camera,
             "confianca": self.confianca,
             "detected_at": self.detected_at,
         }
+        if self.snapshot_path:
+            data["snapshot_path"] = self.snapshot_path
+        return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "EventJob":
@@ -32,6 +36,7 @@ class EventJob:
             camera=data["camera"],
             confianca=float(data["confianca"]),
             detected_at=float(data.get("detected_at") or time.time()),
+            snapshot_path=data.get("snapshot_path"),
         )
 
 

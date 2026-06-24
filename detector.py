@@ -101,7 +101,7 @@ class PersonDetector:
                 agora = time.time()
                 if agora - ultimo_evento >= cooldown_sec:
                     ultimo_evento = agora
-                    on_person(best_conf)
+                    on_person(best_conf, frame.copy())
                     print(f"[EVENTO] pessoa conf={best_conf:.2f} url={rtsp_url}")
 
         cap.release()

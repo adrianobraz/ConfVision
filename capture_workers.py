@@ -31,7 +31,7 @@ def _capture_worker_loop(event_queue: EventQueue, worker_no: int):
                 f"[CAPTURE] worker={worker_no} camera={camera_id} "
                 f"conf={job.confianca:.2f} fila=ok"
             )
-            processar_deteccao(job.camera, job.confianca)
+            processar_deteccao(job.camera, job.confianca, job.snapshot_path)
         except Exception as exc:
             print(f"[ERRO] capture worker={worker_no} camera={camera_id}: {exc}")
             traceback.print_exc()

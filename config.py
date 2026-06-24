@@ -24,6 +24,7 @@ YOLO_CONF_DEFAULT = float(os.getenv("YOLO_CONF_DEFAULT", "0.5"))
 YOLO_DEVICE = os.getenv("YOLO_DEVICE", "").strip()
 
 CLIP_DURACAO_SEG = int(os.getenv("CLIP_DURACAO_SEG", "20"))
+SNAPSHOT_JPEG_QUALITY = int(os.getenv("SNAPSHOT_JPEG_QUALITY", "85"))
 CAPTURE_DIR = os.getenv("CAPTURE_DIR", "/tmp/confvision").rstrip("/")
 UPLOAD_WORKERS = int(os.getenv("UPLOAD_WORKERS", "4"))
 UPLOAD_RETRIES = int(os.getenv("UPLOAD_RETRIES", "3"))

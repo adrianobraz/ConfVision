@@ -2,11 +2,12 @@ import traceback
 from pathlib import Path
 
 from capture import (
-    capture_snapshot_jpeg_file,
     cleanup_work_dir,
     evento_work_dir,
     finalizar_captura,
-    record_clip_mp4_file,
+    install_detection_snapshot,
+    start_clip_capture,
+    start_parallel_capture,
     try_iniciar_captura,
 )
 from camera_state import is_camera_active
@@ -17,7 +18,7 @@ from urls import rtsp_url
 from xano_client import create_evento, post_evento_clip, put_evento
 
 
-def processar_deteccao(camera, confianca: float):
+def processar_deteccao(camera, confianca: float, snapshot_source: str | None = None):
     camera_id = camera.get("id")
     if not is_camera_active(camera_id):
         print(f"[CAPTURA] camera={camera_id} inativa, evento ignorado")
@@ -30,9 +31,13 @@ def processar_deteccao(camera, confianca: float):
     work_dir: Path | None = None
     snapshot_future = None
     clip_future = None
+    t_clip = None
+    clip_errors: dict[str, Exception] = {}
 
     if not try_iniciar_captura(camera_id):
         print(f"[CAPTURA] camera={camera_id} captura ja em andamento, evento ignorado")
+        if snapshot_source:
+            Path(snapshot_source).unlink(missing_ok=True)
         return
 
     try:
@@ -45,26 +50,40 @@ def processar_deteccao(camera, confianca: float):
         snapshot_path = work_dir / "snapshot.jpg"
         clip_path = work_dir / "clip_001.mp4"
 
-        print(
-            f"[CAPTURA] evento id={evento_id} camera={camera_id} rtsp={rtsp} "
-            f"duracao={CLIP_DURACAO_SEG}s dir={work_dir}"
-        )
-
-        capture_snapshot_jpeg_file(rtsp, snapshot_path)
-        print(f"[CAPTURA] snapshot local ok evento={evento_id} bytes={snapshot_path.stat().st_size}")
-
-        snapshot_key = evento_snapshot_key(id_franqueado, evento_id)
-        snapshot_future = submit_upload(snapshot_path, snapshot_key, "image/jpeg")
-
-        record_clip_mp4_file(rtsp, clip_path, CLIP_DURACAO_SEG)
-        print(f"[CAPTURA] clip local ok evento={evento_id} bytes={clip_path.stat().st_size}")
-
-        clip_key = evento_clip_key(id_franqueado, evento_id, 1)
-        clip_future = submit_upload(clip_path, clip_key, "video/mp4")
+        used_detection_frame = install_detection_snapshot(snapshot_path, snapshot_source)
+        if used_detection_frame:
+            print(
+                f"[CAPTURA] evento id={evento_id} camera={camera_id} "
+                f"snapshot=frame_yolo bytes={snapshot_path.stat().st_size}"
+            )
+            snapshot_key = evento_snapshot_key(id_franqueado, evento_id)
+            snapshot_future = submit_upload(snapshot_path, snapshot_key, "image/jpeg")
+            t_clip, clip_errors = start_clip_capture(rtsp, clip_path, CLIP_DURACAO_SEG)
+            print(
+                f"[CAPTURA] evento id={evento_id} gravando clip {CLIP_DURACAO_SEG}s "
+                f"(snapshot ja subindo)"
+            )
+        else:
+            print(
+                f"[CAPTURA] evento id={evento_id} camera={camera_id} rtsp={rtsp} "
+                f"fallback snapshot+clip paralelo ffmpeg"
+            )
+            t_snapshot, t_clip, capture_errors = start_parallel_capture(
+                rtsp, snapshot_path, clip_path, CLIP_DURACAO_SEG
+            )
+            t_snapshot.join()
+            if "snapshot" in capture_errors:
+                raise capture_errors["snapshot"]
+            print(f"[CAPTURA] snapshot local ok evento={evento_id} bytes={snapshot_path.stat().st_size}")
+            snapshot_key = evento_snapshot_key(id_franqueado, evento_id)
+            snapshot_future = submit_upload(snapshot_path, snapshot_key, "image/jpeg")
+            clip_errors = capture_errors
 
     except Exception as exc:
         print(f"[ERRO] captura local evento camera={camera_id} evento={evento_id}: {exc}")
         traceback.print_exc()
+        if t_clip is not None and t_clip.is_alive():
+            t_clip.join()
         if snapshot_future:
             try:
                 snapshot_future.result(timeout=120)
@@ -85,6 +104,25 @@ def processar_deteccao(camera, confianca: float):
         snapshot_url = snapshot_future.result()
         print(f"[CAPTURA] snapshot contabo ok evento={evento_id} url={snapshot_url}")
 
+        put_evento(
+            evento_id,
+            {
+                "snapshot_url": snapshot_url,
+                "status": "capturando",
+                "clip_count": 0,
+            },
+            base=evento,
+        )
+        print(f"[CAPTURA] evento={evento_id} snapshot visivel (capturando video)")
+
+        if t_clip is not None:
+            t_clip.join()
+        if "clip" in clip_errors:
+            raise clip_errors["clip"]
+        print(f"[CAPTURA] clip local ok evento={evento_id} bytes={clip_path.stat().st_size}")
+
+        clip_key = evento_clip_key(id_franqueado, evento_id, 1)
+        clip_future = submit_upload(clip_path, clip_key, "video/mp4")
         video_url = clip_future.result()
         print(f"[CAPTURA] clip contabo ok evento={evento_id} url={video_url}")
 

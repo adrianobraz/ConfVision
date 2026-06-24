@@ -1,6 +1,7 @@
 import socket
 import threading
 import time
+from pathlib import Path
 
 from bootstrap_check import validate_config
 from camera_state import is_camera_active, set_active_camera_ids
@@ -14,6 +15,7 @@ from config import (
     WORKER_SHARD_INDEX,
     WORKER_SHARD_TOTAL,
 )
+from capture import write_detection_snapshot
 from detector import PersonDetector
 from event_queue import EventJob, get_event_queue
 from sharding import shard_label
@@ -27,12 +29,25 @@ def loop_camera(camera, detector: PersonDetector, event_queue):
     cooldown = int(camera.get("cooldown_seg") or 30)
     url = rtsp_url(camera_id)
 
-    def on_person(conf):
+    def on_person(conf, frame):
         if not is_camera_active(camera_id):
             return
-        job = EventJob(camera=camera, confianca=conf, detected_at=time.time())
+        snapshot_path = None
+        try:
+            snapshot_path = str(write_detection_snapshot(camera_id, frame))
+            print(f"[EVENTO] snapshot instantaneo camera={camera_id} path={snapshot_path}")
+        except Exception as exc:
+            print(f"[WARN] snapshot instantaneo camera={camera_id} falhou: {exc}")
+        job = EventJob(
+            camera=camera,
+            confianca=conf,
+            detected_at=time.time(),
+            snapshot_path=snapshot_path,
+        )
         if not event_queue.publish(job):
             print(f"[FILA] cheia — evento descartado camera={camera_id} conf={conf:.2f}")
+            if snapshot_path:
+                Path(snapshot_path).unlink(missing_ok=True)
 
     def should_continue():
         return is_camera_active(camera_id)
