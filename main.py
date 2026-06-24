@@ -2,10 +2,11 @@ import socket
 import threading
 import time
 
-from config import SYNC_INTERVAL_SEC
+from config import CLIP_DURACAO_SEG, SYNC_INTERVAL_SEC
 from detector import PersonDetector
+from event_capture import processar_deteccao
 from urls import rtsp_url, stream_path
-from xano_client import get_cameras_ativas, post_evento, post_ping
+from xano_client import get_cameras_ativas, post_ping
 
 
 def loop_camera(camera, detector: PersonDetector):
@@ -15,10 +16,12 @@ def loop_camera(camera, detector: PersonDetector):
     url = rtsp_url(camera_id)
 
     def on_person(conf):
-        try:
-            post_evento(camera, conf)
-        except Exception as exc:
-            print(f"[ERRO] post_evento camera {camera_id}: {exc}")
+        threading.Thread(
+            target=processar_deteccao,
+            args=(camera, conf),
+            daemon=True,
+            name=f"capture-{camera_id}",
+        ).start()
 
     while True:
         try:
@@ -29,7 +32,10 @@ def loop_camera(camera, detector: PersonDetector):
 
 
 def main():
-    print(f"[START] ConfVision worker | host={socket.gethostname()}")
+    print(
+        f"[START] ConfVision worker | host={socket.gethostname()} "
+        f"| clip={CLIP_DURACAO_SEG}s"
+    )
     detector = PersonDetector()
     threads = {}
 
