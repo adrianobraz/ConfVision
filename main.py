@@ -15,7 +15,7 @@ from config import (
     WORKER_SHARD_INDEX,
     WORKER_SHARD_TOTAL,
 )
-from capture import write_detection_snapshot
+from capture import cancel_camera_captures, write_detection_snapshot
 from detector import PersonDetector
 from event_queue import EventJob, get_event_queue
 from sharding import shard_label
@@ -96,11 +96,13 @@ def main():
 
             active_set = set(active_ids)
             for camera_id, thread in list(threads.items()):
-                if camera_id not in active_set and thread.is_alive():
-                    print(
-                        f"[SYNC] camera id={camera_id} desativada — "
-                        f"aguardando thread encerrar"
-                    )
+                if camera_id not in active_set:
+                    cancel_camera_captures(camera_id)
+                    if thread.is_alive():
+                        print(
+                            f"[SYNC] camera id={camera_id} desativada — "
+                            f"aguardando thread encerrar"
+                        )
                 elif not thread.is_alive():
                     del threads[camera_id]
 

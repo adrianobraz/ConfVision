@@ -9,6 +9,12 @@ from config import CAPTURE_DIR, CLIP_DURACAO_SEG, SNAPSHOT_JPEG_QUALITY
 
 _locks: dict[int, threading.Lock] = {}
 _locks_guard = threading.Lock()
+_clip_procs: dict[int, subprocess.Popen] = {}
+_clip_procs_guard = threading.Lock()
+
+
+class CaptureCancelled(RuntimeError):
+    pass
 
 
 def _lock_camera(camera_id) -> threading.Lock:
@@ -28,6 +34,22 @@ def finalizar_captura(camera_id):
     lock = _lock_camera(camera_id)
     if lock.locked():
         lock.release()
+
+
+def cancel_camera_captures(camera_id):
+    """Encerra ffmpeg de clip da camera (ex.: desativada no cadastro)."""
+    cid = int(camera_id)
+    with _clip_procs_guard:
+        proc = _clip_procs.pop(cid, None)
+    if proc is None or proc.poll() is not None:
+        return
+    print(f"[CAPTURA] cancelando ffmpeg camera={cid}")
+    proc.terminate()
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait(timeout=3)
 
 
 def evento_work_dir(evento_id: int) -> Path:
@@ -76,12 +98,13 @@ def start_clip_capture(
     rtsp_url: str,
     clip_path: str | Path,
     duration_sec: int | None = None,
+    camera_id=None,
 ) -> tuple[threading.Thread, dict[str, Exception]]:
     errors: dict[str, Exception] = {}
 
     def _clip():
         try:
-            record_clip_mp4_file(rtsp_url, clip_path, duration_sec)
+            record_clip_mp4_file(rtsp_url, clip_path, duration_sec, camera_id=camera_id)
         except Exception as exc:
             errors["clip"] = exc
 
@@ -126,34 +149,61 @@ def capture_snapshot_jpeg_file(rtsp_url: str, dest_path: str | Path):
         raise RuntimeError("ffmpeg nao retornou imagem")
 
 
-def record_clip_mp4_file(rtsp_url: str, dest_path: str | Path, duration_sec: int | None = None):
+def record_clip_mp4_file(
+    rtsp_url: str,
+    dest_path: str | Path,
+    duration_sec: int | None = None,
+    camera_id=None,
+):
     dest = Path(dest_path)
     dest.parent.mkdir(parents=True, exist_ok=True)
     duracao = duration_sec if duration_sec and duration_sec > 0 else CLIP_DURACAO_SEG
     timeout = max(90, duracao + 60)
-
-    _run_ffmpeg(
-        [
-            "-rtsp_transport",
-            "tcp",
-            "-i",
-            rtsp_url,
-            "-t",
-            str(duracao),
-            "-c:v",
-            "libx264",
-            "-preset",
-            "veryfast",
-            "-crf",
-            "28",
-            "-an",
-            "-movflags",
-            "+faststart",
-            "-y",
-            str(dest),
-        ],
-        timeout_sec=timeout,
-    )
+    cmd = [
+        "ffmpeg",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-rtsp_transport",
+        "tcp",
+        "-i",
+        rtsp_url,
+        "-t",
+        str(duracao),
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "28",
+        "-an",
+        "-movflags",
+        "+faststart",
+        "-y",
+        str(dest),
+    ]
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    cid = int(camera_id) if camera_id is not None else None
+    if cid is not None:
+        with _clip_procs_guard:
+            _clip_procs[cid] = proc
+    try:
+        try:
+            _, stderr = proc.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.communicate(timeout=5)
+            raise RuntimeError("ffmpeg timeout na gravacao do clip")
+        if proc.returncode != 0:
+            msg = (stderr or "").strip()
+            if proc.returncode < 0:
+                raise CaptureCancelled(msg or "gravacao cancelada")
+            raise RuntimeError(msg or "ffmpeg falhou")
+    finally:
+        if cid is not None:
+            with _clip_procs_guard:
+                if _clip_procs.get(cid) is proc:
+                    _clip_procs.pop(cid, None)
     if not dest.exists() or dest.stat().st_size == 0:
         raise RuntimeError("ffmpeg nao gerou video")
 
@@ -163,6 +213,7 @@ def start_parallel_capture(
     snapshot_path: str | Path,
     clip_path: str | Path,
     duration_sec: int | None = None,
+    camera_id=None,
 ) -> tuple[threading.Thread, threading.Thread, dict[str, Exception]]:
     """Inicia snapshot e gravacao do clip em paralelo (2 ffmpeg no mesmo RTSP)."""
     errors: dict[str, Exception] = {}
@@ -175,7 +226,7 @@ def start_parallel_capture(
 
     def _clip():
         try:
-            record_clip_mp4_file(rtsp_url, clip_path, duration_sec)
+            record_clip_mp4_file(rtsp_url, clip_path, duration_sec, camera_id=camera_id)
         except Exception as exc:
             errors["clip"] = exc
 

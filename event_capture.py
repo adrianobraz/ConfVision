@@ -1,7 +1,10 @@
+import threading
 import traceback
 from pathlib import Path
 
 from capture import (
+    CaptureCancelled,
+    cancel_camera_captures,
     cleanup_work_dir,
     evento_work_dir,
     finalizar_captura,
@@ -18,10 +21,16 @@ from urls import rtsp_url
 from xano_client import create_evento, post_evento_clip, put_evento
 
 
+def _discard_snapshot(snapshot_source: str | None):
+    if snapshot_source:
+        Path(snapshot_source).unlink(missing_ok=True)
+
+
 def processar_deteccao(camera, confianca: float, snapshot_source: str | None = None):
     camera_id = camera.get("id")
     if not is_camera_active(camera_id):
         print(f"[CAPTURA] camera={camera_id} inativa, evento ignorado")
+        _discard_snapshot(snapshot_source)
         return
 
     id_franqueado = camera.get("id_franqueado")
@@ -36,11 +45,15 @@ def processar_deteccao(camera, confianca: float, snapshot_source: str | None = N
 
     if not try_iniciar_captura(camera_id):
         print(f"[CAPTURA] camera={camera_id} captura ja em andamento, evento ignorado")
-        if snapshot_source:
-            Path(snapshot_source).unlink(missing_ok=True)
+        _discard_snapshot(snapshot_source)
         return
 
     try:
+        if not is_camera_active(camera_id):
+            print(f"[CAPTURA] camera={camera_id} desativada antes do evento, ignorado")
+            _discard_snapshot(snapshot_source)
+            return
+
         evento = create_evento(camera, confianca, status="capturando")
         evento_id = _evento_id(evento)
         if not evento_id:
@@ -58,7 +71,9 @@ def processar_deteccao(camera, confianca: float, snapshot_source: str | None = N
             )
             snapshot_key = evento_snapshot_key(id_franqueado, evento_id)
             snapshot_future = submit_upload(snapshot_path, snapshot_key, "image/jpeg")
-            t_clip, clip_errors = start_clip_capture(rtsp, clip_path, CLIP_DURACAO_SEG)
+            t_clip, clip_errors = start_clip_capture(
+                rtsp, clip_path, CLIP_DURACAO_SEG, camera_id=camera_id
+            )
             print(
                 f"[CAPTURA] evento id={evento_id} gravando clip {CLIP_DURACAO_SEG}s "
                 f"(snapshot ja subindo)"
@@ -69,7 +84,7 @@ def processar_deteccao(camera, confianca: float, snapshot_source: str | None = N
                 f"fallback snapshot+clip paralelo ffmpeg"
             )
             t_snapshot, t_clip, capture_errors = start_parallel_capture(
-                rtsp, snapshot_path, clip_path, CLIP_DURACAO_SEG
+                rtsp, snapshot_path, clip_path, CLIP_DURACAO_SEG, camera_id=camera_id
             )
             t_snapshot.join()
             if "snapshot" in capture_errors:
@@ -101,6 +116,17 @@ def processar_deteccao(camera, confianca: float, snapshot_source: str | None = N
         finalizar_captura(camera_id)
 
     try:
+        if not is_camera_active(camera_id):
+            cancel_camera_captures(camera_id)
+            if t_clip is not None and t_clip.is_alive():
+                t_clip.join(timeout=10)
+            if evento_id:
+                put_evento(evento_id, {"status": "erro", "clip_count": 0}, base=evento)
+            print(f"[CAPTURA] camera={camera_id} desativada — evento={evento_id} cancelado")
+            if work_dir:
+                cleanup_work_dir(work_dir)
+            return
+
         snapshot_url = snapshot_future.result()
         print(f"[CAPTURA] snapshot contabo ok evento={evento_id} url={snapshot_url}")
 
@@ -115,10 +141,27 @@ def processar_deteccao(camera, confianca: float, snapshot_source: str | None = N
         )
         print(f"[CAPTURA] evento={evento_id} snapshot visivel (capturando video)")
 
+        if not is_camera_active(camera_id):
+            cancel_camera_captures(camera_id)
+
         if t_clip is not None:
             t_clip.join()
         if "clip" in clip_errors:
-            raise clip_errors["clip"]
+            err = clip_errors["clip"]
+            if isinstance(err, CaptureCancelled) or not is_camera_active(camera_id):
+                put_evento(evento_id, {"status": "erro", "clip_count": 0}, base=evento)
+                print(f"[CAPTURA] camera={camera_id} desativada — clip evento={evento_id} cancelado")
+                if work_dir:
+                    cleanup_work_dir(work_dir)
+                return
+            raise err
+        if not is_camera_active(camera_id):
+            put_evento(evento_id, {"status": "erro", "clip_count": 0}, base=evento)
+            print(f"[CAPTURA] camera={camera_id} desativada apos clip — evento={evento_id} erro")
+            if work_dir:
+                cleanup_work_dir(work_dir)
+            return
+
         print(f"[CAPTURA] clip local ok evento={evento_id} bytes={clip_path.stat().st_size}")
 
         clip_key = evento_clip_key(id_franqueado, evento_id, 1)

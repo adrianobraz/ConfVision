@@ -1,6 +1,8 @@
 import threading
 import traceback
+from pathlib import Path
 
+from camera_state import is_camera_active
 from event_capture import processar_deteccao
 from event_queue import EventJob, EventQueue
 
@@ -26,6 +28,11 @@ def _capture_worker_loop(event_queue: EventQueue, worker_no: int):
         if job is None:
             continue
         camera_id = job.camera.get("id")
+        if not is_camera_active(camera_id):
+            print(f"[CAPTURA] worker={worker_no} camera={camera_id} inativa — job descartado")
+            if job.snapshot_path:
+                Path(job.snapshot_path).unlink(missing_ok=True)
+            continue
         try:
             print(
                 f"[CAPTURE] worker={worker_no} camera={camera_id} "
