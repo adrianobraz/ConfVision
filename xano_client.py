@@ -24,9 +24,12 @@ def _as_list(data):
 
 def get_areas_ativas():
     url = f"{XANO_BASE_URL}/vis_camera_area_query_ativas"
-    params = query_params()
-    response = requests.get(url, params=params, timeout=30)
-    return _as_list(_parse_json(response))
+    try:
+        response = requests.get(url, timeout=30)
+        return _as_list(_parse_json(response))
+    except Exception as exc:
+        print(f"[WARN] vis_camera_area_query_ativas falhou: {exc}")
+        return []
 
 
 def _attach_areas(cameras, areas):
