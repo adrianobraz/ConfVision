@@ -17,6 +17,7 @@ from config import (
 )
 from area_utils import areas_ativas
 from capture import cancel_camera_captures, write_detection_snapshot
+from device_armed import is_dispositivo_armado, prefetch_armado
 from detector import PersonDetector
 from event_queue import EventJob, get_event_queue
 from sharding import shard_label
@@ -38,6 +39,14 @@ def loop_camera(camera, detector: PersonDetector, event_queue):
     def on_person(conf, frame, area=None):
         if not is_camera_active(camera_id):
             return
+        if camera.get("somente_armado"):
+            id_disp = camera.get("id_dispositivo")
+            if not is_dispositivo_armado(id_disp):
+                print(
+                    f"[ARMADO] camera={camera_id} dispositivo={id_disp} "
+                    f"desarmado ou indisponivel — evento ignorado"
+                )
+                return
         snapshot_path = None
         try:
             snapshot_path = str(write_detection_snapshot(camera_id, frame))
@@ -93,8 +102,18 @@ def main():
         try:
             cameras = get_cameras_ativas()
             cameras_com_area = [
-                c for c in cameras if areas_ativas(c.get("areas"))
+                c
+                for c in cameras
+                if areas_ativas(c.get("areas"))
+                and c.get("captura_analitico", True) is not False
             ]
+            ids_somente_armado = {
+                str(c.get("id_dispositivo")).strip()
+                for c in cameras_com_area
+                if c.get("somente_armado") and c.get("id_dispositivo")
+            }
+            if ids_somente_armado:
+                prefetch_armado(ids_somente_armado)
             active_ids = [c["id"] for c in cameras_com_area]
             set_active_camera_ids(active_ids)
             post_ping(

@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 XANO_BASE_URL = os.getenv("XANO_BASE_URL", "").rstrip("/")
+CONFMONIT_API_URL = os.getenv("CONFMONIT_API_URL", "").rstrip("/")
+ARMADO_CACHE_TTL_SEC = int(os.getenv("ARMADO_CACHE_TTL_SEC", "20"))
 MEDIAMTX_RTSP_BASE = os.getenv(
     "MEDIAMTX_RTSP_BASE", "rtsp://foxpro_confvision:8554"
 ).rstrip("/")
