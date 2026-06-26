@@ -55,6 +55,8 @@ CONTABO_S3_TENANT_ID = os.getenv("CONTABO_S3_TENANT_ID", "").strip()
 MEDIAMTX_API_BASE = os.getenv(
     "MEDIAMTX_API_BASE", "http://31.97.173.119:9997"
 ).rstrip("/")
+MEDIAMTX_API_USER = os.getenv("MEDIAMTX_API_USER", "").strip()
+MEDIAMTX_API_PASS = os.getenv("MEDIAMTX_API_PASS", "").strip()
 DVR_RECORD_DIR = os.getenv("DVR_RECORD_DIR", "/recordings").rstrip("/")
 DVR_SYNC_INTERVAL_SEC = int(os.getenv("DVR_SYNC_INTERVAL_SEC", "30"))
 DVR_SEGMENTO_MINUTOS_DEFAULT = int(os.getenv("DVR_SEGMENTO_MINUTOS_DEFAULT", "5"))

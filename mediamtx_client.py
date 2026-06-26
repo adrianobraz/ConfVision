@@ -3,8 +3,28 @@ from urllib.parse import quote
 
 import requests
 
-from config import DVR_RECORD_DIR, DVR_SEGMENTO_MINUTOS_DEFAULT, MEDIAMTX_API_BASE
+from config import (
+    DVR_RECORD_DIR,
+    DVR_SEGMENTO_MINUTOS_DEFAULT,
+    MEDIAMTX_API_BASE,
+    MEDIAMTX_API_PASS,
+    MEDIAMTX_API_USER,
+)
 from urls import stream_path
+
+
+def _api_auth():
+    if MEDIAMTX_API_USER and MEDIAMTX_API_PASS:
+        return (MEDIAMTX_API_USER, MEDIAMTX_API_PASS)
+    return None
+
+
+def _api_request(method: str, url: str, **kwargs):
+    auth = _api_auth()
+    if auth:
+        kwargs["auth"] = auth
+    response = requests.request(method, url, **kwargs)
+    return response
 
 
 def _path_url(path_name: str) -> str:
@@ -29,18 +49,18 @@ def record_config(segmento_minutos: int) -> dict[str, Any]:
 def enable_record(camera_id: int, segmento_minutos: int = DVR_SEGMENTO_MINUTOS_DEFAULT):
     path_name = stream_path(camera_id)
     payload = record_config(segmento_minutos)
-    response = requests.patch(_path_url(path_name), json=payload, timeout=10)
+    response = _api_request("PATCH", _path_url(path_name), json=payload, timeout=10)
     if response.status_code == 404:
         add_url = f"{MEDIAMTX_API_BASE}/v3/config/paths/add/{quote(path_name, safe='')}"
-        response = requests.post(add_url, json=payload, timeout=10)
+        response = _api_request("POST", add_url, json=payload, timeout=10)
     response.raise_for_status()
     return response.json() if response.content else {}
 
 
 def disable_record(camera_id: int):
     path_name = stream_path(camera_id)
-    response = requests.patch(
-        _path_url(path_name), json={"record": False}, timeout=10
+    response = _api_request(
+        "PATCH", _path_url(path_name), json={"record": False}, timeout=10
     )
     if response.status_code == 404:
         return
