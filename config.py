@@ -63,4 +63,10 @@ DVR_SEGMENTO_MINUTOS_DEFAULT = int(os.getenv("DVR_SEGMENTO_MINUTOS_DEFAULT", "5"
 DVR_STABLE_SEC = int(os.getenv("DVR_STABLE_SEC", "3"))
 DVR_STORAGE_CACHE_TTL_SEC = int(os.getenv("DVR_STORAGE_CACHE_TTL_SEC", "300"))
 DVR_UPLOAD_RETRIES = int(os.getenv("DVR_UPLOAD_RETRIES", "3"))
-DVR_WORKER_VERSION = os.getenv("DVR_WORKER_VERSION", "0.1.0")
+DVR_WORKER_VERSION = os.getenv("DVR_WORKER_VERSION", "0.1.1")
+DVR_MTX_SYNC_API = os.getenv("DVR_MTX_SYNC_API", "true").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)

@@ -3,6 +3,7 @@ import time
 from typing import Any
 
 from config import (
+    DVR_MTX_SYNC_API,
     DVR_RECORD_DIR,
     DVR_SYNC_INTERVAL_SEC,
     DVR_WORKER_VERSION,
@@ -31,9 +32,11 @@ def _validate_dvr_config() -> bool:
         print(f"[DVR] AVISO: nao foi possivel criar DVR_RECORD_DIR={DVR_RECORD_DIR}: {exc}")
 
     if ok:
+        mtx_sync = "api-on-change" if DVR_MTX_SYNC_API else "disabled"
         print(
             f"[DVR] OK | xano={XANO_BASE_URL} | mtx_api={MEDIAMTX_API_BASE} "
-            f"| record_dir={DVR_RECORD_DIR} | sync={DVR_SYNC_INTERVAL_SEC}s"
+            f"| record_dir={DVR_RECORD_DIR} | sync={DVR_SYNC_INTERVAL_SEC}s "
+            f"| mtx_sync={mtx_sync}"
         )
     return ok
 
@@ -47,7 +50,7 @@ def main():
         raise SystemExit(1)
 
     cameras_cache: list[dict[str, Any]] = []
-    active_ids: set[int] = set()
+    record_state: dict[int, int] = {}
 
     def get_cameras():
         return cameras_cache
@@ -59,7 +62,7 @@ def main():
         try:
             cameras = get_cameras_gravacao_ativas()
             cameras_cache = cameras
-            active_ids = sync_record_paths(cameras, previous_ids=active_ids)
+            record_state = sync_record_paths(cameras, previous=record_state)
             post_ping(
                 len(cameras),
                 extra={

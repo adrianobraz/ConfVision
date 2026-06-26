@@ -4,6 +4,7 @@ from urllib.parse import quote
 import requests
 
 from config import (
+    DVR_MTX_SYNC_API,
     DVR_RECORD_DIR,
     DVR_SEGMENTO_MINUTOS_DEFAULT,
     MEDIAMTX_API_BASE,
@@ -11,6 +12,9 @@ from config import (
     MEDIAMTX_API_USER,
 )
 from urls import stream_path
+
+# id -> segmento_minutos (estado sincronizado com MediaMTX)
+RecordState = dict[int, int]
 
 
 def _api_auth():
@@ -69,13 +73,18 @@ def disable_record(camera_id: int):
 
 def sync_record_paths(
     cameras: list[dict[str, Any]],
-    previous_ids: Optional[set[int]] = None,
-) -> set[int]:
-    active_ids: set[int] = set()
-    for camera in cameras:
-        camera_id = int(camera["id"])
-        active_ids.add(camera_id)
-        segmento = int(camera.get("segmento_minutos") or DVR_SEGMENTO_MINUTOS_DEFAULT)
+    previous: Optional[RecordState] = None,
+) -> RecordState:
+    """Liga/desliga record via API apenas quando a lista de cameras mudar."""
+    if not DVR_MTX_SYNC_API:
+        return _build_state(cameras)
+
+    prev = previous or {}
+    current = _build_state(cameras)
+
+    for camera_id, segmento in current.items():
+        if prev.get(camera_id) == segmento:
+            continue
         try:
             enable_record(camera_id, segmento)
             print(
@@ -85,12 +94,20 @@ def sync_record_paths(
         except Exception as exc:
             print(f"[MTX] ERRO record ON camera={camera_id}: {exc}")
 
-    if previous_ids:
-        for camera_id in previous_ids - active_ids:
-            try:
-                disable_record(camera_id)
-                print(f"[MTX] record OFF camera={camera_id}")
-            except Exception as exc:
-                print(f"[MTX] ERRO record OFF camera={camera_id}: {exc}")
+    for camera_id in prev.keys() - current.keys():
+        try:
+            disable_record(camera_id)
+            print(f"[MTX] record OFF camera={camera_id}")
+        except Exception as exc:
+            print(f"[MTX] ERRO record OFF camera={camera_id}: {exc}")
 
-    return active_ids
+    return current
+
+
+def _build_state(cameras: list[dict[str, Any]]) -> RecordState:
+    state: RecordState = {}
+    for camera in cameras:
+        camera_id = int(camera["id"])
+        segmento = int(camera.get("segmento_minutos") or DVR_SEGMENTO_MINUTOS_DEFAULT)
+        state[camera_id] = segmento
+    return state
