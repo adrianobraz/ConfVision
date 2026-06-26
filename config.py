@@ -50,3 +50,15 @@ CONTABO_S3_ENDPOINT = os.getenv("CONTABO_S3_ENDPOINT", "https://usc1.contabostor
 CONTABO_S3_BUCKET = os.getenv("CONTABO_S3_BUCKET", "confvision")
 CONTABO_S3_REGION = os.getenv("CONTABO_S3_REGION", "us-east-1")
 CONTABO_S3_TENANT_ID = os.getenv("CONTABO_S3_TENANT_ID", "").strip()
+
+# DVR — gravacao continua (MediaMTX record + upload S3)
+MEDIAMTX_API_BASE = os.getenv(
+    "MEDIAMTX_API_BASE", "http://31.97.173.119:9997"
+).rstrip("/")
+DVR_RECORD_DIR = os.getenv("DVR_RECORD_DIR", "/recordings").rstrip("/")
+DVR_SYNC_INTERVAL_SEC = int(os.getenv("DVR_SYNC_INTERVAL_SEC", "30"))
+DVR_SEGMENTO_MINUTOS_DEFAULT = int(os.getenv("DVR_SEGMENTO_MINUTOS_DEFAULT", "5"))
+DVR_STABLE_SEC = int(os.getenv("DVR_STABLE_SEC", "3"))
+DVR_STORAGE_CACHE_TTL_SEC = int(os.getenv("DVR_STORAGE_CACHE_TTL_SEC", "300"))
+DVR_UPLOAD_RETRIES = int(os.getenv("DVR_UPLOAD_RETRIES", "3"))
+DVR_WORKER_VERSION = os.getenv("DVR_WORKER_VERSION", "0.1.0")

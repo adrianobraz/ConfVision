@@ -148,3 +148,24 @@ def post_ping(cameras_ativas: int, extra: Optional[dict[str, Any]] = None):
 def post_evento(camera, confianca, tipo="humano"):
     """Compatibilidade — preferir create_evento + captura."""
     return create_evento(camera, confianca, tipo=tipo, status="capturando")
+
+
+def get_cameras_gravacao_ativas():
+    url = f"{XANO_BASE_URL}/vis_camera_query_gravacao_ativas"
+    params = query_params()
+    response = requests.get(url, params=params, timeout=30)
+    return _as_list(_parse_json(response))
+
+
+def get_gravacao_storage_credenciais(id_franqueado: str):
+    url = f"{XANO_BASE_URL}/vis_gravacao_storage_credenciais_by_franqueado"
+    response = requests.get(
+        url, params={"id_franqueado": id_franqueado}, timeout=15
+    )
+    return _parse_json(response)
+
+
+def post_gravacao_segmento(payload: dict[str, Any]):
+    url = f"{XANO_BASE_URL}/vis_gravacao_segmento"
+    response = requests.post(url, json=payload, timeout=30)
+    return _parse_json(response)
