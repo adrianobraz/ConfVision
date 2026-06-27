@@ -70,3 +70,16 @@ DVR_MTX_SYNC_API = os.getenv("DVR_MTX_SYNC_API", "true").strip().lower() in (
     "yes",
     "on",
 )
+
+# Gravacao por movimento (worker separado: python -u motion_main.py)
+MOTION_SYNC_INTERVAL_SEC = int(os.getenv("MOTION_SYNC_INTERVAL_SEC", "30"))
+MOTION_WORKER_VERSION = os.getenv("MOTION_WORKER_VERSION", "0.1.0")
+MOTION_RECORD_DIR = os.getenv("MOTION_RECORD_DIR", "/tmp/confvision/motion").rstrip("/")
+MOTION_CLIP_MAX_SEC = int(os.getenv("MOTION_CLIP_MAX_SEC", "300"))
+MOTION_POST_ROLL_SEC = int(os.getenv("MOTION_POST_ROLL_SEC", "5"))
+MOTION_FRAME_SKIP = int(os.getenv("MOTION_FRAME_SKIP", "3"))
+MOTION_MIN_AREA = int(os.getenv("MOTION_MIN_AREA", "1500"))
+MOTION_MOG2_HISTORY = int(os.getenv("MOTION_MOG2_HISTORY", "300"))
+MOTION_MOG2_THRESHOLD = int(os.getenv("MOTION_MOG2_THRESHOLD", "25"))
+MOTION_RECONNECT_SEC = int(os.getenv("MOTION_RECONNECT_SEC", "5"))
+MOTION_ANALYSIS_WIDTH = int(os.getenv("MOTION_ANALYSIS_WIDTH", "640"))

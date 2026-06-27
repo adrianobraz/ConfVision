@@ -31,6 +31,9 @@ def process_segment_file(
     file_path: Path,
     camera: dict[str, Any],
     segmento_minutos: int = DVR_SEGMENTO_MINUTOS_DEFAULT,
+    tipo: str = "continua",
+    inicio_em: Optional[datetime] = None,
+    fim_em: Optional[datetime] = None,
 ) -> bool:
     camera_id = int(camera["id"])
     id_franqueado = str(camera.get("id_franqueado") or "").strip()
@@ -47,9 +50,17 @@ def process_segment_file(
         return False
 
     segmento = int(segmento_minutos or DVR_SEGMENTO_MINUTOS_DEFAULT)
-    inicio = _parse_inicio(file_path.name, segmento)
-    fim = inicio + timedelta(minutes=segmento)
-    duracao_seg = segmento * 60
+    if inicio_em is not None:
+        inicio = inicio_em if inicio_em.tzinfo else inicio_em.replace(tzinfo=timezone.utc)
+    else:
+        inicio = _parse_inicio(file_path.name, segmento)
+
+    if fim_em is not None:
+        fim = fim_em if fim_em.tzinfo else fim_em.replace(tzinfo=timezone.utc)
+        duracao_seg = max(1, int((fim - inicio).total_seconds()))
+    else:
+        fim = inicio + timedelta(minutes=segmento)
+        duracao_seg = segmento * 60
 
     storage = get_storage_config(id_franqueado)
     last_exc: Optional[Exception] = None
@@ -84,6 +95,7 @@ def process_segment_file(
         "s3_url": s3_url,
         "tamanho_bytes": size,
         "status": "disponivel",
+        "tipo": tipo or "continua",
         "uploaded_em": datetime.now(timezone.utc).isoformat(),
     }
 

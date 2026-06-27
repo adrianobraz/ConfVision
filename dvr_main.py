@@ -13,6 +13,7 @@ from config import (
 )
 from dvr_watcher import DvrWatcher
 from mediamtx_client import sync_record_paths
+from sharding import filter_gravacao_cameras
 from xano_client import get_cameras_gravacao_ativas, post_ping
 
 
@@ -60,7 +61,9 @@ def main():
 
     while True:
         try:
-            cameras = get_cameras_gravacao_ativas()
+            cameras = filter_gravacao_cameras(
+                get_cameras_gravacao_ativas(), motion=False
+            )
             cameras_cache = cameras
             record_state = sync_record_paths(cameras, previous=record_state)
             post_ping(

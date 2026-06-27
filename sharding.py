@@ -55,3 +55,33 @@ def query_params() -> dict:
     if SHARD_MODE == "worker_id" and WORKER_ID:
         return {"worker_id": WORKER_ID}
     return {}
+
+
+def is_motion_camera(camera: dict) -> bool:
+    if camera.get("grava_movimento"):
+        return True
+    return str(camera.get("modo_gravacao") or "").strip().lower() == "movimento"
+
+
+def filter_gravacao_cameras(cameras: list, motion: bool = False) -> list:
+    filtered = []
+    for camera in cameras:
+        camera_id = camera.get("id")
+        if camera_id is None:
+            continue
+        if not camera_belongs_to_shard(camera_id):
+            continue
+        cam_motion = is_motion_camera(camera)
+        if motion and not cam_motion:
+            continue
+        if not motion and cam_motion:
+            continue
+        filtered.append(camera)
+    if len(filtered) > MAX_CAMERAS:
+        modo = "movimento" if motion else "continua"
+        print(
+            f"[SHARD] gravacao {modo}: {len(filtered)} cameras, "
+            f"limite MAX_CAMERAS={MAX_CAMERAS} — truncando"
+        )
+        filtered = filtered[:MAX_CAMERAS]
+    return filtered
