@@ -63,7 +63,17 @@ def is_motion_camera(camera: dict) -> bool:
     return str(camera.get("modo_gravacao") or "").strip().lower() == "movimento"
 
 
-def filter_gravacao_cameras(cameras: list, motion: bool = False) -> list:
+def is_timelapse_camera(camera: dict) -> bool:
+    if camera.get("grava_timelapse"):
+        return True
+    return str(camera.get("modo_gravacao") or "").strip().lower() == "timelapse"
+
+
+def filter_gravacao_cameras(
+    cameras: list,
+    motion: bool = False,
+    timelapse: bool = False,
+) -> list:
     filtered = []
     for camera in cameras:
         camera_id = camera.get("id")
@@ -72,13 +82,24 @@ def filter_gravacao_cameras(cameras: list, motion: bool = False) -> list:
         if not camera_belongs_to_shard(camera_id):
             continue
         cam_motion = is_motion_camera(camera)
-        if motion and not cam_motion:
-            continue
-        if not motion and cam_motion:
-            continue
+        cam_timelapse = is_timelapse_camera(camera)
+        if timelapse:
+            if not cam_timelapse:
+                continue
+        elif motion:
+            if not cam_motion:
+                continue
+        else:
+            if cam_motion or cam_timelapse:
+                continue
         filtered.append(camera)
     if len(filtered) > MAX_CAMERAS:
-        modo = "movimento" if motion else "continua"
+        if timelapse:
+            modo = "timelapse"
+        elif motion:
+            modo = "movimento"
+        else:
+            modo = "continua"
         print(
             f"[SHARD] gravacao {modo}: {len(filtered)} cameras, "
             f"limite MAX_CAMERAS={MAX_CAMERAS} — truncando"

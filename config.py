@@ -83,3 +83,10 @@ MOTION_MOG2_HISTORY = int(os.getenv("MOTION_MOG2_HISTORY", "300"))
 MOTION_MOG2_THRESHOLD = int(os.getenv("MOTION_MOG2_THRESHOLD", "25"))
 MOTION_RECONNECT_SEC = int(os.getenv("MOTION_RECONNECT_SEC", "5"))
 MOTION_ANALYSIS_WIDTH = int(os.getenv("MOTION_ANALYSIS_WIDTH", "640"))
+
+# Timelapse Inteligente
+# Intervalo entre capturas de frame no modo timelapse (1 frame a cada 12 min → 1fps = 24h real em 2min de vídeo)
+TIMELAPSE_FRAME_INTERVALO_SEG = int(os.getenv("TIMELAPSE_FRAME_INTERVALO_SEG", "720"))
+# Quantidade de frames para fechar e enviar o segmento timelapse
+# 120 frames × 12min = 24h real → 120s de vídeo a 1fps = 2 minutos de vídeo
+TIMELAPSE_FRAMES_POR_SEGMENTO = int(os.getenv("TIMELAPSE_FRAMES_POR_SEGMENTO", "120"))

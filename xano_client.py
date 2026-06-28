@@ -169,3 +169,16 @@ def post_gravacao_segmento(payload: dict[str, Any]):
     url = f"{XANO_BASE_URL}/vis_gravacao_segmento"
     response = requests.post(url, json=payload, timeout=30)
     return _parse_json(response)
+
+
+def ack_flush_pedido(camera_id: int) -> bool:
+    """Limpa o flag gravacao_flush_pedido após o worker executar o flush."""
+    try:
+        url = f"{XANO_BASE_URL}/vis_camera/gravacao/flush/{camera_id}"
+        # Chama a mesma API de flush com ack=true para limpar o flag
+        url_ack = f"{XANO_BASE_URL}/vis_camera/gravacao/flush/ack/{camera_id}?vis_camera_id={camera_id}"
+        response = requests.post(url_ack, json={}, timeout=15)
+        return response.ok
+    except Exception as exc:
+        print(f"[XANO] ack_flush_pedido camera={camera_id} erro: {exc}")
+        return False

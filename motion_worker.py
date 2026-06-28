@@ -21,7 +21,7 @@ from config import (
     MOTION_RECORD_DIR,
 )
 from dvr_segment import process_segment_file
-from urls import rtsp_url
+from urls import rtsp_url_for_camera
 
 os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
 
@@ -162,10 +162,13 @@ class MotionCameraWorker:
         ).start()
 
     def _process_stream(self):
-        url = rtsp_url(self.camera_id)
+        url = rtsp_url_for_camera(self.camera)
         cap = self._open_capture(url)
         if not cap.isOpened():
-            print(f"[MOTION] camera={self.camera_id} falhou abrir RTSP: {url}")
+            print(
+                f"[MOTION] camera={self.camera_id} falhou abrir RTSP: {url} "
+                f"(verifique RTMP live/{self.camera_id} no MediaMTX ou rtsp_url_sec na camera)"
+            )
             time.sleep(MOTION_RECONNECT_SEC)
             return
 
