@@ -2,10 +2,9 @@
 Timelapse Inteligente — worker por câmera.
 
 Dois estados:
-  TIMELAPSE  — sem movimento: captura 1 frame a cada TIMELAPSE_FRAME_INTERVALO_SEG segundos
-               (padrão 12 min = 720s). Acumula TIMELAPSE_FRAMES_POR_SEGMENTO frames (padrão 120)
-               e monta um mp4 a 1fps → 2 minutos de vídeo = 24 horas reais. Envia ao S3.
-               Se movimento detectado antes de completar, envia o segmento parcial e troca estado.
+  TIMELAPSE  — sem movimento: captura 1 frame a cada TIMELAPSE_FRAME_INTERVALO_SEG segundos.
+               Acumula TIMELAPSE_FRAMES_POR_SEGMENTO frames e monta mp4 a 1fps -> envia S3.
+               Ex.: 720s x 60 frames = 12h reais -> 1 min de video.
 
   MOVIMENTO  — com movimento: grava vídeo normal via ffmpeg, envia chunk a cada
                MOTION_CLIP_MAX_SEC (padrão 5 min) ou quando o movimento para
@@ -397,13 +396,13 @@ class TimelapseCameraWorker:
                         )
 
                     # Fecha segmento quando acumula TIMELAPSE_FRAMES_POR_SEGMENTO frames
-                    # 120 frames × 12min = 24h real → 2min de vídeo a 1fps
                     if len(tl_frames) >= TIMELAPSE_FRAMES_POR_SEGMENTO:
                         n = len(tl_frames)
                         flush_timelapse()
+                        real_min = (n * TIMELAPSE_FRAME_INTERVALO_SEG) // 60
                         print(
                             f"[TIMELAPSE] camera={self.camera_id} "
-                            f"segmento timelapse fechado ({n} frames = 24h real → 2min vídeo)"
+                            f"segmento timelapse fechado ({n} frames, ~{real_min} min real -> {n}s video)"
                         )
 
             elif state == _STATE_MOVIMENTO:
