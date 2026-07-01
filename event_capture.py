@@ -51,7 +51,20 @@ def _finalizar_somente_evento(evento_id, evento):
     print(f"[CAPTURA] evento={evento_id} pronto (somente registro, sem midia)")
 
 
-def processar_deteccao(camera, confianca: float, snapshot_source: str | None = None):
+def processar_evento_sensor(camera, evento_existente):
+    """Captura midia para evento sensor ja criado no Xano pelo receptor."""
+    evento_id = _evento_id(evento_existente)
+    if not evento_id:
+        raise RuntimeError(f"Evento sensor sem id: {evento_existente}")
+
+    evento = evento_existente if isinstance(evento_existente, dict) else {}
+    if evento.get("dados"):
+        evento = evento["dados"]
+
+    processar_deteccao(camera, float(evento.get("confianca") or 1), snapshot_source=None, evento_base=evento, evento_id=evento_id)
+
+
+def processar_deteccao(camera, confianca: float, snapshot_source: str | None = None, evento_base=None, evento_id=None):
     camera_id = camera.get("id")
     grava_foto = plan_grava_foto(camera)
     grava_video = plan_grava_video(camera)
@@ -82,12 +95,12 @@ def processar_deteccao(camera, confianca: float, snapshot_source: str | None = N
 
     id_franqueado = camera.get("id_franqueado")
     rtsp = rtsp_url(camera_id)
-    evento_id = None
     evento = None
     work_dir: Path | None = None
     snapshot_future = None
     t_clip = None
     clip_errors: dict[str, Exception] = {}
+    evento_id_local = evento_id
 
     if not try_iniciar_captura(camera_id):
         print(f"[CAPTURA] camera={camera_id} captura ja em andamento, evento ignorado")
@@ -100,8 +113,12 @@ def processar_deteccao(camera, confianca: float, snapshot_source: str | None = N
             _discard_snapshot(snapshot_source)
             return
 
-        evento = create_evento(camera, confianca, status="capturando")
-        evento_id = _evento_id(evento)
+        if evento_id_local:
+            evento = evento_base or {"id": evento_id_local}
+            evento_id = evento_id_local
+        else:
+            evento = create_evento(camera, confianca, status="capturando")
+            evento_id = _evento_id(evento)
         if not evento_id:
             raise RuntimeError(f"Xano nao retornou id do evento: {evento}")
 

@@ -61,7 +61,7 @@ def get_cameras_ativas():
     return filter_cameras(cameras)
 
 
-def create_evento(camera, confianca, tipo="humano", status="capturando"):
+def create_evento(camera, confianca, tipo="humano", status="capturando", extra=None):
     url = f"{XANO_BASE_URL}/vis_evento"
     payload = {
         "vis_camera_id": camera["id"],
@@ -78,6 +78,8 @@ def create_evento(camera, confianca, tipo="humano", status="capturando"):
         "status": status,
         "clip_count": 0,
     }
+    if extra:
+        payload.update(extra)
     response = requests.post(url, json=payload, timeout=15)
     return _parse_json(response)
 
@@ -182,3 +184,15 @@ def ack_flush_pedido(camera_id: int) -> bool:
     except Exception as exc:
         print(f"[XANO] ack_flush_pedido camera={camera_id} erro: {exc}")
         return False
+
+
+def get_eventos_sensor_pendentes(limit: int = 10):
+    url = f"{XANO_BASE_URL}/vis_evento_query_sensor_pendentes"
+    response = requests.get(url, params={"limit": limit}, timeout=15)
+    return _as_list(_parse_json(response))
+
+
+def get_camera_by_id(camera_id: int):
+    url = f"{XANO_BASE_URL}/vis_camera/{camera_id}"
+    response = requests.get(url, params={"vis_camera_id": camera_id}, timeout=15)
+    return _parse_json(response)
