@@ -61,15 +61,29 @@ def processar_evento_sensor(camera, evento_existente):
     if evento.get("dados"):
         evento = evento["dados"]
 
-    processar_deteccao(camera, float(evento.get("confianca") or 1), snapshot_source=None, evento_base=evento, evento_id=evento_id)
+    processar_deteccao(
+        camera,
+        float(evento.get("confianca") or 1),
+        snapshot_source=None,
+        evento_base=evento,
+        evento_id=evento_id,
+        for_sensor=True,
+    )
 
 
-def processar_deteccao(camera, confianca: float, snapshot_source: str | None = None, evento_base=None, evento_id=None):
+def processar_deteccao(
+    camera,
+    confianca: float,
+    snapshot_source: str | None = None,
+    evento_base=None,
+    evento_id=None,
+    for_sensor: bool = False,
+):
     camera_id = camera.get("id")
     grava_foto = plan_grava_foto(camera)
     grava_video = plan_grava_video(camera)
 
-    if not is_camera_active(camera_id):
+    if not for_sensor and not is_camera_active(camera_id):
         print(f"[CAPTURA] camera={camera_id} inativa, evento ignorado")
         _discard_snapshot(snapshot_source)
         return
@@ -108,7 +122,7 @@ def processar_deteccao(camera, confianca: float, snapshot_source: str | None = N
         return
 
     try:
-        if not is_camera_active(camera_id):
+        if not for_sensor and not is_camera_active(camera_id):
             print(f"[CAPTURA] camera={camera_id} desativada antes do evento, ignorado")
             _discard_snapshot(snapshot_source)
             return
@@ -200,7 +214,7 @@ def processar_deteccao(camera, confianca: float, snapshot_source: str | None = N
         finalizar_captura(camera_id)
 
     try:
-        if not is_camera_active(camera_id):
+        if not for_sensor and not is_camera_active(camera_id):
             cancel_camera_captures(camera_id)
             if t_clip is not None and t_clip.is_alive():
                 t_clip.join(timeout=10)
@@ -238,21 +252,23 @@ def processar_deteccao(camera, confianca: float, snapshot_source: str | None = N
                 cleanup_work_dir(work_dir)
             return
 
-        if not is_camera_active(camera_id):
+        if not for_sensor and not is_camera_active(camera_id):
             cancel_camera_captures(camera_id)
 
         if t_clip is not None:
             t_clip.join()
         if "clip" in clip_errors:
             err = clip_errors["clip"]
-            if isinstance(err, CaptureCancelled) or not is_camera_active(camera_id):
+            if isinstance(err, CaptureCancelled) or (
+                not for_sensor and not is_camera_active(camera_id)
+            ):
                 put_evento(evento_id, {"status": "erro", "clip_count": 0}, base=evento)
                 print(f"[CAPTURA] camera={camera_id} desativada — clip evento={evento_id} cancelado")
                 if work_dir:
                     cleanup_work_dir(work_dir)
                 return
             raise err
-        if not is_camera_active(camera_id):
+        if not for_sensor and not is_camera_active(camera_id):
             put_evento(evento_id, {"status": "erro", "clip_count": 0}, base=evento)
             print(f"[CAPTURA] camera={camera_id} desativada apos clip — evento={evento_id} erro")
             if work_dir:
