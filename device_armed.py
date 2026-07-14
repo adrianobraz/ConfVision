@@ -6,8 +6,8 @@ import requests
 
 from config import ARMADO_CACHE_TTL_SEC, CONFMONIT_API_URL
 
-# Fabricante CAMERA no ConfMonit — armado controlado pela UI ConfVision.
-# Demais fabricantes: armado vem da central (mesmo campo dispositivo.Armado).
+# Fabricante CAMERA no ConfMonit — armado simulado pela UI ConfVision (setArmadoById).
+# Demais fabricantes: armado via comando da central; ConfVision/worker leem dispositivo.Armado.
 FABRICANTE_CAMERA = "7"
 
 _lock = threading.Lock()
@@ -58,12 +58,56 @@ def _fabricante_from_disp(disp: Optional[dict]) -> str:
 
 
 def _fetch_armado(id_dispositivo: str) -> Optional[bool]:
-    disp = _fetch_dispositivo(id_dispositivo)
-    if disp is not None:
-        fab = _fabricante_from_disp(disp)
-        with _lock:
-            _fabricante_cache[str(id_dispositivo).strip()] = fab
-    return _armado_from_disp(disp)
+    """Consulta Armado via getArmadoById (dados = 'S'|'N') e atualiza fabricante."""
+    if not CONFMONIT_API_URL or not id_dispositivo:
+        return None
+
+    device_id = str(id_dispositivo).strip()
+    base = CONFMONIT_API_URL.rstrip("/")
+
+    # 1) Status armado (leve)
+    try:
+        response = requests.post(
+            f"{base}/v4/dispositivo/getArmadoById",
+            json={"idDispositivo": device_id},
+            timeout=10,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        data = payload if isinstance(payload, dict) else {}
+        # respApp.Dados → { status, dados: "S"|"N" } ou objeto
+        dados = data.get("dados")
+        if isinstance(dados, str):
+            armado = dados.strip().upper()
+        elif isinstance(dados, dict):
+            armado = str(dados.get("armado") or "").strip().upper()
+        else:
+            armado = str(data.get("armado") or "").strip().upper()
+    except Exception as exc:
+        print(f"[ARMADO] getArmadoById dispositivo={device_id} falhou: {exc}")
+        # fallback getDadosById
+        disp = _fetch_dispositivo(device_id)
+        if disp is not None:
+            fab = _fabricante_from_disp(disp)
+            with _lock:
+                _fabricante_cache[device_id] = fab
+            return _armado_from_disp(disp)
+        return None
+
+    # 2) Fabricante (cache) — opcional, não bloqueia o arme
+    with _lock:
+        tem_fab = device_id in _fabricante_cache
+    if not tem_fab:
+        disp = _fetch_dispositivo(device_id)
+        if disp is not None:
+            with _lock:
+                _fabricante_cache[device_id] = _fabricante_from_disp(disp)
+
+    if armado == "S":
+        return True
+    if armado == "N":
+        return False
+    return None
 
 
 def fabricante_dispositivo(id_dispositivo: str) -> str:
@@ -71,19 +115,35 @@ def fabricante_dispositivo(id_dispositivo: str) -> str:
     if not device_id:
         return ""
     with _lock:
-        return _fabricante_cache.get(device_id, "")
+        cached = _fabricante_cache.get(device_id)
+    if cached:
+        return cached
+    disp = _fetch_dispositivo(device_id)
+    fab = _fabricante_from_disp(disp)
+    if fab:
+        with _lock:
+            _fabricante_cache[device_id] = fab
+    return fab
 
 
 def is_fabricante_camera(id_dispositivo: str) -> bool:
     return fabricante_dispositivo(id_dispositivo) == FABRICANTE_CAMERA
 
 
+def invalidate_armado(id_dispositivo: str = "") -> None:
+    """Limpa cache de armado (após armar/desarmar na UI, se necessário)."""
+    with _lock:
+        if id_dispositivo:
+            _cache.pop(str(id_dispositivo).strip(), None)
+        else:
+            _cache.clear()
+
+
 def is_dispositivo_armado(id_dispositivo: str) -> bool:
     """Retorna True se armado==S. Fail-closed se API indisponivel.
 
-    Mesmo campo dispositivo.Armado para:
-    - fabricante CAMERA (armado pela UI ConfVision)
-    - demais fabricantes (armado pela central)
+    Cache: se estava desarmado, reconsulta em até 5s (para refletir arme local da UI).
+    Se estava armado, respeita ARMADO_CACHE_TTL_SEC.
     """
     device_id = str(id_dispositivo or "").strip()
     if not device_id:
@@ -92,8 +152,14 @@ def is_dispositivo_armado(id_dispositivo: str) -> bool:
     now = time.time()
     with _lock:
         cached = _cache.get(device_id)
-        if cached and (now - cached[1]) < ARMADO_CACHE_TTL_SEC:
-            return cached[0] is True
+        if cached:
+            armed_cached, ts = cached
+            age = now - ts
+            if armed_cached is True and age < ARMADO_CACHE_TTL_SEC:
+                return True
+            # Desarmado / desconhecido: TTL curto para pegar arme recente na UI
+            if armed_cached is not True and age < 5:
+                return False
 
     armed = _fetch_armado(device_id)
     with _lock:
