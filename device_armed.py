@@ -24,31 +24,8 @@ def _auth_headers() -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def _parse_dispositivo(data: Any) -> Optional[dict]:
-    if not isinstance(data, dict):
-        return None
-    dados = data.get("dados")
-    if isinstance(dados, dict):
-        return dados
-    return data
-
-
-def _parse_armado_payload(data: Any) -> Optional[bool]:
-    """Extrai S/N de várias formas de resposta da API ConfMonit."""
-    if data is None:
-        return None
-    if isinstance(data, str):
-        armado = data.strip().upper()
-    elif isinstance(data, dict):
-        dados = data.get("dados")
-        if isinstance(dados, str):
-            armado = dados.strip().upper()
-        elif isinstance(dados, dict):
-            armado = str(dados.get("armado") or "").strip().upper()
-        else:
-            armado = str(data.get("armado") or "").strip().upper()
-    else:
-        return None
+def _parse_armado_value(valor: Any) -> Optional[bool]:
+    armado = str(valor or "").strip().upper()
     if armado == "S":
         return True
     if armado == "N":
@@ -56,90 +33,60 @@ def _parse_armado_payload(data: Any) -> Optional[bool]:
     return None
 
 
-def _fetch_dispositivo(id_dispositivo: str) -> Optional[dict]:
-    if not CONFMONIT_API_URL or not id_dispositivo:
-        return None
-
-    url = f"{CONFMONIT_API_URL.rstrip('/')}/v4/dispositivo/getDadosById"
-    try:
-        response = requests.post(
-            url,
-            json={"idDispositivo": str(id_dispositivo).strip()},
-            headers=_auth_headers(),
-            timeout=10,
-        )
-        if response.status_code >= 400:
-            print(
-                f"[ARMADO] getDadosById dispositivo={id_dispositivo} "
-                f"HTTP {response.status_code} body={response.text[:180]!r}"
-            )
-            return None
-        return _parse_dispositivo(response.json())
-    except Exception as exc:
-        print(f"[ARMADO] consulta dispositivo={id_dispositivo} falhou: {exc}")
-        return None
-
-
-def _armado_from_disp(disp: Optional[dict]) -> Optional[bool]:
-    if not disp:
-        return None
-    return _parse_armado_payload(disp)
-
-
-def _fabricante_from_disp(disp: Optional[dict]) -> str:
-    if not disp:
-        return ""
-    return str(disp.get("idFabricante") or "").strip()
-
-
 def _fetch_armado(id_dispositivo: str) -> Optional[bool]:
-    """Consulta Armado via getArmadoById (dados = 'S'|'N') e atualiza fabricante."""
+    """Consulta Armado via workerGetArmadoById (rota nova, sem JWT)."""
     if not CONFMONIT_API_URL or not id_dispositivo:
         print("[ARMADO] CONFMONIT_API_URL vazio — nao e possivel consultar armado")
         return None
 
     device_id = str(id_dispositivo).strip()
-    base = CONFMONIT_API_URL.rstrip("/")
+    url = f"{CONFMONIT_API_URL.rstrip('/')}/v4/dispositivo/workerGetArmadoById"
 
-    # 1) Status armado (leve — rota deve estar aberta para o worker)
     try:
         response = requests.post(
-            f"{base}/v4/dispositivo/getArmadoById",
+            url,
             json={"idDispositivo": device_id},
             headers=_auth_headers(),
             timeout=10,
         )
         if response.status_code >= 400:
             print(
-                f"[ARMADO] getArmadoById dispositivo={device_id} "
+                f"[ARMADO] workerGetArmadoById dispositivo={device_id} "
                 f"HTTP {response.status_code} body={response.text[:180]!r}"
             )
-        else:
-            armed = _parse_armado_payload(response.json())
-            if armed is not None:
-                with _lock:
-                    tem_fab = device_id in _fabricante_cache
-                if not tem_fab:
-                    disp = _fetch_dispositivo(device_id)
-                    if disp is not None:
-                        with _lock:
-                            _fabricante_cache[device_id] = _fabricante_from_disp(disp)
-                return armed
+            return None
+
+        payload = response.json()
+        if not isinstance(payload, dict):
             print(
-                f"[ARMADO] getArmadoById resposta inesperada dispositivo={device_id} "
+                f"[ARMADO] workerGetArmadoById resposta invalida dispositivo={device_id} "
                 f"body={response.text[:180]!r}"
             )
-    except Exception as exc:
-        print(f"[ARMADO] getArmadoById dispositivo={device_id} falhou: {exc}")
+            return None
 
-    # 2) fallback getDadosById (pode exigir JWT)
-    disp = _fetch_dispositivo(device_id)
-    if disp is not None:
-        fab = _fabricante_from_disp(disp)
-        with _lock:
-            _fabricante_cache[device_id] = fab
-        return _armado_from_disp(disp)
-    return None
+        dados = payload.get("dados")
+        armado_raw = None
+        fab = ""
+        if isinstance(dados, dict):
+            armado_raw = dados.get("armado")
+            fab = str(dados.get("idFabricante") or "").strip()
+        elif isinstance(dados, str):
+            armado_raw = dados
+
+        if fab:
+            with _lock:
+                _fabricante_cache[device_id] = fab
+
+        armed = _parse_armado_value(armado_raw)
+        if armed is None:
+            print(
+                f"[ARMADO] workerGetArmadoById sem S/N dispositivo={device_id} "
+                f"body={response.text[:180]!r}"
+            )
+        return armed
+    except Exception as exc:
+        print(f"[ARMADO] workerGetArmadoById dispositivo={device_id} falhou: {exc}")
+        return None
 
 
 def fabricante_dispositivo(id_dispositivo: str) -> str:
@@ -147,15 +94,7 @@ def fabricante_dispositivo(id_dispositivo: str) -> str:
     if not device_id:
         return ""
     with _lock:
-        cached = _fabricante_cache.get(device_id)
-    if cached:
-        return cached
-    disp = _fetch_dispositivo(device_id)
-    fab = _fabricante_from_disp(disp)
-    if fab:
-        with _lock:
-            _fabricante_cache[device_id] = fab
-    return fab
+        return _fabricante_cache.get(device_id, "")
 
 
 def is_fabricante_camera(id_dispositivo: str) -> bool:
