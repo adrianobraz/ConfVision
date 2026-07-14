@@ -44,6 +44,19 @@ EVENT_QUEUE_KEY = os.getenv("EVENT_QUEUE_KEY", "confvision:eventos").strip()
 EVENT_QUEUE_MAX_SIZE = int(os.getenv("EVENT_QUEUE_MAX_SIZE", "1000"))
 CAPTURE_WORKERS = int(os.getenv("CAPTURE_WORKERS", "8"))
 
+# Notifica terminal (receptorWeb) apos deteccao analitica — assincrono, sem Xano
+RECEPTOR_WEB_URL = os.getenv("RECEPTOR_WEB_URL", "").rstrip("/")
+RECEPTOR_WEB_SENHA = os.getenv("RECEPTOR_WEB_SENHA", "")
+TERMINAL_NOTIFY_ENABLED = os.getenv("TERMINAL_NOTIFY_ENABLED", "true").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
+TERMINAL_NOTIFY_WORKERS = int(os.getenv("TERMINAL_NOTIFY_WORKERS", "4"))
+TERMINAL_NOTIFY_RETRIES = int(os.getenv("TERMINAL_NOTIFY_RETRIES", "3"))
+TERMINAL_CONTACT_ID = os.getenv("TERMINAL_CONTACT_ID", "CV01").strip() or "CV01"
+
 CONTABO_S3_ACCESS_KEY = os.getenv("CONTABO_S3_ACCESS_KEY", "")
 CONTABO_S3_SECRET_KEY = os.getenv("CONTABO_S3_SECRET_KEY", "")
 CONTABO_S3_ENDPOINT = os.getenv("CONTABO_S3_ENDPOINT", "https://usc1.contabostorage.com")

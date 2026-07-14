@@ -19,6 +19,7 @@ from storage import evento_clip_key, evento_snapshot_key
 from upload_queue import submit_upload
 from urls import rtsp_url
 from xano_client import create_evento, post_evento_clip, put_evento
+from terminal_notify import submit_terminal_notify
 
 
 def _discard_snapshot(snapshot_source: str | None):
@@ -98,6 +99,8 @@ def processar_deteccao(
             evento_id = _evento_id(evento)
             if not evento_id:
                 raise RuntimeError(f"Xano nao retornou id do evento: {evento}")
+            if not for_sensor:
+                submit_terminal_notify(camera, evento_id, evento)
             _finalizar_somente_evento(evento_id, evento)
         except Exception as exc:
             print(f"[ERRO] evento sem midia camera={camera_id}: {exc}")
@@ -115,6 +118,7 @@ def processar_deteccao(
     t_clip = None
     clip_errors: dict[str, Exception] = {}
     evento_id_local = evento_id
+    terminal_notificado = False
 
     if not try_iniciar_captura(camera_id):
         print(f"[CAPTURA] camera={camera_id} captura ja em andamento, evento ignorado")
@@ -135,6 +139,11 @@ def processar_deteccao(
             evento_id = _evento_id(evento)
         if not evento_id:
             raise RuntimeError(f"Xano nao retornou id do evento: {evento}")
+
+        # Sem foto na licenca: abre terminal ja; com foto, notifica apos snapshot.
+        if not for_sensor and not grava_foto:
+            submit_terminal_notify(camera, evento_id, evento)
+            terminal_notificado = True
 
         work_dir = evento_work_dir(evento_id)
         snapshot_path = work_dir / "snapshot.jpg"
@@ -238,6 +247,9 @@ def processar_deteccao(
                 },
                 base=evento,
             )
+            if not for_sensor:
+                submit_terminal_notify(camera, evento_id, evento)
+                terminal_notificado = True
             if grava_video:
                 print(f"[CAPTURA] evento={evento_id} snapshot visivel (capturando video)")
 
@@ -248,6 +260,8 @@ def processar_deteccao(
                     payload["snapshot_url"] = snapshot_url
                 put_evento(evento_id, payload, base=evento)
                 print(f"[CAPTURA] evento={evento_id} pronto snapshot (sem video)")
+                if not for_sensor and not terminal_notificado:
+                    submit_terminal_notify(camera, evento_id, evento)
             if work_dir:
                 cleanup_work_dir(work_dir)
             return
@@ -304,6 +318,8 @@ def processar_deteccao(
             base=evento,
         )
         print(f"[CAPTURA] evento={evento_id} pronto snapshot+video")
+        if not for_sensor and not terminal_notificado:
+            submit_terminal_notify(camera, evento_id, evento)
 
     except Exception as exc:
         print(f"[ERRO] upload evento camera={camera_id} evento={evento_id}: {exc}")
