@@ -6,6 +6,8 @@ load_dotenv()
 
 XANO_BASE_URL = os.getenv("XANO_BASE_URL", "").rstrip("/")
 CONFMONIT_API_URL = os.getenv("CONFMONIT_API_URL", "").rstrip("/")
+# Opcional: Bearer JWT se getArmadoById / getDadosById estiverem Seguro=true
+CONFMONIT_API_TOKEN = os.getenv("CONFMONIT_API_TOKEN", "").strip()
 ARMADO_CACHE_TTL_SEC = int(os.getenv("ARMADO_CACHE_TTL_SEC", "20"))
 MEDIAMTX_RTSP_BASE = os.getenv(
     "MEDIAMTX_RTSP_BASE", "rtsp://foxpro_confvision:8554"

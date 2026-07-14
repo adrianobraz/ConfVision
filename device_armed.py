@@ -1,10 +1,10 @@
 import threading
 import time
-from typing import Optional
+from typing import Any, Optional
 
 import requests
 
-from config import ARMADO_CACHE_TTL_SEC, CONFMONIT_API_URL
+from config import ARMADO_CACHE_TTL_SEC, CONFMONIT_API_TOKEN, CONFMONIT_API_URL
 
 # Fabricante CAMERA no ConfMonit — armado simulado pela UI ConfVision (setArmadoById).
 # Demais fabricantes: armado via comando da central; ConfVision/worker leem dispositivo.Armado.
@@ -15,11 +15,45 @@ _cache: dict[str, tuple[Optional[bool], float]] = {}
 _fabricante_cache: dict[str, str] = {}
 
 
-def _parse_dispositivo(data) -> Optional[dict]:
+def _auth_headers() -> dict[str, str]:
+    token = (CONFMONIT_API_TOKEN or "").strip()
+    if not token:
+        return {}
+    if token.lower().startswith("bearer "):
+        return {"Authorization": token}
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _parse_dispositivo(data: Any) -> Optional[dict]:
     if not isinstance(data, dict):
         return None
-    disp = data.get("dados") if isinstance(data.get("dados"), dict) else data
-    return disp if isinstance(disp, dict) else None
+    dados = data.get("dados")
+    if isinstance(dados, dict):
+        return dados
+    return data
+
+
+def _parse_armado_payload(data: Any) -> Optional[bool]:
+    """Extrai S/N de várias formas de resposta da API ConfMonit."""
+    if data is None:
+        return None
+    if isinstance(data, str):
+        armado = data.strip().upper()
+    elif isinstance(data, dict):
+        dados = data.get("dados")
+        if isinstance(dados, str):
+            armado = dados.strip().upper()
+        elif isinstance(dados, dict):
+            armado = str(dados.get("armado") or "").strip().upper()
+        else:
+            armado = str(data.get("armado") or "").strip().upper()
+    else:
+        return None
+    if armado == "S":
+        return True
+    if armado == "N":
+        return False
+    return None
 
 
 def _fetch_dispositivo(id_dispositivo: str) -> Optional[dict]:
@@ -31,9 +65,15 @@ def _fetch_dispositivo(id_dispositivo: str) -> Optional[dict]:
         response = requests.post(
             url,
             json={"idDispositivo": str(id_dispositivo).strip()},
+            headers=_auth_headers(),
             timeout=10,
         )
-        response.raise_for_status()
+        if response.status_code >= 400:
+            print(
+                f"[ARMADO] getDadosById dispositivo={id_dispositivo} "
+                f"HTTP {response.status_code} body={response.text[:180]!r}"
+            )
+            return None
         return _parse_dispositivo(response.json())
     except Exception as exc:
         print(f"[ARMADO] consulta dispositivo={id_dispositivo} falhou: {exc}")
@@ -43,12 +83,7 @@ def _fetch_dispositivo(id_dispositivo: str) -> Optional[dict]:
 def _armado_from_disp(disp: Optional[dict]) -> Optional[bool]:
     if not disp:
         return None
-    armado = str(disp.get("armado") or "").strip().upper()
-    if armado == "S":
-        return True
-    if armado == "N":
-        return False
-    return None
+    return _parse_armado_payload(disp)
 
 
 def _fabricante_from_disp(disp: Optional[dict]) -> str:
@@ -60,53 +95,50 @@ def _fabricante_from_disp(disp: Optional[dict]) -> str:
 def _fetch_armado(id_dispositivo: str) -> Optional[bool]:
     """Consulta Armado via getArmadoById (dados = 'S'|'N') e atualiza fabricante."""
     if not CONFMONIT_API_URL or not id_dispositivo:
+        print("[ARMADO] CONFMONIT_API_URL vazio — nao e possivel consultar armado")
         return None
 
     device_id = str(id_dispositivo).strip()
     base = CONFMONIT_API_URL.rstrip("/")
 
-    # 1) Status armado (leve)
+    # 1) Status armado (leve — rota deve estar aberta para o worker)
     try:
         response = requests.post(
             f"{base}/v4/dispositivo/getArmadoById",
             json={"idDispositivo": device_id},
+            headers=_auth_headers(),
             timeout=10,
         )
-        response.raise_for_status()
-        payload = response.json()
-        data = payload if isinstance(payload, dict) else {}
-        # respApp.Dados → { status, dados: "S"|"N" } ou objeto
-        dados = data.get("dados")
-        if isinstance(dados, str):
-            armado = dados.strip().upper()
-        elif isinstance(dados, dict):
-            armado = str(dados.get("armado") or "").strip().upper()
+        if response.status_code >= 400:
+            print(
+                f"[ARMADO] getArmadoById dispositivo={device_id} "
+                f"HTTP {response.status_code} body={response.text[:180]!r}"
+            )
         else:
-            armado = str(data.get("armado") or "").strip().upper()
+            armed = _parse_armado_payload(response.json())
+            if armed is not None:
+                with _lock:
+                    tem_fab = device_id in _fabricante_cache
+                if not tem_fab:
+                    disp = _fetch_dispositivo(device_id)
+                    if disp is not None:
+                        with _lock:
+                            _fabricante_cache[device_id] = _fabricante_from_disp(disp)
+                return armed
+            print(
+                f"[ARMADO] getArmadoById resposta inesperada dispositivo={device_id} "
+                f"body={response.text[:180]!r}"
+            )
     except Exception as exc:
         print(f"[ARMADO] getArmadoById dispositivo={device_id} falhou: {exc}")
-        # fallback getDadosById
-        disp = _fetch_dispositivo(device_id)
-        if disp is not None:
-            fab = _fabricante_from_disp(disp)
-            with _lock:
-                _fabricante_cache[device_id] = fab
-            return _armado_from_disp(disp)
-        return None
 
-    # 2) Fabricante (cache) — opcional, não bloqueia o arme
-    with _lock:
-        tem_fab = device_id in _fabricante_cache
-    if not tem_fab:
-        disp = _fetch_dispositivo(device_id)
-        if disp is not None:
-            with _lock:
-                _fabricante_cache[device_id] = _fabricante_from_disp(disp)
-
-    if armado == "S":
-        return True
-    if armado == "N":
-        return False
+    # 2) fallback getDadosById (pode exigir JWT)
+    disp = _fetch_dispositivo(device_id)
+    if disp is not None:
+        fab = _fabricante_from_disp(disp)
+        with _lock:
+            _fabricante_cache[device_id] = fab
+        return _armado_from_disp(disp)
     return None
 
 
@@ -157,7 +189,6 @@ def is_dispositivo_armado(id_dispositivo: str) -> bool:
             age = now - ts
             if armed_cached is True and age < ARMADO_CACHE_TTL_SEC:
                 return True
-            # Desarmado / desconhecido: TTL curto para pegar arme recente na UI
             if armed_cached is not True and age < 5:
                 return False
 
