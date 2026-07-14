@@ -40,6 +40,9 @@ def loop_camera(camera, detector: PersonDetector, event_queue):
         if not is_camera_active(camera_id):
             return
         if camera.get("somente_armado"):
+            # analitico_armado_*: usa dispositivo.Armado
+            # - fabricante CAMERA: armado pela UI ConfVision
+            # - outros: armado pela central
             id_disp = camera.get("id_dispositivo")
             if not is_dispositivo_armado(id_disp):
                 print(
