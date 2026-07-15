@@ -34,6 +34,26 @@ def bbox_foot_pct(box, frame_w: int, frame_h: int) -> tuple[float, float]:
     return cx, cy
 
 
+def bbox_probe_points_pct(
+    box, frame_w: int, frame_h: int
+) -> list[tuple[float, float]]:
+    """Pontos de teste da pessoa na cena (0-100%).
+
+    Usa centro, peito e pe: pessoa sentada/parcial corta o pe na margem
+    inferior e falhava com retangulo quase tela cheia.
+    """
+    x1, y1, x2, y2 = box.xyxy[0].tolist()
+    cx = ((x1 + x2) / 2.0 / frame_w) * 100.0
+    cy_mid = ((y1 + y2) / 2.0 / frame_h) * 100.0
+    cy_chest = (y1 + (y2 - y1) * 0.35) / frame_h * 100.0
+    cy_foot = (y2 / frame_h) * 100.0
+    return [
+        (cx, cy_mid),
+        (cx, cy_chest),
+        (cx, cy_foot),
+    ]
+
+
 def point_in_polygon_pct(x_pct: float, y_pct: float, polygon: list[tuple[float, float]]) -> bool:
     pts = np.array(polygon, dtype=np.float32)
     result = cv2.pointPolygonTest(pts, (float(x_pct), float(y_pct)), False)
@@ -52,6 +72,38 @@ def find_area_for_point(
         if point_in_polygon_pct(x_pct, y_pct, polygon):
             return area
     return None
+
+
+def find_area_for_box(box, frame_w: int, frame_h: int, areas: list[dict]) -> Optional[dict]:
+    """Retorna a area se qualquer ponto de prova da bbox estiver nela."""
+    for x_pct, y_pct in bbox_probe_points_pct(box, frame_w, frame_h):
+        area = find_area_for_point(x_pct, y_pct, areas)
+        if area:
+            return area
+    return None
+
+
+def normalize_modo_deteccao(valor: Any) -> str:
+    modo = str(valor or "dentro").strip().lower()
+    if modo in ("fora", "ambos", "inside", "outside", "both"):
+        if modo == "inside":
+            return "dentro"
+        if modo == "outside":
+            return "fora"
+        if modo == "both":
+            return "ambos"
+        return modo
+    return "dentro"
+
+
+def camera_elegivel_analitico(camera: dict) -> bool:
+    """True se a camera deve rodar no worker analitico."""
+    if camera.get("captura_analitico", True) is False:
+        return False
+    modo = normalize_modo_deteccao(camera.get("modo_deteccao"))
+    if modo == "ambos":
+        return True
+    return bool(areas_ativas(camera.get("areas")))
 
 
 def areas_ativas(areas: Optional[list[dict]]) -> list[dict]:

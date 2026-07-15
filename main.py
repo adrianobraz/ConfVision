@@ -15,7 +15,7 @@ from config import (
     WORKER_SHARD_INDEX,
     WORKER_SHARD_TOTAL,
 )
-from area_utils import areas_ativas
+from area_utils import areas_ativas, camera_elegivel_analitico, normalize_modo_deteccao
 from capture import cancel_camera_captures, write_detection_snapshot
 from device_armed import is_dispositivo_armado, prefetch_armado
 from detector import PersonDetector
@@ -24,15 +24,37 @@ from sharding import shard_label
 from urls import rtsp_url, stream_path
 from xano_client import get_cameras_ativas, post_ping
 
+_restart_ids: set[int] = set()
+_thread_cfg: dict[int, str] = {}
+
+
+def _camera_cfg_key(camera: dict) -> str:
+    areas = camera.get("areas") or []
+    area_ids = sorted(
+        str(a.get("id"))
+        for a in areas
+        if a.get("ativo", True) and a.get("id") is not None
+    )
+    return "|".join(
+        [
+            normalize_modo_deteccao(camera.get("modo_deteccao")),
+            str(camera.get("confianca_min") or ""),
+            str(camera.get("cooldown_seg") or ""),
+            str(bool(camera.get("somente_armado"))),
+            ",".join(area_ids),
+        ]
+    )
+
 
 def loop_camera(camera, detector: PersonDetector, event_queue):
     camera_id = camera.get("id")
     conf_min = float(camera.get("confianca_min") or 0.5)
     cooldown = int(camera.get("cooldown_seg") or 30)
+    modo = normalize_modo_deteccao(camera.get("modo_deteccao"))
     url = rtsp_url(camera_id)
     zonas = areas_ativas(camera.get("areas"))
 
-    if not zonas:
+    if modo != "ambos" and not zonas:
         print(f"[AREA] camera id={camera_id} sem area cadastrada — thread encerrada")
         return
 
@@ -53,10 +75,10 @@ def loop_camera(camera, detector: PersonDetector, event_queue):
         snapshot_path = None
         try:
             snapshot_path = str(write_detection_snapshot(camera_id, frame))
-            area_label = (area or {}).get("nome") or (area or {}).get("id")
+            area_label = (area or {}).get("nome") or (area or {}).get("id") or modo
             print(
                 f"[EVENTO] snapshot instantaneo camera={camera_id} "
-                f"area={area_label} path={snapshot_path}"
+                f"area={area_label} modo={modo} path={snapshot_path}"
             )
         except Exception as exc:
             print(f"[WARN] snapshot instantaneo camera={camera_id} falhou: {exc}")
@@ -72,12 +94,20 @@ def loop_camera(camera, detector: PersonDetector, event_queue):
                 Path(snapshot_path).unlink(missing_ok=True)
 
     def should_continue():
+        if camera_id in _restart_ids:
+            return False
         return is_camera_active(camera_id)
 
     while should_continue():
         try:
             detector.process_camera(
-                url, conf_min, cooldown, on_person, zonas, should_continue
+                url,
+                conf_min,
+                cooldown,
+                on_person,
+                zonas,
+                should_continue,
+                modo_deteccao=modo,
             )
         except Exception as exc:
             print(f"[ERRO] camera {camera_id}: {exc}")
@@ -85,7 +115,8 @@ def loop_camera(camera, detector: PersonDetector, event_queue):
                 break
             time.sleep(5)
 
-    print(f"[THREAD] camera id={camera_id} encerrada (desativada ou sem area)")
+    _restart_ids.discard(camera_id)
+    print(f"[THREAD] camera id={camera_id} encerrada (desativada, config ou sem area)")
 
 
 def main():
@@ -104,12 +135,7 @@ def main():
     while True:
         try:
             cameras = get_cameras_ativas()
-            cameras_com_area = [
-                c
-                for c in cameras
-                if areas_ativas(c.get("areas"))
-                and c.get("captura_analitico", True) is not False
-            ]
+            cameras_com_area = [c for c in cameras if camera_elegivel_analitico(c)]
             ids_somente_armado = {
                 str(c.get("id_dispositivo")).strip()
                 for c in cameras_com_area
@@ -130,14 +156,15 @@ def main():
                 },
             )
             print(
-                f"[SYNC] {len(cameras_com_area)} camera(s) com area ids={active_ids} "
-                f"({len(cameras) - len(cameras_com_area)} sem area ignoradas)"
+                f"[SYNC] {len(cameras_com_area)} camera(s) analitico ids={active_ids} "
+                f"({len(cameras) - len(cameras_com_area)} ignoradas)"
             )
 
             active_set = set(active_ids)
             for camera_id, thread in list(threads.items()):
                 if camera_id not in active_set:
                     cancel_camera_captures(camera_id)
+                    _thread_cfg.pop(camera_id, None)
                     if thread.is_alive():
                         print(
                             f"[SYNC] camera id={camera_id} desativada — "
@@ -145,11 +172,22 @@ def main():
                         )
                 elif not thread.is_alive():
                     del threads[camera_id]
+                    _thread_cfg.pop(camera_id, None)
 
             for camera in cameras_com_area:
                 camera_id = camera["id"]
+                cfg_key = _camera_cfg_key(camera)
                 thread = threads.get(camera_id)
+                if thread is not None and thread.is_alive():
+                    if _thread_cfg.get(camera_id) != cfg_key:
+                        print(
+                            f"[SYNC] camera id={camera_id} config alterada — "
+                            f"reiniciando thread (modo={normalize_modo_deteccao(camera.get('modo_deteccao'))})"
+                        )
+                        _restart_ids.add(camera_id)
+                        continue
                 if thread is None or not thread.is_alive():
+                    _restart_ids.discard(camera_id)
                     thread = threading.Thread(
                         target=loop_camera,
                         args=(camera, detector, event_queue),
@@ -157,11 +195,13 @@ def main():
                         name=f"camera-{camera_id}",
                     )
                     threads[camera_id] = thread
+                    _thread_cfg[camera_id] = cfg_key
                     thread.start()
                     print(
                         f"[THREAD] camera id={camera_id} "
                         f"path={stream_path(camera_id)} "
-                        f"nome={camera.get('nome')} url={rtsp_url(camera_id)}"
+                        f"nome={camera.get('nome')} modo={normalize_modo_deteccao(camera.get('modo_deteccao'))} "
+                        f"url={rtsp_url(camera_id)}"
                     )
         except Exception as exc:
             print(f"[ERRO] sync: {exc}")

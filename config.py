@@ -20,7 +20,7 @@ MEDIAMTX_HLS_BASE = os.getenv(
 ).rstrip("/")
 
 WORKER_ID = os.getenv("WORKER_ID", "worker-01")
-WORKER_VERSION = os.getenv("WORKER_VERSION", "0.3.0")
+WORKER_VERSION = os.getenv("WORKER_VERSION", "0.3.1")
 SYNC_INTERVAL_SEC = int(os.getenv("SYNC_INTERVAL_SEC", "30"))
 FRAME_SKIP = int(os.getenv("FRAME_SKIP", "5"))
 YOLO_MODEL = os.getenv("YOLO_MODEL", "yolov8n.pt")
