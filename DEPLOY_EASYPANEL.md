@@ -20,6 +20,7 @@ Documentação dos serviços Python/MediaMTX do ConfVision no EasyPanel.
 | `confvision-dvr` | Gravação contínua (DVR) | GitHub `ConfVision` | `python -u dvr_main.py` |
 | `confvision-motion` | Gravação por movimento | GitHub `ConfVision` | `python -u motion_main.py` |
 | `confvision-timelapse` | Timelapse inteligente | GitHub `ConfVision` | `python -u timelapse_main.py` |
+| `confvision-rtmp-watch` | Monitor de falhas RTMP (log → UI) | GitHub `ConfVision` | `python -u rtmp_watch_main.py` |
 
 ### Regra de plano por câmera
 
@@ -63,12 +64,39 @@ Servidor de mídia. Câmeras publicam e consomem stream via este container.
 | `MTX_AUTHINTERNALUSERS_1_USER` | `any` | Publicador genérico |
 | `MTX_AUTHINTERNALUSERS_1_PERMISSIONS` | `publish,read,playback` | Permissões |
 
+### Log em arquivo (obrigatório para Falhas RTMP)
+
+O MediaMTX precisa gravar log em arquivo no volume compartilhado `/recordings`, para o `confvision-rtmp-watch` ler.
+
+**Opção A — arquivo `mediamtx.yml` montado** (recomendado; ver `mediamtx/mediamtx.yml`):
+
+```yaml
+logDestinations: [stdout, file]
+logFile: /recordings/mediamtx.log
+```
+
+**Opção B — variáveis de ambiente:**
+
+| Variável | Valor |
+|---|---|
+| `MTX_LOGDESTINATIONS` | `stdout,file` |
+| `MTX_LOGFILE` | `/recordings/mediamtx.log` |
+
+### Mount (Bind)
+
+| Host | Container |
+|---|---|
+| `/opt/confvision/recordings` | `/recordings` |
+
+Mesmo volume usado por DVR e `confvision-rtmp-watch`.
+
 ### Rede interna (nome do container)
 
 Outros serviços referenciam este container como:
 
 - RTSP: `rtsp://foxpro_confvision:8554`
 - API: `http://foxpro_confvision:9997`
+- RTMP: `rtmp://rtmp.confmonit.com.br:1935` (público)
 
 ---
 
@@ -244,24 +272,92 @@ Se aparecer `SYNC 0 camera(s)`: verificar licença timelapse ativa na câmera e 
 
 ---
 
+## 6. confvision-rtmp-watch (Falhas RTMP)
+
+Lê o log do MediaMTX (`/recordings/mediamtx.log`), detecta conexões que abrem e fecham sem publicar, e expõe uma API HTTP interna. A app Go do ConfVision faz proxy e mostra a tela **Configurar → Falhas RTMP** (`/rtmp-falhas`).
+
+### Configuração
+
+- **Source:** GitHub → `adrianobraz/ConfVision` / `main` (ou imagem `confvision-worker:TAG`)
+- **Comando:** `python`
+- **Arguments:** `-u rtmp_watch_main.py`
+- **Replicas:** 1
+- **Porta interna:** `8099` (não precisa expor na internet)
+
+### Mount (Bind) — obrigatório o mesmo volume do MediaMTX
+
+| Host | Container |
+|---|---|
+| `/opt/confvision/recordings` | `/recordings` |
+
+### Variáveis de ambiente
+
+| Variável | Valor |
+|---|---|
+| `MTX_LOG_FILE` | `/recordings/mediamtx.log` |
+| `RTMP_WATCH_JSON` | `/recordings/rtmp_falhas.json` |
+| `RTMP_WATCH_HTTP_PORT` | `8099` |
+| `RTMP_WATCH_MAX` | `500` |
+| `RTMP_WATCH_DEDUPE_SEC` | `60` |
+
+### App Go ConfVision (`.env`)
+
+No serviço web ConfVision (não no worker):
+
+```env
+RTMP_WATCH_URL=http://foxpro_confvision-rtmp-watch:8099
+```
+
+Nome do host = projeto EasyPanel + nome do serviço (`foxpro` + `confvision-rtmp-watch`).
+
+### Endpoints internos do watch
+
+| Método | Path | Descrição |
+|---|---|---|
+| GET | `/health` | Status |
+| GET | `/falhas?limit=100` | Lista de falhas (PT) |
+| GET | `/resumo` | Totais / IPs únicos |
+
+Proxy na app: `/api/rtmp-falhas` e `/api/rtmp-falhas/resumo`.
+
+### Logs esperados
+
+```
+[RTMP-WATCH] START | log=/recordings/mediamtx.log | json=/recordings/rtmp_falhas.json | http=:8099
+[RTMP-WATCH] HTTP em 0.0.0.0:8099  GET /falhas /resumo /health
+[RTMP-WATCH] FALHA ip=187.x.x.x path=live/2 codigo=eof ...
+```
+
+### Checklist
+
+- [ ] MediaMTX com `logFile: /recordings/mediamtx.log` e volume `/recordings`
+- [ ] Serviço `confvision-rtmp-watch` no ar; `GET /health` ok
+- [ ] Arquivo `/recordings/mediamtx.log` existe e cresce
+- [ ] `RTMP_WATCH_URL` no `.env` da app Go
+- [ ] Tela `/rtmp-falhas` lista falhas após tentativa ruim de publish
+
+---
+
 ## Diagrama de arquitetura
 
 ```
-Câmera IP
-    │ RTSP publish
+Câmera IP / DVR
+    │ RTMP publish  rtmp://…:1935/live/{id}
     ▼
-confvision (MediaMTX)  ← foxpro_confvision:8554 / :9997
+confvision (MediaMTX)  ← foxpro_confvision:8554 / :9997 / :1935
+    │ log → /recordings/mediamtx.log
     │
-    ├── confvision-worker     → main.py           (detecção YOLO / eventos)
-    ├── confvision-dvr        → dvr_main.py       (gravação contínua)
-    ├── confvision-motion     → motion_main.py    (gravação por movimento)
-    └── confvision-timelapse  → timelapse_main.py (timelapse inteligente)
+    ├── confvision-worker     → main.py              (detecção YOLO / eventos)
+    ├── confvision-dvr        → dvr_main.py          (gravação contínua)
+    ├── confvision-motion     → motion_main.py       (gravação por movimento)
+    ├── confvision-timelapse  → timelapse_main.py    (timelapse inteligente)
+    └── confvision-rtmp-watch → rtmp_watch_main.py   (falhas RTMP → :8099)
             │
             ▼
-        Xano API (vis_gravacao_segmento, vis_camera_query_gravacao_ativas)
+        App Go ConfVision  RTMP_WATCH_URL → /rtmp-falhas
             │
             ▼
-        Contabo S3 (credenciais por franqueado via Xano)
+        Xano API / Contabo S3
 ```
 
 ---
@@ -276,6 +372,7 @@ Todos usam a mesma imagem Docker `confvision-worker:TAG`; só muda o **Arguments
 | `./deploy-dvr-vps.sh` | `confvision-dvr` |
 | `./deploy-motion-vps.sh` | `confvision-motion` |
 | `./deploy-timelapse-vps.sh` | `confvision-timelapse` |
+| `./deploy-rtmp-watch-vps.sh` | `confvision-rtmp-watch` |
 
 Build manual:
 
@@ -307,5 +404,9 @@ docker build -t confvision-worker:1 .
 | `motion_main.py` | Worker gravação por movimento |
 | `timelapse_main.py` | Entry point timelapse |
 | `timelapse_worker.py` | Lógica timelapse ↔ movimento |
+| `rtmp_watch_main.py` | Entry point monitor falhas RTMP |
+| `rtmp_watch.py` | Parser do log MediaMTX + store |
+| `rtmp_messages.py` | Mensagens amigáveis (PT) |
+| `mediamtx/mediamtx.yml` | Config MediaMTX (inclui logFile) |
 | `.env.example` | Todas as variáveis documentadas |
 | `config.py` | Leitura das variáveis de ambiente |

@@ -1,0 +1,43 @@
+# MediaMTX — ConfVision (montar em /mediamtx.yml no EasyPanel)
+# Volume compartilhado: /recordings -> confvision-recordings
+
+logLevel: info
+# stdout = EasyPanel | file = confvision-rtmp-watch (mesmo volume /recordings)
+logDestinations: [stdout, file]
+logFile: /recordings/mediamtx.log
+
+api: yes
+apiAddress: :9997
+
+rtspAddress: :8554
+rtmpAddress: :1935
+hlsAddress: :8888
+hlsAlwaysRemux: yes
+rtspTransports: [tcp]
+
+# Auth: dvr = API do worker | any = cameras publicam RTMP sem senha
+authMethod: internal
+authInternalUsers:
+  - user: dvr
+    pass: SuaSenhaForte123
+    permissions:
+      - action: api
+      - action: read
+      - action: playback
+  - user: any
+    pass:
+    permissions:
+      - action: publish
+      - action: read
+      - action: playback
+
+pathDefaults:
+  source: publisher
+  record: no
+
+paths:
+  live/1:
+    record: yes
+    recordPath: /recordings/%path/%Y-%m-%d_%H-%M-%S
+    recordFormat: fmp4
+    recordSegmentDuration: 5m
