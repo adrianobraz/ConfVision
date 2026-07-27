@@ -1,4 +1,4 @@
-"""Auth HTTP do MediaMTX + regras ConfVision (token HMAC + franqueado)."""
+"""Auth HTTP do MediaMTX + regras ConfVision (chave 24 dígitos no path)."""
 
 from __future__ import annotations
 
@@ -6,14 +6,13 @@ import os
 import re
 import time
 from typing import Any, Optional
-from urllib.parse import parse_qs
 
 import requests
 
 from rtmp_ban import BanStore
-from rtmp_token import publish_secret, token_valido
+from rtmp_token import chave_valida, parse_chave_rtmp, publish_secret
 
-RE_LIVE = re.compile(r"^live/(\d+)/?$")
+RE_LIVE_CHAVE = re.compile(r"^live/(\d{24})/?$")
 
 
 def _env(name: str, default: str = "") -> str:
@@ -59,15 +58,6 @@ class RtmpGuard:
         user = str(payload.get("user") or "").strip()
         password = str(payload.get("password") or "").strip()
         path = str(payload.get("path") or "").strip().lstrip("/")
-        query = str(payload.get("query") or "").strip()
-
-        # query RTMP pode trazer user/pass se o payload vier vazio
-        if query and (not user or not password):
-            qs = parse_qs(query, keep_blank_values=True)
-            if not user:
-                user = (qs.get("user") or [""])[0]
-            if not password:
-                password = (qs.get("pass") or qs.get("password") or [""])[0]
 
         if ip and self.bans.is_banned(ip):
             return 403, "ip_banido"
@@ -80,34 +70,31 @@ class RtmpGuard:
         if action in ("read", "playback"):
             if self.allow_read_open:
                 return 200, "read_aberto"
-            # leitura restrita: mesma regra de publish (token)
-            return self._authorize_publish(ip, user, password, path)
+            return self._authorize_publish(ip, path)
 
         if action == "publish":
-            return self._authorize_publish(ip, user, password, path)
+            return self._authorize_publish(ip, path)
 
         return 401, f"action_desconhecida:{action}"
 
-    def _authorize_publish(
-        self, ip: str, user: str, password: str, path: str
-    ) -> tuple[int, str]:
+    def _authorize_publish(self, ip: str, path: str) -> tuple[int, str]:
         if not self.secret:
             print("[RTMP-GUARD] RTMP_PUBLISH_SECRET vazio — negando publish", flush=True)
             return 403, "secret_nao_configurado"
 
-        m = RE_LIVE.match(path)
+        m = RE_LIVE_CHAVE.match(path)
         if not m:
             self._fail(ip, "path_invalido")
             return 403, "path_invalido"
 
-        camera_id = int(m.group(1))
-        if not password or not token_valido(camera_id, password, secret=self.secret):
-            self._fail(ip, "token_invalido")
-            return 403, "token_invalido"
+        chave = m.group(1)
+        if not chave_valida(chave, secret=self.secret):
+            self._fail(ip, "chave_invalida")
+            return 403, "chave_invalida"
 
-        if not user:
-            self._fail(ip, "user_ausente")
-            return 403, "user_ausente"
+        parsed = parse_chave_rtmp(chave)
+        assert parsed is not None
+        _mac, fra6, camera_id = parsed
 
         cam = self._fetch_camera(camera_id)
         if not cam:
@@ -115,7 +102,8 @@ class RtmpGuard:
             return 403, "camera_nao_encontrada"
 
         id_fra = str(cam.get("id_franqueado") or "").strip()
-        if id_fra != user:
+        digits = re.sub(r"\D", "", id_fra)
+        if not digits.endswith(fra6):
             self._fail(ip, "franqueado_divergente")
             return 403, "franqueado_divergente"
 
@@ -124,7 +112,6 @@ class RtmpGuard:
             return 403, "camera_bloqueada"
 
         # ativo=false NÃO bloqueia publish (plano "online" força ativo=false).
-        # Use o flag bloqueado para cortar RTMP de verdade.
         return 200, "publish_ok"
 
     def _fail(self, ip: str, motivo: str) -> None:
@@ -147,7 +134,6 @@ class RtmpGuard:
             data = r.json()
             if not isinstance(data, dict):
                 return None
-            # endpoint pode devolver {dados: {...}} ou o model direto
             cam = data.get("dados") if isinstance(data.get("dados"), dict) else data
             if not cam or cam.get("id") is None:
                 return None

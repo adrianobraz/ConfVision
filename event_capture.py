@@ -111,7 +111,7 @@ def processar_deteccao(
         return
 
     id_franqueado = camera.get("id_franqueado")
-    rtsp = rtsp_url(camera_id)
+    rtsp = rtsp_url(camera_id, camera.get("id_franqueado"))
     evento = None
     work_dir: Path | None = None
     snapshot_future = None

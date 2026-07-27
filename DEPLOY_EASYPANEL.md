@@ -290,18 +290,41 @@ Se aparecer `SYNC 0 camera(s)`: verificar licença timelapse ativa na câmera e 
 
 Substitui o `rtmp-watch`. Faz:
 
-1. **Auth HTTP** do MediaMTX (`POST /auth`) — publish só com `pass=HMAC(id)` + `user=id_franqueado`
+1. **Auth HTTP** do MediaMTX (`POST /auth`) — publish só com **chave 24** no path
 2. **Auto-ban** de IP por taxa de falha (auth negada ou EOF no log)
 3. **Desban / ban manual** (`POST /unban`, `POST /ban`)
 4. **Lista de falhas** para a UI (`GET /falhas`)
 
-URL de publicação (gerada pela app Go):
+### Chave RTMP (24 dígitos)
 
 ```text
-rtmp://rtmp.confmonit.com.br:1935/live/3?pass=TOKEN&user=ID_FRANQUEADO
+[9 MAC][6 últimos id_franqueado][9 vis_camera.id]
 ```
 
-(DVR: `…/live/3/?pass=…&user=…`)
+URL no aparelho (sem `?pass=` / `?user=`):
+
+```text
+rtmp://rtmp.confmonit.com.br:1935/live/{chave24}
+```
+
+- **WIFI:** sem `/` no fim  
+- **DVR:** com `/` no campo do aparelho (ele remove ao enviar)  
+- MAC = HMAC-SHA256(secret, `"{id}|{franqueado6}"`) → 9 dígitos  
+
+HLS/ao vivo usam o mesmo path: `…/live/{chave24}/index.m3u8`
+
+### Liberar o guard (ordem segura)
+
+1. Garantir `RTMP_PUBLISH_SECRET` **igual** no guard e na app Go (e nos workers que leem RTSP)
+2. Redeploy / start `confvision-rtmp-guard`
+3. MediaMTX (`mediamtx.yml`):
+   - `authMethod: http`
+   - `authHTTPAddress: http://foxpro_confvision-rtmp-guard:8100/auth`
+   - `authHTTPExclude: [read, playback]`
+   - `paths: all_others:`
+4. Redeploy app Go ConfVision
+5. No painel, copiar a **nova** URL (chave 24) para cada câmera
+6. Log do guard: `OK publish … path=live/…`
 
 ### Configuração EasyPanel
 
@@ -379,7 +402,7 @@ Proxy na app: `/api/rtmp-falhas`, `/api/rtmp-bans`, `/api/rtmp-bans/unban`, `/ap
 - [ ] MediaMTX com `authMethod: http` apontando ao guard
 - [ ] Mesmo `RTMP_PUBLISH_SECRET` no guard e na app Go
 - [ ] Porta 8100 liberada só para o IP da app Go
-- [ ] Câmeras com URL nova (`?pass=&user=`)
+- [ ] Câmeras com URL nova (`live/{chave24}`, sem query)
 - [ ] Tela `/rtmp-falhas` lista falhas + Desbanir
 
 ---
@@ -388,7 +411,7 @@ Proxy na app: `/api/rtmp-falhas`, `/api/rtmp-bans`, `/api/rtmp-bans/unban`, `/ap
 
 ```
 Câmera IP / DVR
-    │ RTMP  rtmp://…:1935/live/{id}?pass=TOKEN&user=FRANQUEADO
+    │ RTMP  rtmp://…:1935/live/{chave24}
     ▼
 confvision (MediaMTX)  ← auth HTTP → confvision-rtmp-guard:8100/auth
     │ log → /recordings/mediamtx.log
@@ -411,7 +434,7 @@ O guard já inclui `/falhas` — preferir o guard.
 
 ```
 Câmera IP / DVR
-    │ RTMP publish  rtmp://…:1935/live/{id}
+    │ RTMP publish  rtmp://…:1935/live/{chave24}
     ▼
 confvision (MediaMTX)  ← foxpro_confvision:8554 / :9997 / :1935
     │ log → /recordings/mediamtx.log

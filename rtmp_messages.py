@@ -7,23 +7,22 @@ MOTIVOS = {
     "eof_sem_publish": (
         "Conectou, mas não publicou o stream",
         "A câmera abriu a porta 1935 e fechou sem enviar vídeo. "
-        "Confira a URL (WIFI sem / no fim; DVR com /), path live/{id} e codec H.264.",
+        "Confira a URL (WIFI sem / no fim; DVR com /), path live/{chave24} e codec H.264.",
         "error",
     ),
     "path_barra_final": (
         "Path inválido: barra no final",
-        "MediaMTX rejeita live/X/. Câmera IP (WIFI) deve usar rtmp://…/live/X sem barra. "
-        "DVR pode precisar da barra no campo do aparelho (ele remove ao enviar).",
+        "MediaMTX rejeita barra no fim do path. WIFI: sem /; DVR: / só no campo do aparelho.",
         "error",
     ),
     "auth_falhou": (
         "Autenticação falhou",
-        "Usuário/senha RTMP incorretos. No ConfVision a publicação costuma ser aberta (any).",
+        "Chave RTMP inválida. Use a URL de 24 dígitos gerada no ConfVision (sem ?pass=).",
         "error",
     ),
     "path_invalido": (
         "Nome de path inválido",
-        "O path RTMP não é aceito. Use live/{idCamera} exatamente como no cadastro.",
+        "Use live/{chave24} (9+6+9 dígitos) exatamente como no cadastro ConfVision.",
         "error",
     ),
     "terminated": (

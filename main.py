@@ -51,7 +51,7 @@ def loop_camera(camera, detector: PersonDetector, event_queue):
     conf_min = float(camera.get("confianca_min") or 0.5)
     cooldown = int(camera.get("cooldown_seg") or 30)
     modo = normalize_modo_deteccao(camera.get("modo_deteccao"))
-    url = rtsp_url(camera_id)
+    url = rtsp_url(camera_id, camera.get("id_franqueado"))
     zonas = areas_ativas(camera.get("areas"))
 
     if modo != "ambos" and not zonas:
@@ -199,9 +199,9 @@ def main():
                     thread.start()
                     print(
                         f"[THREAD] camera id={camera_id} "
-                        f"path={stream_path(camera_id)} "
+                        f"path={stream_path(camera_id, camera.get('id_franqueado'))} "
                         f"nome={camera.get('nome')} modo={normalize_modo_deteccao(camera.get('modo_deteccao'))} "
-                        f"url={rtsp_url(camera_id)}"
+                        f"url={rtsp_url(camera_id, camera.get('id_franqueado'))}"
                     )
         except Exception as exc:
             print(f"[ERRO] sync: {exc}")

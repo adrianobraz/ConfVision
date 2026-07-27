@@ -11,7 +11,7 @@ from config import (
     MEDIAMTX_API_PASS,
     MEDIAMTX_API_USER,
 )
-from urls import stream_path
+from urls import stream_path_for_camera
 
 # id -> segmento_minutos (estado sincronizado com MediaMTX)
 RecordState = dict[int, int]
@@ -50,8 +50,11 @@ def record_config(segmento_minutos: int) -> dict[str, Any]:
     }
 
 
-def enable_record(camera_id: int, segmento_minutos: int = DVR_SEGMENTO_MINUTOS_DEFAULT):
-    path_name = stream_path(camera_id)
+def enable_record(
+    camera: dict[str, Any],
+    segmento_minutos: int = DVR_SEGMENTO_MINUTOS_DEFAULT,
+):
+    path_name = stream_path_for_camera(camera)
     payload = record_config(segmento_minutos)
     response = _api_request("PATCH", _path_url(path_name), json=payload, timeout=10)
     if response.status_code == 404:
@@ -61,8 +64,8 @@ def enable_record(camera_id: int, segmento_minutos: int = DVR_SEGMENTO_MINUTOS_D
     return response.json() if response.content else {}
 
 
-def disable_record(camera_id: int):
-    path_name = stream_path(camera_id)
+def disable_record(camera: dict[str, Any]):
+    path_name = stream_path_for_camera(camera)
     response = _api_request(
         "PATCH", _path_url(path_name), json={"record": False}, timeout=10
     )
@@ -81,22 +84,27 @@ def sync_record_paths(
 
     prev = previous or {}
     current = _build_state(cameras)
+    by_id = {int(c["id"]): c for c in cameras if c.get("id") is not None}
 
     for camera_id, segmento in current.items():
         if prev.get(camera_id) == segmento:
             continue
+        cam = by_id.get(camera_id)
+        if not cam:
+            continue
         try:
-            enable_record(camera_id, segmento)
+            enable_record(cam, segmento)
             print(
                 f"[MTX] record ON camera={camera_id} "
-                f"path={stream_path(camera_id)} segmento={segmento}min"
+                f"path={stream_path_for_camera(cam)} segmento={segmento}min"
             )
         except Exception as exc:
             print(f"[MTX] ERRO record ON camera={camera_id}: {exc}")
 
     for camera_id in prev.keys() - current.keys():
+        # path legado live/{id} se não houver franqueado em memória
         try:
-            disable_record(camera_id)
+            disable_record({"id": camera_id})
             print(f"[MTX] record OFF camera={camera_id}")
         except Exception as exc:
             print(f"[MTX] ERRO record OFF camera={camera_id}: {exc}")

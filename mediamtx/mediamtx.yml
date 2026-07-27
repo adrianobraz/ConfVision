@@ -15,19 +15,19 @@ hlsAddress: :8888
 hlsAlwaysRemux: yes
 rtspTransports: [tcp]
 
-# Auth HTTP → confvision-rtmp-guard (publish exige token + id_franqueado)
-# read/playback liberados no guard (RTMP_ALLOW_READ_OPEN=1); api via user dvr
+# Auth HTTP → confvision-rtmp-guard
+# Publish: path live/{chave24} (9 MAC + 6 franqueado + 9 camera)
+# read/playback liberados (RTMP_ALLOW_READ_OPEN=1); api via user dvr
 authMethod: http
 authHTTPAddress: http://foxpro_confvision-rtmp-guard:8100/auth
-authHTTPExclude: []
+authHTTPExclude:
+  - read
+  - playback
 
 pathDefaults:
   source: publisher
   record: no
 
+# Escala: qualquer live/{chave24} (não listar live/1, live/2…)
 paths:
-  live/1:
-    record: yes
-    recordPath: /recordings/%path/%Y-%m-%d_%H-%M-%S
-    recordFormat: fmp4
-    recordSegmentDuration: 5m
+  all_others:

@@ -5,7 +5,7 @@ from typing import Any, Callable, Optional
 
 from config import DVR_RECORD_DIR, DVR_STABLE_SEC
 from dvr_segment import process_segment_file
-from urls import stream_path
+from urls import stream_path_for_camera
 
 
 class DvrWatcher:
@@ -62,7 +62,7 @@ class DvrWatcher:
         return False
 
     def _scan_camera_dir(self, camera_id: int, camera: dict[str, Any]):
-        cam_dir = Path(DVR_RECORD_DIR) / stream_path(camera_id)
+        cam_dir = Path(DVR_RECORD_DIR) / stream_path_for_camera(camera)
         if not cam_dir.is_dir():
             return
 
