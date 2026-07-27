@@ -20,7 +20,8 @@ Documentação dos serviços Python/MediaMTX do ConfVision no EasyPanel.
 | `confvision-dvr` | Gravação contínua (DVR) | GitHub `ConfVision` | `python -u dvr_main.py` |
 | `confvision-motion` | Gravação por movimento | GitHub `ConfVision` | `python -u motion_main.py` |
 | `confvision-timelapse` | Timelapse inteligente | GitHub `ConfVision` | `python -u timelapse_main.py` |
-| `confvision-rtmp-watch` | Monitor de falhas RTMP (log → UI) | GitHub `ConfVision` | `python -u rtmp_watch_main.py` |
+| `confvision-rtmp-watch` | Monitor de falhas RTMP (legado) | GitHub `ConfVision` | `python -u rtmp_watch_main.py` |
+| `confvision-rtmp-guard` | **Auth RTMP + ban/desban + falhas** | GitHub `ConfVision` | `python -u rtmp_guard_main.py` |
 
 ### Regra de plano por câmera
 
@@ -57,12 +58,25 @@ Servidor de mídia. Câmeras publicam e consomem stream via este container.
 | `MTX_PATHS_LIVE_1_RECORDPATH` | `/recordings/%path/%Y-%m-%d_%H-%M-%S` | Pasta de gravação |
 | `MTX_PATHS_LIVE_1_RECORDFORMAT` | `fmp4` | Formato do segmento |
 | `MTX_PATHS_LIVE_1_RECORDSEGMENTDURATION` | `5m` | Duração do segmento |
-| `MTX_AUTHMETHOD` | `internal` | Autenticação interna |
-| `MTX_AUTHINTERNALUSERS_0_USER` | `dvr` | Usuário API/DVR |
-| `MTX_AUTHINTERNALUSERS_0_PASS` | *(senha forte)* | Senha — trocar em produção |
-| `MTX_AUTHINTERNALUSERS_0_PERMISSIONS` | `api,read,playback` | Permissões |
-| `MTX_AUTHINTERNALUSERS_1_USER` | `any` | Publicador genérico |
-| `MTX_AUTHINTERNALUSERS_1_PERMISSIONS` | `publish,read,playback` | Permissões |
+| `MTX_AUTHMETHOD` | `http` | Auth via confvision-rtmp-guard |
+| `MTX_AUTHHTTPADDRESS` | `http://foxpro_confvision-rtmp-guard:8100/auth` | Webhook de auth |
+| ~~`MTX_AUTHINTERNALUSERS_…`~~ | — | Removido: publish aberto (`any`) não deve ser usado |
+
+> Preferir montar `mediamtx/mediamtx.yml` (já com `authMethod: http`).
+
+### Variáveis principais (Environment) — legado (NÃO usar em produção)
+
+| Variável | Valor (foxpro) | Descrição |
+|---|---|---|
+| `MTX_RTSPTRANSPORTS` | `tcp` | Transporte RTSP |
+| `MTX_API` | `yes` | Habilita API REST |
+| `MTX_APIADDRESS` | `:9997` | Porta da API |
+| `MTX_PATHDEFAULTS_RECORD` | `no` | Gravação desligada por padrão |
+| `MTX_PATHS_LIVE_1_RECORD` | `yes` | Exemplo de path com record |
+| `MTX_PATHS_LIVE_1_RECORDPATH` | `/recordings/%path/%Y-%m-%d_%H-%M-%S` | Pasta de gravação |
+| `MTX_PATHS_LIVE_1_RECORDFORMAT` | `fmp4` | Formato do segmento |
+| `MTX_PATHS_LIVE_1_RECORDSEGMENTDURATION` | `5m` | Duração do segmento |
+| `MTX_AUTHMETHOD` | `internal` | (legado) |
 
 ### Log em arquivo (obrigatório para Falhas RTMP)
 
@@ -272,19 +286,32 @@ Se aparecer `SYNC 0 camera(s)`: verificar licença timelapse ativa na câmera e 
 
 ---
 
-## 6. confvision-rtmp-watch (Falhas RTMP)
+## 6. confvision-rtmp-guard (Auth + Ban + Falhas RTMP)
 
-Lê o log do MediaMTX (`/recordings/mediamtx.log`), detecta conexões que abrem e fecham sem publicar, e expõe uma API HTTP interna. A app Go do ConfVision faz proxy e mostra a tela **Configurar → Falhas RTMP** (`/rtmp-falhas`).
+Substitui o `rtmp-watch`. Faz:
 
-### Configuração
+1. **Auth HTTP** do MediaMTX (`POST /auth`) — publish só com `pass=HMAC(id)` + `user=id_franqueado`
+2. **Auto-ban** de IP por taxa de falha (auth negada ou EOF no log)
+3. **Desban / ban manual** (`POST /unban`, `POST /ban`)
+4. **Lista de falhas** para a UI (`GET /falhas`)
 
-- **Source:** GitHub → `adrianobraz/ConfVision` / `main` (ou imagem `confvision-worker:TAG`)
+URL de publicação (gerada pela app Go):
+
+```text
+rtmp://rtmp.confmonit.com.br:1935/live/3?pass=TOKEN&user=ID_FRANQUEADO
+```
+
+(DVR: `…/live/3/?pass=…&user=…`)
+
+### Configuração EasyPanel
+
+- **Source:** GitHub → `adrianobraz/ConfVision` / `main`
 - **Comando:** `python`
-- **Arguments:** `-u rtmp_watch_main.py`
+- **Arguments:** `-u rtmp_guard_main.py`
 - **Replicas:** 1
-- **Porta interna:** `8099` (não precisa expor na internet)
+- **Porta:** `8100` — expor **somente** para o IP do servidor da app Go (firewall)
 
-### Mount (Bind) — obrigatório o mesmo volume do MediaMTX
+### Mount (Bind) — mesmo volume do MediaMTX
 
 | Host | Container |
 |---|---|
@@ -292,53 +319,95 @@ Lê o log do MediaMTX (`/recordings/mediamtx.log`), detecta conexões que abrem 
 
 ### Variáveis de ambiente
 
-| Variável | Valor |
-|---|---|
-| `MTX_LOG_FILE` | `/recordings/mediamtx.log` |
-| `RTMP_WATCH_JSON` | `/recordings/rtmp_falhas.json` |
-| `RTMP_WATCH_HTTP_PORT` | `8099` |
-| `RTMP_WATCH_MAX` | `500` |
-| `RTMP_WATCH_DEDUPE_SEC` | `60` |
+| Variável | Valor | Descrição |
+|---|---|---|
+| `XANO_BASE_URL` | `https://…/api:AC7rgWwW` | Grupo confVision |
+| `RTMP_PUBLISH_SECRET` | *(segredo longo)* | **Igual** ao da app Go |
+| `RTMP_GUARD_ADMIN_KEY` | *(chave)* | Header `X-RTMP-Guard-Key` |
+| `RTMP_GUARD_HTTP_PORT` | `8100` | Porta HTTP |
+| `MTX_LOG_FILE` | `/recordings/mediamtx.log` | Log MediaMTX |
+| `RTMP_WATCH_JSON` | `/recordings/rtmp_falhas.json` | Persistência falhas |
+| `RTMP_BAN_JSON` | `/recordings/rtmp_bans.json` | Persistência bans |
+| `RTMP_BAN_MAX_FAILS` | `20` | Falhas para auto-ban |
+| `RTMP_BAN_WINDOW_SEC` | `60` | Janela de contagem |
+| `RTMP_BAN_TTL_SEC` | `3600` | Duração do ban (1h) |
+| `MEDIAMTX_API_USER` | `dvr` | Auth da API MediaMTX |
+| `MEDIAMTX_API_PASS` | *(senha)* | Igual ao worker DVR |
+| `RTMP_ALLOW_READ_OPEN` | `1` | HLS/read sem token (fase 1) |
 
-### App Go ConfVision (`.env`)
+### MediaMTX
 
-No serviço web ConfVision (não no worker):
+Montar `mediamtx/mediamtx.yml` (já com):
 
-```env
-RTMP_WATCH_URL=http://foxpro_confvision-rtmp-watch:8099
+```yaml
+authMethod: http
+authHTTPAddress: http://foxpro_confvision-rtmp-guard:8100/auth
 ```
 
-Nome do host = projeto EasyPanel + nome do serviço (`foxpro` + `confvision-rtmp-watch`).
+### App Go ConfVision (outro servidor — `.env`)
 
-### Endpoints internos do watch
+```env
+RTMP_GUARD_URL=http://IP_DA_VPS:8100
+RTMP_WATCH_URL=http://IP_DA_VPS:8100
+RTMP_GUARD_ADMIN_KEY=igual-ao-do-guard
+RTMP_PUBLISH_SECRET=igual-ao-do-guard
+```
+
+### Endpoints
 
 | Método | Path | Descrição |
 |---|---|---|
-| GET | `/health` | Status |
-| GET | `/falhas?limit=100` | Lista de falhas (PT) |
-| GET | `/resumo` | Totais / IPs únicos |
+| POST | `/auth` | MediaMTX auth webhook |
+| GET | `/falhas` | Falhas RTMP |
+| GET | `/bans` | IPs banidos |
+| POST | `/ban` | Ban manual `{ip, motivo?, ttl_sec?}` |
+| POST | `/unban` | Desban `{ip}` |
+| GET | `/health` | Healthcheck |
 
-Proxy na app: `/api/rtmp-falhas` e `/api/rtmp-falhas/resumo`.
+Proxy na app: `/api/rtmp-falhas`, `/api/rtmp-bans`, `/api/rtmp-bans/unban`, `/api/cameras/{id}/rtmp-publish`, `/api/cameras/{id}/bloquear`.
 
-### Logs esperados
+### Xano (push necessário)
 
-```
-[RTMP-WATCH] START | log=/recordings/mediamtx.log | json=/recordings/rtmp_falhas.json | http=:8099
-[RTMP-WATCH] HTTP em 0.0.0.0:8099  GET /falhas /resumo /health
-[RTMP-WATCH] FALHA ip=187.x.x.x path=live/2 codigo=eof ...
-```
+- Coluna `vis_camera.bloqueado` (bool)
+- `GET vis_camera/rtmp_auth/{id}`
+- `POST vis_camera/bloquear/{id}`
 
 ### Checklist
 
-- [ ] MediaMTX com `logFile: /recordings/mediamtx.log` e volume `/recordings`
-- [ ] Serviço `confvision-rtmp-watch` no ar; `GET /health` ok
-- [ ] Arquivo `/recordings/mediamtx.log` existe e cresce
-- [ ] `RTMP_WATCH_URL` no `.env` da app Go
-- [ ] Tela `/rtmp-falhas` lista falhas após tentativa ruim de publish
+- [ ] Push table/APIs Xano (`bloqueado`, rtmp_auth, bloquear)
+- [ ] Serviço `confvision-rtmp-guard` no ar; `GET /health` ok
+- [ ] MediaMTX com `authMethod: http` apontando ao guard
+- [ ] Mesmo `RTMP_PUBLISH_SECRET` no guard e na app Go
+- [ ] Porta 8100 liberada só para o IP da app Go
+- [ ] Câmeras com URL nova (`?pass=&user=`)
+- [ ] Tela `/rtmp-falhas` lista falhas + Desbanir
 
 ---
 
 ## Diagrama de arquitetura
+
+```
+Câmera IP / DVR
+    │ RTMP  rtmp://…:1935/live/{id}?pass=TOKEN&user=FRANQUEADO
+    ▼
+confvision (MediaMTX)  ← auth HTTP → confvision-rtmp-guard:8100/auth
+    │ log → /recordings/mediamtx.log
+    │
+    ├── confvision-rtmp-guard (auth + ban + falhas)
+    ├── confvision-worker / dvr / motion / …
+    └── App Go ConfVision (outro host)  RTMP_GUARD_URL → /rtmp-falhas
+```
+
+---
+
+## 6b. confvision-rtmp-watch (legado)
+
+Use apenas se ainda não migrou para o guard. Entry: `python -u rtmp_watch_main.py`, porta `8099`.
+O guard já inclui `/falhas` — preferir o guard.
+
+---
+
+## Diagrama legado (workers)
 
 ```
 Câmera IP / DVR
@@ -404,9 +473,13 @@ docker build -t confvision-worker:1 .
 | `motion_main.py` | Worker gravação por movimento |
 | `timelapse_main.py` | Entry point timelapse |
 | `timelapse_worker.py` | Lógica timelapse ↔ movimento |
-| `rtmp_watch_main.py` | Entry point monitor falhas RTMP |
+| `rtmp_guard_main.py` | Entry point auth + ban + falhas RTMP |
+| `rtmp_guard.py` | Regras auth (HMAC + Xano) |
+| `rtmp_ban.py` | Store de IPs banidos |
+| `rtmp_token.py` | HMAC publish token |
+| `rtmp_watch_main.py` | Entry point monitor falhas RTMP (legado) |
 | `rtmp_watch.py` | Parser do log MediaMTX + store |
 | `rtmp_messages.py` | Mensagens amigáveis (PT) |
-| `mediamtx/mediamtx.yml` | Config MediaMTX (inclui logFile) |
+| `mediamtx/mediamtx.yml` | Config MediaMTX (auth HTTP + logFile) |
 | `.env.example` | Todas as variáveis documentadas |
 | `config.py` | Leitura das variáveis de ambiente |

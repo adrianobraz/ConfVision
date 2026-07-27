@@ -2,7 +2,7 @@
 # Volume compartilhado: /recordings -> confvision-recordings
 
 logLevel: info
-# stdout = EasyPanel | file = confvision-rtmp-watch (mesmo volume /recordings)
+# stdout = EasyPanel | file = confvision-rtmp-guard (mesmo volume /recordings)
 logDestinations: [stdout, file]
 logFile: /recordings/mediamtx.log
 
@@ -15,21 +15,11 @@ hlsAddress: :8888
 hlsAlwaysRemux: yes
 rtspTransports: [tcp]
 
-# Auth: dvr = API do worker | any = cameras publicam RTMP sem senha
-authMethod: internal
-authInternalUsers:
-  - user: dvr
-    pass: SuaSenhaForte123
-    permissions:
-      - action: api
-      - action: read
-      - action: playback
-  - user: any
-    pass:
-    permissions:
-      - action: publish
-      - action: read
-      - action: playback
+# Auth HTTP → confvision-rtmp-guard (publish exige token + id_franqueado)
+# read/playback liberados no guard (RTMP_ALLOW_READ_OPEN=1); api via user dvr
+authMethod: http
+authHTTPAddress: http://foxpro_confvision-rtmp-guard:8100/auth
+authHTTPExclude: []
 
 pathDefaults:
   source: publisher
