@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Deque, Optional
 
 from rtmp_messages import classificar_motivo, mensagem_amigavel
+from rtmp_token import parse_chave_rtmp
 
 RE_LINE = re.compile(
     r"^(?P<ts>\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})\s+"
@@ -28,6 +29,22 @@ RE_PUBLISH = re.compile(r"is publishing to path '([^']+)'")
 RE_PATH_ONLINE = re.compile(r"^\[path (?P<path>[^\]]+)\] stream is available")
 RE_MUXER_DESTROY = re.compile(r"^\[HLS\] \[muxer (?P<path>[^\]]+)\] destroyed")
 RE_CLOSED = re.compile(r"^closed:\s*(?P<reason>.+)$")
+RE_LIVE_PATH = re.compile(r"(live/[A-Za-z0-9_.-]+)")
+
+
+def path_label(path: str) -> str:
+    """Path legível: inclui id da câmera quando for chave 24 ou live/{id}."""
+    p = (path or "").strip().rstrip("/")
+    if not p:
+        return ""
+    nome = p.rsplit("/", 1)[-1]
+    parsed = parse_chave_rtmp(nome)
+    if parsed:
+        _, fra6, cam = parsed
+        return f"{p} (câmera {cam}, franq …{fra6})"
+    if nome.isdigit():
+        return f"{p} (câmera {int(nome)})"
+    return p
 
 
 @dataclass
@@ -59,6 +76,7 @@ class Falha:
         d = asdict(self)
         if not d.get("ts_ultimo"):
             d["ts_ultimo"] = d["ts"]
+        d["path_label"] = path_label(d.get("path") or "")
         return d
 
 
@@ -140,20 +158,23 @@ class RtmpWatchStore:
                     break
             return out
 
+    def _resumo_unlocked(self) -> dict:
+        por_codigo: dict[str, int] = {}
+        por_ip: dict[str, int] = {}
+        for item in self._items:
+            por_codigo[item.motivo_codigo] = por_codigo.get(item.motivo_codigo, 0) + item.vezes
+            por_ip[item.ip] = por_ip.get(item.ip, 0) + item.vezes
+        top_ips = sorted(por_ip.items(), key=lambda x: x[1], reverse=True)[:20]
+        return {
+            "total_eventos": sum(i.vezes for i in self._items),
+            "total_registros": len(self._items),
+            "por_motivo": por_codigo,
+            "top_ips": [{"ip": k, "vezes": v} for k, v in top_ips],
+        }
+
     def resumo(self) -> dict:
         with self._lock:
-            por_codigo: dict[str, int] = {}
-            por_ip: dict[str, int] = {}
-            for item in self._items:
-                por_codigo[item.motivo_codigo] = por_codigo.get(item.motivo_codigo, 0) + item.vezes
-                por_ip[item.ip] = por_ip.get(item.ip, 0) + item.vezes
-            top_ips = sorted(por_ip.items(), key=lambda x: x[1], reverse=True)[:20]
-            return {
-                "total_eventos": sum(i.vezes for i in self._items),
-                "total_registros": len(self._items),
-                "por_motivo": por_codigo,
-                "top_ips": [{"ip": k, "vezes": v} for k, v in top_ips],
-            }
+            return self._resumo_unlocked()
 
     def salvar_json(self, path: str) -> None:
         p = Path(path)
@@ -162,7 +183,7 @@ class RtmpWatchStore:
             payload = {
                 "atualizado_em": datetime.now(timezone.utc).isoformat(),
                 "falhas": [i.to_dict() for i in list(self._items)[:200]],
-                "resumo": self.resumo(),
+                "resumo": self._resumo_unlocked(),
             }
         tmp = p.with_suffix(".tmp")
         tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -173,6 +194,8 @@ class RtmpLogParser:
     def __init__(self, store: RtmpWatchStore):
         self.store = store
         self.conns: dict[str, ConnState] = {}
+        # Último path visto por IP (publish) — útil em EOF sem path no log
+        self.last_path_by_ip: dict[str, str] = {}
 
     def feed(self, line: str) -> Optional[Falha]:
         line = (line or "").rstrip("\n")
@@ -218,8 +241,9 @@ class RtmpLogParser:
         if pub:
             st = self.conns.get(key) or ConnState(ip=ip, port=port, opened_at=ts)
             st.published = True
-            st.path = pub.group(1)
+            st.path = pub.group(1).rstrip("/")
             self.conns[key] = st
+            self.last_path_by_ip[ip] = st.path
             print(
                 f"[RTMP-WATCH] OK ip={ip} path={st.path} — publicando",
                 flush=True,
@@ -230,7 +254,11 @@ class RtmpLogParser:
         if closed or msg.startswith("closed"):
             reason = closed.group("reason") if closed else msg.replace("closed:", "").strip()
             st = self.conns.pop(key, None)
-            path = (st.path if st else "") or self._path_from_reason(reason)
+            path = (
+                (st.path if st else "")
+                or self._path_from_reason(reason)
+                or self.last_path_by_ip.get(ip, "")
+            )
 
             # Se publicou com sucesso e caiu depois, ainda é útil registrar (queda)
             if st and st.published and "terminated" not in reason.lower():
@@ -269,12 +297,15 @@ class RtmpLogParser:
 
         # Erros sem closed explícito na mesma linha (ex.: invalid path)
         if "invalid path" in msg.lower() or "authentication" in msg.lower():
+            path = self._path_from_reason(msg) or self.last_path_by_ip.get(ip, "")
+            if path:
+                self.last_path_by_ip[ip] = path
             falha = self.store.add(
                 ts=ts,
                 ip=ip,
                 porta=port,
                 protocolo="RTMP",
-                path=self._path_from_reason(msg),
+                path=path,
                 motivo_raw=msg,
             )
             if falha:
@@ -286,10 +317,7 @@ class RtmpLogParser:
 
     @staticmethod
     def _path_from_reason(reason: str) -> str:
-        m = re.search(r"\((live/[^)]+)\)", reason or "")
-        if m:
-            return m.group(1).rstrip("/")
-        m = re.search(r"'(live/[^']+)'", reason or "")
+        m = RE_LIVE_PATH.search(reason or "")
         if m:
             return m.group(1).rstrip("/")
         return ""
@@ -310,6 +338,8 @@ def follow_file(path: str, parser: RtmpLogParser, store: RtmpWatchStore, json_ou
     pos = 0
     inode = None
     last_save = 0.0
+    # Primeira abertura: começa no fim (evita replay/auto-ban do histórico)
+    started = False
 
     while True:
         try:
@@ -321,8 +351,16 @@ def follow_file(path: str, parser: RtmpLogParser, store: RtmpWatchStore, json_ou
             if inode is None or st.st_ino != inode or st.st_size < pos:
                 # arquivo novo / truncado / rotacionado
                 inode = st.st_ino
-                pos = 0
-                print(f"[RTMP-WATCH] lendo {p} (size={st.st_size})", flush=True)
+                if not started:
+                    pos = st.st_size
+                    started = True
+                    print(
+                        f"[RTMP-WATCH] tail a partir do fim {p} (size={pos})",
+                        flush=True,
+                    )
+                else:
+                    pos = 0
+                    print(f"[RTMP-WATCH] lendo {p} (size={st.st_size})", flush=True)
 
             with p.open("r", encoding="utf-8", errors="replace") as f:
                 f.seek(pos)
