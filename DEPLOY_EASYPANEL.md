@@ -294,6 +294,7 @@ Substitui o `rtmp-watch`. Faz:
 2. **Auto-ban** de IP por taxa de falha (auth negada ou EOF no log)
 3. **Desban / ban manual** (`POST /unban`, `POST /ban`)
 4. **Lista de falhas** para a UI (`GET /falhas`)
+5. **Câmeras online** (`GET /online`) — paths prontos + câmera/franqueado/IP
 
 ### Chave RTMP (24 dígitos)
 
@@ -354,6 +355,7 @@ HLS/ao vivo usam o mesmo path: `…/live/{chave24}/index.m3u8`
 | `RTMP_BAN_MAX_FAILS` | `20` | Falhas para auto-ban |
 | `RTMP_BAN_WINDOW_SEC` | `60` | Janela de contagem |
 | `RTMP_BAN_TTL_SEC` | `3600` | Duração do ban (1h) |
+| `MEDIAMTX_API_BASE` | `http://foxpro_confvision:9997` | API Control (lista online) |
 | `MEDIAMTX_API_USER` | `dvr` | Auth da API MediaMTX |
 | `MEDIAMTX_API_PASS` | *(senha)* | Igual ao worker DVR |
 | `RTMP_ALLOW_READ_OPEN` | `1` | HLS/read sem token (fase 1) |

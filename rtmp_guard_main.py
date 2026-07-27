@@ -17,6 +17,7 @@ from urllib.parse import parse_qs, urlparse
 
 from rtmp_ban import BanStore
 from rtmp_guard import RtmpGuard
+from rtmp_online import listar_online
 from rtmp_token import publish_secret
 from rtmp_watch import RtmpLogParser, RtmpWatchStore, follow_file
 
@@ -148,6 +149,13 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {"status": "ok", "dados": BANS.listar()})
             return
 
+        if path == "/online":
+            if not _admin_ok(self):
+                self._json(401, {"status": "nao autorizado"})
+                return
+            self._json(200, listar_online(fallback_publishers=PARSER.publishers))
+            return
+
         self._json(404, {"status": "nao encontrado"})
 
     def do_POST(self):
@@ -248,7 +256,7 @@ def main():
 
     server = ThreadingHTTPServer(("0.0.0.0", port), Handler)
     print(
-        f"[RTMP-GUARD] HTTP 0.0.0.0:{port}  POST /auth /ban /unban  GET /falhas /bans /health",
+        f"[RTMP-GUARD] HTTP 0.0.0.0:{port}  POST /auth /ban /unban  GET /falhas /bans /online /health",
         flush=True,
     )
     server.serve_forever()

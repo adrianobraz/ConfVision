@@ -196,6 +196,8 @@ class RtmpLogParser:
         self.conns: dict[str, ConnState] = {}
         # Último path visto por IP (publish) — útil em EOF sem path no log
         self.last_path_by_ip: dict[str, str] = {}
+        # path -> {ip, since} para fallback da lista online
+        self.publishers: dict[str, dict] = {}
 
     def feed(self, line: str) -> Optional[Falha]:
         line = (line or "").rstrip("\n")
@@ -244,6 +246,7 @@ class RtmpLogParser:
             st.path = pub.group(1).rstrip("/")
             self.conns[key] = st
             self.last_path_by_ip[ip] = st.path
+            self.publishers[st.path] = {"ip": ip, "since": ts}
             print(
                 f"[RTMP-WATCH] OK ip={ip} path={st.path} — publicando",
                 flush=True,
@@ -259,6 +262,10 @@ class RtmpLogParser:
                 or self._path_from_reason(reason)
                 or self.last_path_by_ip.get(ip, "")
             )
+            if st and st.published and st.path:
+                cur = self.publishers.get(st.path)
+                if cur and cur.get("ip") == ip:
+                    self.publishers.pop(st.path, None)
 
             # Se publicou com sucesso e caiu depois, ainda é útil registrar (queda)
             if st and st.published and "terminated" not in reason.lower():
