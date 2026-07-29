@@ -19,14 +19,10 @@ rtspTransports: [tcp]
 # Auth HTTP → Guard no mesmo container (Dockerfile.mediamtx)
 # Publish: path cam/{hash12+} = Hashids(vis_camera.id), salt=RTMP_PUBLISH_SECRET
 # Alfabeto 0-9a-z, min_length=12 — app fixo "cam"
-# read/playback liberados (RTMP_ALLOW_READ_OPEN=1); api via user dvr
-# Se ainda usar Guard em container separado, troque para:
-#   http://foxpro_confvision-rtmp-guard:8100/auth
+# read/playback passam pelo Guard (mesma regra: bloqueado/ativo/plano online)
+# RTMP_ALLOW_READ_OPEN=1 desliga checagem no read (legado)
 authMethod: http
 authHTTPAddress: http://127.0.0.1:8100/auth
-authHTTPExclude:
-  - action: read
-  - action: playback
 
 pathDefaults:
   source: publisher

@@ -192,10 +192,10 @@ class Handler(BaseHTTPRequestHandler):
                     f"hash={hash_v} camera_id={cam_v} plano={plano_v} motivo={motivo}",
                     flush=True,
                 )
-            elif action == "publish":
+            elif action in ("publish", "read", "playback"):
                 print(
-                    f"[RTMP-GUARD] OK publish ip={ip} path={path_v} "
-                    f"hash={hash_v} camera_id={cam_v} plano={plano_v}",
+                    f"[RTMP-GUARD] OK {action} ip={ip} path={path_v} "
+                    f"hash={hash_v} camera_id={cam_v} plano={plano_v} motivo={motivo}",
                     flush=True,
                 )
             return
