@@ -15,12 +15,12 @@ Documentação dos serviços Python/MediaMTX do ConfVision no EasyPanel.
 
 | Serviço EasyPanel | Função | Imagem / origem | Entry point |
 |---|---|---|---|
-| `confvision` | **MediaMTX + Guard** (RTMP/HLS/API + auth/ban) | GitHub `ConfVision` → `Dockerfile.mediamtx` | `start_mediamtx_guard.py` |
+| `confvision` | **MediaMTX + Guard** (RTMP/HLS/API + auth/ban) | GitHub `ConfVision` → `Dockerfile-mediamtx` | `start_mediamtx_guard.py` |
 | `confvision-worker` | Detecção de pessoas (YOLO) + eventos | GitHub `ConfVision` | `python -u main.py` |
 | `confvision-dvr` | Gravação contínua (DVR) | GitHub `ConfVision` | `python -u dvr_main.py` |
 | `confvision-motion` | Gravação por movimento | GitHub `ConfVision` | `python -u motion_main.py` |
 | `confvision-timelapse` | Timelapse inteligente | GitHub `ConfVision` | `python -u timelapse_main.py` |
-| `confvision-rtmp-guard` | *(legado)* Guard separado — **parar** após migrar para `Dockerfile.mediamtx` | GitHub `ConfVision` | `python -u rtmp_guard_main.py` |
+| `confvision-rtmp-guard` | *(legado)* Guard separado — **parar** após migrar para `Dockerfile-mediamtx` | GitHub `ConfVision` | `python -u rtmp_guard_main.py` |
 | `confvision-rtmp-watch` | Monitor de falhas RTMP (legado) | GitHub `ConfVision` | `python -u rtmp_watch_main.py` |
 
 ### Regra de plano por câmera
@@ -46,7 +46,7 @@ Auth via `http://127.0.0.1:8100/auth` — **não depende** de rede Docker entre 
 
 1. Serviço **`confvision`**
 2. **Source:** GitHub → `adrianobraz/ConfVision` / `main`
-3. **Dockerfile path:** `Dockerfile.mediamtx` (não o `Dockerfile` do YOLO)
+3. **Dockerfile path:** `Dockerfile-mediamtx` (não o `Dockerfile` do YOLO)
 4. **Comando / Arguments:** vazio (usa o `CMD` da imagem)
 5. **Portas:** `1935` (RTMP), `8554` (RTSP), `8888` (HLS), `9997` (API), `8100` (Guard — só para a app Go)
 6. **Mount:** `/opt/confvision/recordings` → `/recordings`
@@ -105,7 +105,7 @@ Outros serviços referenciam este container como:
 
 | Arquivo | Função |
 |---|---|
-| `Dockerfile.mediamtx` | Imagem combinada |
+| `Dockerfile-mediamtx` | Imagem combinada |
 | `start_mediamtx_guard.py` | Sobe Guard + MediaMTX |
 | `requirements-guard.txt` | `requests` + `hashids` |
 | `mediamtx/mediamtx.yml` | Config com auth localhost |
@@ -296,9 +296,9 @@ Se aparecer `SYNC 0 camera(s)`: verificar licença timelapse ativa na câmera e 
 
 ---
 
-## 6. confvision-rtmp-guard (legado — só se NÃO usar Dockerfile.mediamtx)
+## 6. confvision-rtmp-guard (legado — só se NÃO usar Dockerfile-mediamtx)
 
-Com `Dockerfile.mediamtx`, o Guard já roda **dentro** de `confvision`.  
+Com `Dockerfile-mediamtx`, o Guard já roda **dentro** de `confvision`.  
 **Pare** este serviço separado para não duplicar auth/ban.
 
 Se ainda precisar do Guard sozinho:
@@ -333,7 +333,7 @@ HLS/ao vivo usam o mesmo path: `…/cam/{hash12}/index.m3u8`
 ### Liberar o guard combinado (ordem segura)
 
 1. Garantir `RTMP_PUBLISH_SECRET` **igual** no `confvision` (env) e na app Go
-2. Deploy `confvision` com `Dockerfile.mediamtx`
+2. Deploy `confvision` com `Dockerfile-mediamtx`
 3. Stop `confvision-rtmp-guard` (serviço separado)
 4. Unban do seu IP se estiver banido
 5. Log: `[RTMP-GUARD] OK publish … path=cam/{hash12}`
@@ -409,7 +409,7 @@ Proxy na app: `/api/rtmp-falhas`, `/api/rtmp-bans`, `/api/rtmp-bans/unban`, `/ap
 ### Checklist
 
 - [ ] Push table/APIs Xano (`bloqueado`, rtmp_auth, bloquear)
-- [ ] `confvision` com `Dockerfile.mediamtx`; log `[RTMP-GUARD] START`
+- [ ] `confvision` com `Dockerfile-mediamtx`; log `[RTMP-GUARD] START`
 - [ ] Serviço `confvision-rtmp-guard` separado **parado**
 - [ ] Mesmo `RTMP_PUBLISH_SECRET` no confvision e na app Go
 - [ ] Porta 8100 liberada só para o IP da app Go
