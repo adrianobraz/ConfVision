@@ -3,15 +3,13 @@ from rtmp_token import chave_rtmp
 
 
 def stream_path(camera_id, id_franqueado=None) -> str:
-    """Path MediaMTX: live/{chave24}. Requer id_franqueado + RTMP_PUBLISH_SECRET."""
+    """Path MediaMTX: {hash12+} (Hashids do id). id_franqueado ignorado."""
     if camera_id is None:
-        return "live/0"
-    if id_franqueado:
-        chave = chave_rtmp(camera_id, id_franqueado)
-        if chave:
-            return f"live/{chave}"
-    # Sem franqueado/secret: fallback legado (só útil se guard estiver off)
-    return f"live/{int(camera_id)}"
+        return ""
+    chave = chave_rtmp(camera_id, id_franqueado)
+    if chave:
+        return chave
+    return ""
 
 
 def stream_path_for_camera(camera) -> str:
@@ -21,7 +19,10 @@ def stream_path_for_camera(camera) -> str:
 
 
 def rtsp_url(camera_id, id_franqueado=None) -> str:
-    return f"{MEDIAMTX_RTSP_BASE}/{stream_path(camera_id, id_franqueado)}"
+    path = stream_path(camera_id, id_franqueado)
+    if not path:
+        return MEDIAMTX_RTSP_BASE
+    return f"{MEDIAMTX_RTSP_BASE}/{path}"
 
 
 def rtsp_url_for_camera(camera) -> str:
@@ -37,6 +38,8 @@ def rtsp_url_for_camera(camera) -> str:
 
 def rtmp_publish_url(camera_id, id_franqueado=None, dvr: bool = False) -> str:
     path = stream_path(camera_id, id_franqueado)
+    if not path:
+        return MEDIAMTX_RTMP_PUBLISH_BASE
     url = f"{MEDIAMTX_RTMP_PUBLISH_BASE}/{path}"
     if dvr and not url.endswith("/"):
         url += "/"
@@ -44,4 +47,7 @@ def rtmp_publish_url(camera_id, id_franqueado=None, dvr: bool = False) -> str:
 
 
 def hls_url(camera_id, id_franqueado=None) -> str:
-    return f"{MEDIAMTX_HLS_BASE}/{stream_path(camera_id, id_franqueado)}/index.m3u8"
+    path = stream_path(camera_id, id_franqueado)
+    if not path:
+        return f"{MEDIAMTX_HLS_BASE}/index.m3u8"
+    return f"{MEDIAMTX_HLS_BASE}/{path}/index.m3u8"

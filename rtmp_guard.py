@@ -1,22 +1,27 @@
-"""Auth HTTP do MediaMTX + regras ConfVision (chave 24 dígitos no path)."""
+"""Auth HTTP do MediaMTX + regras ConfVision (Hashids no path, sem /live/)."""
 
 from __future__ import annotations
 
 import os
-import re
 import time
 from typing import Any, Optional
 
 import requests
 
 from rtmp_ban import BanStore
-from rtmp_token import chave_valida, parse_chave_rtmp, publish_secret
-
-RE_LIVE_CHAVE = re.compile(r"^live/(\d{24})/?$")
+from rtmp_token import RE_HASH_PATH, chave_valida, parse_chave_rtmp, publish_secret
 
 
 def _env(name: str, default: str = "") -> str:
     return (os.getenv(name) or default).strip()
+
+
+def _truthy(v: Any) -> bool:
+    if v is True or v == 1:
+        return True
+    if isinstance(v, str) and v.strip().lower() in ("1", "true", "yes", "sim"):
+        return True
+    return False
 
 
 class CameraCache:
@@ -82,7 +87,7 @@ class RtmpGuard:
             print("[RTMP-GUARD] RTMP_PUBLISH_SECRET vazio — negando publish", flush=True)
             return 403, "secret_nao_configurado"
 
-        m = RE_LIVE_CHAVE.match(path)
+        m = RE_HASH_PATH.match(path)
         if not m:
             self._fail(ip, "path_invalido")
             return 403, "path_invalido"
@@ -92,26 +97,22 @@ class RtmpGuard:
             self._fail(ip, "chave_invalida")
             return 403, "chave_invalida"
 
-        parsed = parse_chave_rtmp(chave)
-        assert parsed is not None
-        _mac, fra6, camera_id = parsed
+        camera_id = parse_chave_rtmp(chave, secret=self.secret)
+        assert camera_id is not None
 
         cam = self._fetch_camera(camera_id)
         if not cam:
             self._fail(ip, "camera_nao_encontrada")
             return 403, "camera_nao_encontrada"
 
-        id_fra = str(cam.get("id_franqueado") or "").strip()
-        digits = re.sub(r"\D", "", id_fra)
-        if not digits.endswith(fra6):
-            self._fail(ip, "franqueado_divergente")
-            return 403, "franqueado_divergente"
-
-        if cam.get("bloqueado") is True:
+        if _truthy(cam.get("bloqueado")):
             self._fail(ip, "camera_bloqueada")
             return 403, "camera_bloqueada"
 
-        # ativo=false NÃO bloqueia publish (plano "online" força ativo=false).
+        if not _truthy(cam.get("ativo")):
+            self._fail(ip, "camera_inativa")
+            return 403, "camera_inativa"
+
         return 200, "publish_ok"
 
     def _fail(self, ip: str, motivo: str) -> None:

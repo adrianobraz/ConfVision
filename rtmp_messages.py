@@ -7,7 +7,7 @@ MOTIVOS = {
     "eof_sem_publish": (
         "Conectou, mas não publicou o stream",
         "A câmera abriu a porta 1935 e fechou sem enviar vídeo. "
-        "Confira a URL (WIFI sem / no fim; DVR com /), path live/{chave24} e codec H.264.",
+        "Confira a URL (WIFI sem / no fim; DVR com /), path {hash12} e codec H.264.",
         "error",
     ),
     "path_barra_final": (
@@ -17,12 +17,12 @@ MOTIVOS = {
     ),
     "auth_falhou": (
         "Autenticação falhou",
-        "Chave RTMP inválida. Use a URL de 24 dígitos gerada no ConfVision (sem ?pass=).",
+        "Chave RTMP inválida. Use a URL Hashids gerada no ConfVision (sem ?pass=).",
         "error",
     ),
     "path_invalido": (
         "Nome de path inválido",
-        "Use live/{chave24} (9+6+9 dígitos) exatamente como no cadastro ConfVision.",
+        "Use o path {hash12} exatamente como no cadastro ConfVision (sem /live/).",
         "error",
     ),
     "terminated": (

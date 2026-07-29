@@ -296,36 +296,39 @@ Substitui o `rtmp-watch`. Faz:
 4. **Lista de falhas** para a UI (`GET /falhas`)
 5. **Câmeras online** (`GET /online`) — paths prontos + câmera/franqueado/IP
 
-### Chave RTMP (24 dígitos)
+### Chave RTMP (Hashids)
 
 ```text
-[9 MAC][6 últimos id_franqueado][9 vis_camera.id]
+Hashids(vis_camera.id)
+salt = RTMP_PUBLISH_SECRET
+alphabet = 0-9a-z
+min_length = 12
 ```
 
-URL no aparelho (sem `?pass=` / `?user=`):
+URL no aparelho (sem `?pass=` / `?user=`, **sem** `/live/`):
 
 ```text
-rtmp://rtmp.confmonit.com.br:1935/live/{chave24}
+rtmp://rtmp.dnsid.com.br:1935/{hash12}
 ```
 
 - **WIFI:** sem `/` no fim  
 - **DVR:** com `/` no campo do aparelho (ele remove ao enviar)  
-- MAC = HMAC-SHA256(secret, `"{id}|{franqueado6}"`) → 9 dígitos  
+- Guard: decode → `vis_camera` existe + `ativo=true` + `bloqueado=false`
 
-HLS/ao vivo usam o mesmo path: `…/live/{chave24}/index.m3u8`
+HLS/ao vivo usam o mesmo path: `…/{hash12}/index.m3u8`
 
 ### Liberar o guard (ordem segura)
 
 1. Garantir `RTMP_PUBLISH_SECRET` **igual** no guard e na app Go (e nos workers que leem RTSP)
-2. Redeploy / start `confvision-rtmp-guard`
+2. Redeploy / start `confvision-rtmp-guard` (instalar `hashids` via requirements)
 3. MediaMTX (`mediamtx.yml`):
    - `authMethod: http`
    - `authHTTPAddress: http://foxpro_confvision-rtmp-guard:8100/auth`
    - `authHTTPExclude: [read, playback]`
    - `paths: all_others:`
 4. Redeploy app Go ConfVision
-5. No painel, copiar a **nova** URL (chave 24) para cada câmera
-6. Log do guard: `OK publish … path=live/…`
+5. No painel, copiar a **nova** URL Hashids para cada câmera (corta chave 24 antiga)
+6. Log do guard: `OK publish … path={hash12}`
 
 ### Configuração EasyPanel
 
@@ -404,7 +407,7 @@ Proxy na app: `/api/rtmp-falhas`, `/api/rtmp-bans`, `/api/rtmp-bans/unban`, `/ap
 - [ ] MediaMTX com `authMethod: http` apontando ao guard
 - [ ] Mesmo `RTMP_PUBLISH_SECRET` no guard e na app Go
 - [ ] Porta 8100 liberada só para o IP da app Go
-- [ ] Câmeras com URL nova (`live/{chave24}`, sem query)
+- [ ] Câmeras com URL nova (`{hash12}`, sem `/live/`, sem query)
 - [ ] Tela `/rtmp-falhas` lista falhas + Desbanir
 
 ---
@@ -413,7 +416,7 @@ Proxy na app: `/api/rtmp-falhas`, `/api/rtmp-bans`, `/api/rtmp-bans/unban`, `/ap
 
 ```
 Câmera IP / DVR
-    │ RTMP  rtmp://…:1935/live/{chave24}
+    │ RTMP  rtmp://…:1935/{hash12}
     ▼
 confvision (MediaMTX)  ← auth HTTP → confvision-rtmp-guard:8100/auth
     │ log → /recordings/mediamtx.log
@@ -436,7 +439,7 @@ O guard já inclui `/falhas` — preferir o guard.
 
 ```
 Câmera IP / DVR
-    │ RTMP publish  rtmp://…:1935/live/{chave24}
+    │ RTMP publish  rtmp://…:1935/{hash12}
     ▼
 confvision (MediaMTX)  ← foxpro_confvision:8554 / :9997 / :1935
     │ log → /recordings/mediamtx.log
@@ -499,9 +502,9 @@ docker build -t confvision-worker:1 .
 | `timelapse_main.py` | Entry point timelapse |
 | `timelapse_worker.py` | Lógica timelapse ↔ movimento |
 | `rtmp_guard_main.py` | Entry point auth + ban + falhas RTMP |
-| `rtmp_guard.py` | Regras auth (HMAC + Xano) |
+| `rtmp_guard.py` | Regras auth (Hashids + Xano ativo/bloqueado) |
 | `rtmp_ban.py` | Store de IPs banidos |
-| `rtmp_token.py` | HMAC publish token |
+| `rtmp_token.py` | Hashids publish path |
 | `rtmp_watch_main.py` | Entry point monitor falhas RTMP (legado) |
 | `rtmp_watch.py` | Parser do log MediaMTX + store |
 | `rtmp_messages.py` | Mensagens amigáveis (PT) |

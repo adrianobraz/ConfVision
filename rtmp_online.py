@@ -1,17 +1,19 @@
-"""Lista streams RTMP online via API MediaMTX + parse da chave 24."""
+"""Lista streams RTMP online via API MediaMTX + parse Hashids."""
 
 from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.error
 import urllib.request
 from base64 import b64encode
 from typing import Any, Optional
-from urllib.parse import quote
 
-from rtmp_token import parse_chave_rtmp
+from rtmp_token import HASH_ALPHABET, HASH_MIN_LENGTH, parse_chave_rtmp
 from rtmp_watch import path_label
+
+RE_HASH_NAME = re.compile(rf"^([{HASH_ALPHABET}]{{{HASH_MIN_LENGTH},}})$")
 
 
 def _env(name: str, default: str = "") -> str:
@@ -72,16 +74,21 @@ def _decode_path(path: str) -> dict[str, Any]:
         "id_franqueado_sufixo": "",
         "legado": False,
     }
-    parsed = parse_chave_rtmp(nome)
-    if parsed:
-        _, fra6, cam = parsed
+    cam = parse_chave_rtmp(nome)
+    if cam:
         out["camera_id"] = cam
-        out["id_franqueado_sufixo"] = fra6
         return out
     if nome.isdigit():
         out["camera_id"] = int(nome)
         out["legado"] = True
     return out
+
+
+def _path_candidato(name: str) -> bool:
+    if not name:
+        return False
+    nome = name.rsplit("/", 1)[-1]
+    return bool(RE_HASH_NAME.match(nome) or nome.isdigit())
 
 
 def listar_online(fallback_publishers: Optional[dict[str, dict]] = None) -> dict[str, Any]:
@@ -111,7 +118,7 @@ def listar_online(fallback_publishers: Optional[dict[str, dict]] = None) -> dict
             if not isinstance(item, dict):
                 continue
             name = str(item.get("name") or "").strip().rstrip("/")
-            if not name or not name.startswith("live/"):
+            if not _path_candidato(name):
                 continue
             if not _path_online(item):
                 continue
@@ -139,6 +146,8 @@ def listar_online(fallback_publishers: Optional[dict[str, dict]] = None) -> dict
     elif fallback_publishers:
         fonte = "log-watch"
         for path, info in fallback_publishers.items():
+            if not _path_candidato(str(path or "")):
+                continue
             meta = _decode_path(path)
             items.append(
                 {

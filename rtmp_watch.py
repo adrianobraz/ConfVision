@@ -29,19 +29,18 @@ RE_PUBLISH = re.compile(r"is publishing to path '([^']+)'")
 RE_PATH_ONLINE = re.compile(r"^\[path (?P<path>[^\]]+)\] stream is available")
 RE_MUXER_DESTROY = re.compile(r"^\[HLS\] \[muxer (?P<path>[^\]]+)\] destroyed")
 RE_CLOSED = re.compile(r"^closed:\s*(?P<reason>.+)$")
-RE_LIVE_PATH = re.compile(r"(live/[A-Za-z0-9_.-]+)")
+RE_STREAM_PATH = re.compile(r"([0-9a-z]{12,})")
 
 
 def path_label(path: str) -> str:
-    """Path legível: inclui id da câmera quando for chave 24 ou live/{id}."""
+    """Path legível: inclui id da câmera quando for Hashids válido."""
     p = (path or "").strip().rstrip("/")
     if not p:
         return ""
     nome = p.rsplit("/", 1)[-1]
-    parsed = parse_chave_rtmp(nome)
-    if parsed:
-        _, fra6, cam = parsed
-        return f"{p} (câmera {cam}, franq …{fra6})"
+    cam = parse_chave_rtmp(nome)
+    if cam:
+        return f"{p} (câmera {cam})"
     if nome.isdigit():
         return f"{p} (câmera {int(nome)})"
     return p
@@ -324,7 +323,7 @@ class RtmpLogParser:
 
     @staticmethod
     def _path_from_reason(reason: str) -> str:
-        m = RE_LIVE_PATH.search(reason or "")
+        m = RE_STREAM_PATH.search(reason or "")
         if m:
             return m.group(1).rstrip("/")
         return ""
