@@ -1,0 +1,42 @@
+# MediaMTX + confvision-rtmp-guard no mesmo container.
+# Auth HTTP em http://127.0.0.1:8100/auth (sem rede Docker entre serviços).
+#
+# EasyPanel (serviço confvision):
+#   Source: GitHub adrianobraz/ConfVision
+#   Dockerfile path: Dockerfile.mediamtx
+#   Portas: 1935 (RTMP), 8554 (RTSP), 8888 (HLS), 9997 (API), 8100 (Guard admin)
+
+FROM bluenviron/mediamtx:1 AS mtx
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements-guard.txt .
+RUN pip install --no-cache-dir -r requirements-guard.txt
+
+COPY --from=mtx /mediamtx /mediamtx
+COPY mediamtx/mediamtx.yml /mediamtx.yml
+
+COPY rtmp_ban.py \
+     rtmp_guard.py \
+     rtmp_guard_main.py \
+     rtmp_messages.py \
+     rtmp_online.py \
+     rtmp_token.py \
+     rtmp_watch.py \
+     start_mediamtx_guard.py \
+     ./
+
+ENV MEDIAMTX_CONFIG=/mediamtx.yml
+ENV MEDIAMTX_BIN=/mediamtx
+ENV MEDIAMTX_API_BASE=http://127.0.0.1:9997
+ENV MTX_LOG_FILE=/recordings/mediamtx.log
+ENV RTMP_GUARD_HTTP_PORT=8100
+ENV RTMP_BAN_JSON=/recordings/rtmp_bans.json
+ENV RTMP_WATCH_JSON=/recordings/rtmp_falhas.json
+ENV RTMP_ALLOW_READ_OPEN=0
+
+EXPOSE 1935 8554 8888 9997 8100
+
+CMD ["python", "-u", "start_mediamtx_guard.py"]
