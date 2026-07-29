@@ -1,14 +1,14 @@
 from config import MEDIAMTX_HLS_BASE, MEDIAMTX_RTMP_PUBLISH_BASE, MEDIAMTX_RTSP_BASE
-from rtmp_token import chave_rtmp
+from rtmp_token import chave_rtmp, stream_path_from_chave
 
 
 def stream_path(camera_id, id_franqueado=None) -> str:
-    """Path MediaMTX: {hash12+} (Hashids do id). id_franqueado ignorado."""
+    """Path MediaMTX: cam/{hash12+} (Hashids do id). id_franqueado ignorado."""
     if camera_id is None:
         return ""
     chave = chave_rtmp(camera_id, id_franqueado)
     if chave:
-        return chave
+        return stream_path_from_chave(chave)
     return ""
 
 

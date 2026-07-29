@@ -1,4 +1,4 @@
-"""Auth HTTP do MediaMTX + regras ConfVision (Hashids no path, sem /live/)."""
+"""Auth HTTP do MediaMTX + regras ConfVision (path cam/{hash})."""
 
 from __future__ import annotations
 

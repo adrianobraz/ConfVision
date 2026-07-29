@@ -1,6 +1,6 @@
-"""Chave RTMP ConfVision: Hashids do id da câmera (sem /live/).
+"""Chave RTMP ConfVision: Hashids do id da câmera sob app fixo cam/.
 
-URL: rtmp://host:1935/{hash12+}
+URL: rtmp://host:1935/cam/{hash12+}
 Salt = RTMP_PUBLISH_SECRET, alfabeto 0-9a-z, min_length=12.
 """
 
@@ -14,9 +14,11 @@ import re
 
 from hashids import Hashids
 
+STREAM_APP = "cam"
 HASH_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz"
 HASH_MIN_LENGTH = 12
-RE_HASH_PATH = re.compile(rf"^([{HASH_ALPHABET}]{{{HASH_MIN_LENGTH},}})/?$")
+RE_HASH_TOKEN = re.compile(rf"^([{HASH_ALPHABET}]{{{HASH_MIN_LENGTH},}})$")
+RE_HASH_PATH = re.compile(rf"^{STREAM_APP}/([{HASH_ALPHABET}]{{{HASH_MIN_LENGTH},}})/?$")
 
 
 def publish_secret() -> str:
@@ -35,7 +37,7 @@ def chave_rtmp(
     id_franqueado: str | int | None = None,
     secret: str | None = None,
 ) -> str:
-    """Gera path/chave Hashids só com o id da câmera. id_franqueado é ignorado."""
+    """Gera só o Hashids (sem app). id_franqueado é ignorado."""
     _ = id_franqueado
     h = _hashids(secret)
     try:
@@ -47,12 +49,29 @@ def chave_rtmp(
     return h.encode(cid)
 
 
-def parse_chave_rtmp(chave: str, secret: str | None = None) -> int | None:
-    """Decodifica Hashids → camera_id, ou None."""
+def stream_path_from_chave(chave: str) -> str:
+    """Monta path MediaMTX cam/{hash}."""
+    s = _normalize_hash_token(chave)
+    if not s:
+        return ""
+    return f"{STREAM_APP}/{s}"
+
+
+def _normalize_hash_token(chave: str) -> str:
     s = (chave or "").strip().rstrip("/")
-    if s.startswith("live/"):
+    if s.startswith(f"{STREAM_APP}/"):
+        s = s[len(STREAM_APP) + 1 :]
+    elif s.startswith("live/"):
         s = s[5:]
-    if not re.fullmatch(rf"[{HASH_ALPHABET}]{{{HASH_MIN_LENGTH},}}", s):
+    if not RE_HASH_TOKEN.match(s):
+        return ""
+    return s
+
+
+def parse_chave_rtmp(chave: str, secret: str | None = None) -> int | None:
+    """Decodifica Hashids (com ou sem prefixo cam/) → camera_id, ou None."""
+    s = _normalize_hash_token(chave)
+    if not s:
         return None
     h = _hashids(secret)
     if not h:

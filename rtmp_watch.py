@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Deque, Optional
 
 from rtmp_messages import classificar_motivo, mensagem_amigavel
-from rtmp_token import parse_chave_rtmp
+from rtmp_token import STREAM_APP, parse_chave_rtmp
 
 RE_LINE = re.compile(
     r"^(?P<ts>\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})\s+"
@@ -29,18 +29,18 @@ RE_PUBLISH = re.compile(r"is publishing to path '([^']+)'")
 RE_PATH_ONLINE = re.compile(r"^\[path (?P<path>[^\]]+)\] stream is available")
 RE_MUXER_DESTROY = re.compile(r"^\[HLS\] \[muxer (?P<path>[^\]]+)\] destroyed")
 RE_CLOSED = re.compile(r"^closed:\s*(?P<reason>.+)$")
-RE_STREAM_PATH = re.compile(r"([0-9a-z]{12,})")
+RE_STREAM_PATH = re.compile(rf"({STREAM_APP}/[0-9a-z]{{12,}})")
 
 
 def path_label(path: str) -> str:
-    """Path legível: inclui id da câmera quando for Hashids válido."""
+    """Path legível: inclui id da câmera quando for cam/{hash} válido."""
     p = (path or "").strip().rstrip("/")
     if not p:
         return ""
-    nome = p.rsplit("/", 1)[-1]
-    cam = parse_chave_rtmp(nome)
+    cam = parse_chave_rtmp(p)
     if cam:
         return f"{p} (câmera {cam})"
+    nome = p.rsplit("/", 1)[-1]
     if nome.isdigit():
         return f"{p} (câmera {int(nome)})"
     return p

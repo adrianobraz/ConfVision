@@ -305,17 +305,17 @@ alphabet = 0-9a-z
 min_length = 12
 ```
 
-URL no aparelho (sem `?pass=` / `?user=`, **sem** `/live/`):
+URL no aparelho (sem `?pass=` / `?user=`, app fixo `cam`):
 
 ```text
-rtmp://rtmp.dnsid.com.br:1935/{hash12}
+rtmp://rtmp.dnsid.com.br:1935/cam/{hash12}
 ```
 
 - **WIFI:** sem `/` no fim  
 - **DVR:** com `/` no campo do aparelho (ele remove ao enviar)  
 - Guard: decode → `vis_camera` existe + `ativo=true` + `bloqueado=false`
 
-HLS/ao vivo usam o mesmo path: `…/{hash12}/index.m3u8`
+HLS/ao vivo usam o mesmo path: `…/cam/{hash12}/index.m3u8`
 
 ### Liberar o guard (ordem segura)
 
@@ -328,7 +328,7 @@ HLS/ao vivo usam o mesmo path: `…/{hash12}/index.m3u8`
    - `paths: all_others:`
 4. Redeploy app Go ConfVision
 5. No painel, copiar a **nova** URL Hashids para cada câmera (corta chave 24 antiga)
-6. Log do guard: `OK publish … path={hash12}`
+6. Log do guard: `OK publish … path=cam/{hash12}`
 
 ### Configuração EasyPanel
 
@@ -407,7 +407,7 @@ Proxy na app: `/api/rtmp-falhas`, `/api/rtmp-bans`, `/api/rtmp-bans/unban`, `/ap
 - [ ] MediaMTX com `authMethod: http` apontando ao guard
 - [ ] Mesmo `RTMP_PUBLISH_SECRET` no guard e na app Go
 - [ ] Porta 8100 liberada só para o IP da app Go
-- [ ] Câmeras com URL nova (`{hash12}`, sem `/live/`, sem query)
+- [ ] Câmeras com URL nova (`cam/{hash12}`, sem query)
 - [ ] Tela `/rtmp-falhas` lista falhas + Desbanir
 
 ---
@@ -416,7 +416,7 @@ Proxy na app: `/api/rtmp-falhas`, `/api/rtmp-bans`, `/api/rtmp-bans/unban`, `/ap
 
 ```
 Câmera IP / DVR
-    │ RTMP  rtmp://…:1935/{hash12}
+    │ RTMP  rtmp://…:1935/cam/{hash12}
     ▼
 confvision (MediaMTX)  ← auth HTTP → confvision-rtmp-guard:8100/auth
     │ log → /recordings/mediamtx.log
@@ -439,7 +439,7 @@ O guard já inclui `/falhas` — preferir o guard.
 
 ```
 Câmera IP / DVR
-    │ RTMP publish  rtmp://…:1935/{hash12}
+    │ RTMP publish  rtmp://…:1935/cam/{hash12}
     ▼
 confvision (MediaMTX)  ← foxpro_confvision:8554 / :9997 / :1935
     │ log → /recordings/mediamtx.log

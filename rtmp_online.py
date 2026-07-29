@@ -4,16 +4,13 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import urllib.error
 import urllib.request
 from base64 import b64encode
 from typing import Any, Optional
 
-from rtmp_token import HASH_ALPHABET, HASH_MIN_LENGTH, parse_chave_rtmp
+from rtmp_token import RE_HASH_PATH, parse_chave_rtmp
 from rtmp_watch import path_label
-
-RE_HASH_NAME = re.compile(rf"^([{HASH_ALPHABET}]{{{HASH_MIN_LENGTH},}})$")
 
 
 def _env(name: str, default: str = "") -> str:
@@ -66,7 +63,6 @@ def _ip_from_remote(remote: str) -> str:
 
 def _decode_path(path: str) -> dict[str, Any]:
     p = (path or "").strip().rstrip("/")
-    nome = p.rsplit("/", 1)[-1] if p else ""
     out: dict[str, Any] = {
         "path": p,
         "path_label": path_label(p),
@@ -74,10 +70,11 @@ def _decode_path(path: str) -> dict[str, Any]:
         "id_franqueado_sufixo": "",
         "legado": False,
     }
-    cam = parse_chave_rtmp(nome)
+    cam = parse_chave_rtmp(p)
     if cam:
         out["camera_id"] = cam
         return out
+    nome = p.rsplit("/", 1)[-1] if p else ""
     if nome.isdigit():
         out["camera_id"] = int(nome)
         out["legado"] = True
@@ -85,10 +82,8 @@ def _decode_path(path: str) -> dict[str, Any]:
 
 
 def _path_candidato(name: str) -> bool:
-    if not name:
-        return False
-    nome = name.rsplit("/", 1)[-1]
-    return bool(RE_HASH_NAME.match(nome) or nome.isdigit())
+    p = (name or "").strip().rstrip("/")
+    return bool(RE_HASH_PATH.match(p))
 
 
 def listar_online(fallback_publishers: Optional[dict[str, dict]] = None) -> dict[str, Any]:

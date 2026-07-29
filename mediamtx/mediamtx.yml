@@ -16,8 +16,8 @@ hlsAlwaysRemux: yes
 rtspTransports: [tcp]
 
 # Auth HTTP → confvision-rtmp-guard
-# Publish: path {hash12+} = Hashids(vis_camera.id), salt=RTMP_PUBLISH_SECRET
-# Alfabeto 0-9a-z, min_length=12 — sem prefixo /live/
+# Publish: path cam/{hash12+} = Hashids(vis_camera.id), salt=RTMP_PUBLISH_SECRET
+# Alfabeto 0-9a-z, min_length=12 — app fixo "cam"
 # read/playback liberados (RTMP_ALLOW_READ_OPEN=1); api via user dvr
 authMethod: http
 authHTTPAddress: http://foxpro_confvision-rtmp-guard:8100/auth
@@ -29,6 +29,6 @@ pathDefaults:
   source: publisher
   record: no
 
-# Escala: qualquer {hash12+} (não listar paths por câmera)
+# Escala: qualquer cam/{hash12+} (não listar paths por câmera)
 paths:
   all_others:

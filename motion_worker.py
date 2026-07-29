@@ -167,7 +167,7 @@ class MotionCameraWorker:
         if not cap.isOpened():
             print(
                 f"[MOTION] camera={self.camera_id} falhou abrir RTSP: {url} "
-                f"(verifique RTMP {{hash12}} no MediaMTX ou rtsp_url_sec na camera)"
+                f"(verifique RTMP cam/{{hash12}} no MediaMTX ou rtsp_url_sec na camera)"
             )
             time.sleep(MOTION_RECONNECT_SEC)
             return
