@@ -28,7 +28,7 @@ def _env(name: str, default: str = "") -> str:
 
 BANS = BanStore(
     _env("RTMP_BAN_JSON", "/recordings/rtmp_bans.json"),
-    max_fails=int(_env("RTMP_BAN_MAX_FAILS", "20") or "20"),
+    max_fails=int(_env("RTMP_BAN_MAX_FAILS", "3") or "3"),
     window_sec=int(_env("RTMP_BAN_WINDOW_SEC", "60") or "60"),
     ban_ttl_sec=int(_env("RTMP_BAN_TTL_SEC", "3600") or "3600"),
 )
@@ -164,25 +164,38 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/auth":
             payload = self._read_json()
-            code, motivo = GUARD.authorize(payload)
+            code, motivo, meta = GUARD.authorize(payload)
             # MediaMTX: 2xx = ok; qualquer outro = fail
-            body = {"status": "ok" if code < 300 else "negado", "motivo": motivo}
+            body = {
+                "status": "ok" if code < 300 else "negado",
+                "motivo": motivo,
+                "path": meta.get("path") or "",
+                "hash": meta.get("hash") or "",
+                "camera_id": meta.get("camera_id") or "",
+                "plano": meta.get("plano") or "",
+            }
             raw = json.dumps(body).encode("utf-8")
             self.send_response(code)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(raw)))
             self.end_headers()
             self.wfile.write(raw)
-            action = payload.get("action")
-            ip = payload.get("ip")
+            action = str(payload.get("action") or "").strip().lower()
+            ip = str(payload.get("ip") or "").strip() or "-"
+            path_v = meta.get("path") or payload.get("path") or "-"
+            hash_v = meta.get("hash") or "-"
+            cam_v = meta.get("camera_id") if meta.get("camera_id") != "" else "-"
+            plano_v = meta.get("plano") or "-"
             if code >= 400:
                 print(
-                    f"[RTMP-GUARD] NEGADO action={action} ip={ip} path={payload.get('path')} motivo={motivo}",
+                    f"[RTMP-GUARD] NEGADO action={action} ip={ip} path={path_v} "
+                    f"hash={hash_v} camera_id={cam_v} plano={plano_v} motivo={motivo}",
                     flush=True,
                 )
             elif action == "publish":
                 print(
-                    f"[RTMP-GUARD] OK publish ip={ip} path={payload.get('path')}",
+                    f"[RTMP-GUARD] OK publish ip={ip} path={path_v} "
+                    f"hash={hash_v} camera_id={cam_v} plano={plano_v}",
                     flush=True,
                 )
             return

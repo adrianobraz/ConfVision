@@ -24,6 +24,15 @@ def _truthy(v: Any) -> bool:
     return False
 
 
+def _meta(path: str = "", hash_: str = "", camera_id: Any = None, plano: str = "") -> dict[str, Any]:
+    return {
+        "path": path or "",
+        "hash": hash_ or "",
+        "camera_id": camera_id if camera_id is not None else "",
+        "plano": plano or "",
+    }
+
+
 class CameraCache:
     def __init__(self, ttl_sec: int = 45):
         self.ttl = max(5, ttl_sec)
@@ -56,67 +65,75 @@ class RtmpGuard:
         self.cache = CameraCache(ttl_sec=int(_env("RTMP_AUTH_CACHE_SEC", "45") or "45"))
         self.allow_read_open = _env("RTMP_ALLOW_READ_OPEN", "1") in ("1", "true", "yes")
 
-    def authorize(self, payload: dict[str, Any]) -> tuple[int, str]:
-        """Retorna (http_status, motivo). 200 = ok; 401/403 = nega."""
+    def authorize(self, payload: dict[str, Any]) -> tuple[int, str, dict[str, Any]]:
+        """Retorna (http_status, motivo, meta). 200 = ok; 401/403 = nega."""
         action = str(payload.get("action") or "").strip().lower()
         ip = str(payload.get("ip") or "").strip()
         user = str(payload.get("user") or "").strip()
         password = str(payload.get("password") or "").strip()
         path = str(payload.get("path") or "").strip().lstrip("/")
+        base_meta = _meta(path=path)
 
         if ip and self.bans.is_banned(ip):
-            return 403, "ip_banido"
+            return 403, "ip_banido", base_meta
 
         if action in ("api", "metrics", "pprof"):
             if self.dvr_user and user == self.dvr_user and password == self.dvr_pass:
-                return 200, "api_ok"
-            return 401, "api_credencial_invalida"
+                return 200, "api_ok", base_meta
+            return 401, "api_credencial_invalida", base_meta
 
         if action in ("read", "playback"):
             if self.allow_read_open:
-                return 200, "read_aberto"
+                return 200, "read_aberto", base_meta
             return self._authorize_publish(ip, path)
 
         if action == "publish":
             return self._authorize_publish(ip, path)
 
-        return 401, f"action_desconhecida:{action}"
+        return 401, f"action_desconhecida:{action}", base_meta
 
-    def _authorize_publish(self, ip: str, path: str) -> tuple[int, str]:
+    def _authorize_publish(self, ip: str, path: str) -> tuple[int, str, dict[str, Any]]:
         if not self.secret:
             print("[RTMP-GUARD] RTMP_PUBLISH_SECRET vazio — negando publish", flush=True)
-            return 403, "secret_nao_configurado"
+            return 403, "secret_nao_configurado", _meta(path=path)
 
         m = RE_HASH_PATH.match(path)
         if not m:
+            # tenta extrair hash se veio só o token ou path legado
+            nome = path.rsplit("/", 1)[-1] if path else ""
             self._fail(ip, "path_invalido")
-            return 403, "path_invalido"
+            return 403, "path_invalido", _meta(path=path, hash_=nome)
 
         chave = m.group(1)
+        meta = _meta(path=path, hash_=chave)
+
         if not chave_valida(chave, secret=self.secret):
             self._fail(ip, "chave_invalida")
-            return 403, "chave_invalida"
+            return 403, "chave_invalida", meta
 
         camera_id = parse_chave_rtmp(chave, secret=self.secret)
         assert camera_id is not None
+        meta["camera_id"] = camera_id
 
         cam = self._fetch_camera(camera_id)
         if not cam:
             self._fail(ip, "camera_nao_encontrada")
-            return 403, "camera_nao_encontrada"
+            return 403, "camera_nao_encontrada", meta
+
+        plano = str(cam.get("plano") or "").strip().lower()
+        meta["plano"] = plano
 
         if _truthy(cam.get("bloqueado")):
             self._fail(ip, "camera_bloqueada")
-            return 403, "camera_bloqueada"
+            return 403, "camera_bloqueada", meta
 
         # Plano online grava ativo=false de propósito (sob demanda).
         # Publish OK se: bloqueado=false E (ativo=true OU plano=online).
-        plano = str(cam.get("plano") or "").strip().lower()
         if plano == "online" or _truthy(cam.get("ativo")):
-            return 200, "publish_ok"
+            return 200, "publish_ok", meta
 
         self._fail(ip, "camera_inativa")
-        return 403, "camera_inativa"
+        return 403, "camera_inativa", meta
 
     def _fail(self, ip: str, motivo: str) -> None:
         if ip:

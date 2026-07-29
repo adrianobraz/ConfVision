@@ -36,7 +36,7 @@ class BanStore:
         ban_ttl_sec: int = 3600,
     ):
         self.path = Path(path)
-        self.max_fails = max(3, max_fails)
+        self.max_fails = max(1, max_fails)
         self.window_sec = max(10, window_sec)
         self.ban_ttl_sec = max(60, ban_ttl_sec)
         self._lock = threading.Lock()
@@ -162,6 +162,10 @@ class BanStore:
             times.append(now)
             self._fails[ip] = times
             if len(times) < self.max_fails:
+                print(
+                    f"[RTMP-BAN] falha ip={ip} tentativa={len(times)}/{self.max_fails} motivo={motivo}",
+                    flush=True,
+                )
                 return None
             entry = BanEntry(
                 ip=ip,
@@ -175,7 +179,8 @@ class BanStore:
             self._fails.pop(ip, None)
             self._save()
         print(
-            f"[RTMP-BAN] AUTO-BAN ip={ip} falhas={entry.falhas} motivo={motivo}",
+            f"[RTMP-BAN] AUTO-BAN ip={ip} falhas={entry.falhas}/{self.max_fails} motivo={motivo} "
+            f"ttl={self.ban_ttl_sec}s — próximas tentativas bloqueadas",
             flush=True,
         )
         return entry

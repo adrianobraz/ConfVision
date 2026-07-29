@@ -355,7 +355,7 @@ HLS/ao vivo usam o mesmo path: `…/cam/{hash12}/index.m3u8`
 | `MTX_LOG_FILE` | `/recordings/mediamtx.log` | Log MediaMTX |
 | `RTMP_WATCH_JSON` | `/recordings/rtmp_falhas.json` | Persistência falhas |
 | `RTMP_BAN_JSON` | `/recordings/rtmp_bans.json` | Persistência bans |
-| `RTMP_BAN_MAX_FAILS` | `20` | Falhas para auto-ban |
+| `RTMP_BAN_MAX_FAILS` | `3` | Falhas na janela para auto-ban (depois para de tentar) |
 | `RTMP_BAN_WINDOW_SEC` | `60` | Janela de contagem |
 | `RTMP_BAN_TTL_SEC` | `3600` | Duração do ban (1h) |
 | `MEDIAMTX_API_BASE` | `http://foxpro_confvision:9997` | API Control (lista online) |
