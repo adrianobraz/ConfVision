@@ -313,7 +313,7 @@ rtmp://rtmp.dnsid.com.br:1935/cam/{hash12}
 
 - **WIFI:** sem `/` no fim  
 - **DVR:** com `/` no campo do aparelho (ele remove ao enviar)  
-- Guard: decode → `vis_camera` existe + `ativo=true` + `bloqueado=false`
+- Guard: decode → existe + `bloqueado=false` + (`ativo=true` **ou** `plano=online`)
 
 HLS/ao vivo usam o mesmo path: `…/cam/{hash12}/index.m3u8`
 

@@ -22,8 +22,8 @@ rtspTransports: [tcp]
 authMethod: http
 authHTTPAddress: http://foxpro_confvision-rtmp-guard:8100/auth
 authHTTPExclude:
-  - read
-  - playback
+  - action: read
+  - action: playback
 
 pathDefaults:
   source: publisher
@@ -31,4 +31,4 @@ pathDefaults:
 
 # Escala: qualquer cam/{hash12+} (não listar paths por câmera)
 paths:
-  all_others:
+  all_others: {}

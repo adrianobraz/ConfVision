@@ -109,11 +109,14 @@ class RtmpGuard:
             self._fail(ip, "camera_bloqueada")
             return 403, "camera_bloqueada"
 
-        if not _truthy(cam.get("ativo")):
-            self._fail(ip, "camera_inativa")
-            return 403, "camera_inativa"
+        # Plano online grava ativo=false de propósito (sob demanda).
+        # Publish OK se: bloqueado=false E (ativo=true OU plano=online).
+        plano = str(cam.get("plano") or "").strip().lower()
+        if plano == "online" or _truthy(cam.get("ativo")):
+            return 200, "publish_ok"
 
-        return 200, "publish_ok"
+        self._fail(ip, "camera_inativa")
+        return 403, "camera_inativa"
 
     def _fail(self, ip: str, motivo: str) -> None:
         if ip:
