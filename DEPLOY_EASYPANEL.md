@@ -110,7 +110,7 @@ Outros serviços referenciam este container como:
 
 - RTSP: `rtsp://foxpro_confvision:8554`
 - API: `http://foxpro_confvision:9997`
-- RTMP: `rtmp://rtmp.confmonit.com.br:1935` (público)
+- RTMP: `rtmp://rtmp.dnsid.com.br:1935` (público)
 
 ---
 
