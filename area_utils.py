@@ -98,12 +98,27 @@ def normalize_modo_deteccao(valor: Any) -> str:
 
 def camera_elegivel_analitico(camera: dict) -> bool:
     """True se a camera deve rodar no worker analitico."""
+    if camera.get("analitico_pausado"):
+        return False
     if camera.get("captura_analitico", True) is False:
         return False
     modo = normalize_modo_deteccao(camera.get("modo_deteccao"))
     if modo == "ambos":
         return True
     return bool(areas_ativas(camera.get("areas")))
+
+
+def camera_deve_rodar_thread(camera: dict) -> bool:
+    """Thread YOLO so roda se elegivel, nao pausada e (se armado) dispositivo armado."""
+    if not camera_elegivel_analitico(camera):
+        return False
+    if camera.get("somente_armado"):
+        from device_armed import is_dispositivo_armado
+
+        id_disp = str(camera.get("id_dispositivo") or "").strip()
+        if not id_disp or not is_dispositivo_armado(id_disp):
+            return False
+    return True
 
 
 def areas_ativas(areas: Optional[list[dict]]) -> list[dict]:

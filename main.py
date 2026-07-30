@@ -15,7 +15,7 @@ from config import (
     WORKER_SHARD_INDEX,
     WORKER_SHARD_TOTAL,
 )
-from area_utils import areas_ativas, camera_elegivel_analitico, normalize_modo_deteccao
+from area_utils import areas_ativas, camera_deve_rodar_thread, camera_elegivel_analitico, normalize_modo_deteccao
 from capture import cancel_camera_captures, write_detection_snapshot
 from device_armed import is_dispositivo_armado, prefetch_armado
 from detector import PersonDetector
@@ -58,8 +58,21 @@ def loop_camera(camera, detector: PersonDetector, event_queue):
         print(f"[AREA] camera id={camera_id} sem area cadastrada — thread encerrada")
         return
 
-    def on_person(conf, frame, area=None):
+    def thread_deve_continuar():
+        if camera_id in _restart_ids:
+            return False
         if not is_camera_active(camera_id):
+            return False
+        if camera.get("analitico_pausado"):
+            return False
+        if camera.get("somente_armado"):
+            id_disp = str(camera.get("id_dispositivo") or "").strip()
+            if not id_disp or not is_dispositivo_armado(id_disp):
+                return False
+        return True
+
+    def on_person(conf, frame, area=None):
+        if not thread_deve_continuar():
             return
         if camera.get("somente_armado"):
             # analitico_armado_*: usa dispositivo.Armado
@@ -94,9 +107,7 @@ def loop_camera(camera, detector: PersonDetector, event_queue):
                 Path(snapshot_path).unlink(missing_ok=True)
 
     def should_continue():
-        if camera_id in _restart_ids:
-            return False
-        return is_camera_active(camera_id)
+        return thread_deve_continuar()
 
     while should_continue():
         try:
@@ -135,10 +146,11 @@ def main():
     while True:
         try:
             cameras = get_cameras_ativas()
-            cameras_com_area = [c for c in cameras if camera_elegivel_analitico(c)]
+            cameras_elegiveis = [c for c in cameras if camera_elegivel_analitico(c)]
+            cameras_com_area = [c for c in cameras_elegiveis if camera_deve_rodar_thread(c)]
             ids_somente_armado = {
                 str(c.get("id_dispositivo")).strip()
-                for c in cameras_com_area
+                for c in cameras_elegiveis
                 if c.get("somente_armado") and c.get("id_dispositivo")
             }
             if ids_somente_armado:
@@ -157,7 +169,8 @@ def main():
             )
             print(
                 f"[SYNC] {len(cameras_com_area)} camera(s) analitico ids={active_ids} "
-                f"({len(cameras) - len(cameras_com_area)} ignoradas)"
+                f"({len(cameras_elegiveis) - len(cameras_com_area)} pausadas/desarmadas, "
+                f"{len(cameras) - len(cameras_elegiveis)} ignoradas)"
             )
 
             active_set = set(active_ids)
