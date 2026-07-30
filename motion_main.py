@@ -14,6 +14,7 @@ from config import (
 )
 from motion_worker import MotionWorkerManager
 from bootstrap_check import check_rtmp_publish_secret
+from sharding import filter_gravacao_cameras, shard_label
 from xano_client import get_cameras_gravacao_ativas, post_ping
 
 
