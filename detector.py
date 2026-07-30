@@ -37,7 +37,7 @@ class PersonDetector:
         if rtsp_url.startswith("rtmp://"):
             raise ValueError(
                 f"Use RTSP para leitura, nao RTMP: {rtsp_url}. "
-                f"Ex.: rtsp://foxpro_confvision:8554/live/1"
+                f"Ex.: rtsp://foxpro_confvision:8554/cam/{{hash12}}"
             )
         cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)

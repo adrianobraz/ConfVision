@@ -21,6 +21,7 @@ from config import (
     WORKER_ID,
     XANO_BASE_URL,
 )
+from bootstrap_check import check_rtmp_publish_secret
 from sharding import filter_gravacao_cameras, shard_label
 from timelapse_worker import TimelapseWorkerManager
 from xano_client import get_cameras_gravacao_ativas, post_ping
@@ -33,6 +34,8 @@ def _validate_config() -> bool:
         ok = False
     if not MEDIAMTX_RTSP_BASE:
         print("[TIMELAPSE] ERRO: MEDIAMTX_RTSP_BASE nao definido")
+        ok = False
+    if not check_rtmp_publish_secret("TIMELAPSE"):
         ok = False
     try:
         Path(MOTION_RECORD_DIR).mkdir(parents=True, exist_ok=True)

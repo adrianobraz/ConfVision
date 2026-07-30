@@ -17,7 +17,7 @@ from camera_state import is_camera_active
 from config import CLIP_DURACAO_SEG
 from storage import evento_clip_key, evento_snapshot_key
 from upload_queue import submit_upload
-from urls import rtsp_url
+from urls import rtsp_url_for_camera
 from xano_client import create_evento, post_evento_clip, put_evento
 from terminal_notify import submit_terminal_notify
 
@@ -111,7 +111,7 @@ def processar_deteccao(
         return
 
     id_franqueado = camera.get("id_franqueado")
-    rtsp = rtsp_url(camera_id, camera.get("id_franqueado"))
+    rtsp = rtsp_url_for_camera(camera)
     evento = None
     work_dir: Path | None = None
     snapshot_future = None

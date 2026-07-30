@@ -60,13 +60,18 @@ Auth via `http://127.0.0.1:8100/auth` — **não depende** de rede Docker entre 
 | `XANO_BASE_URL` | `https://…/api:AC7rgWwW` | Auth da câmera |
 | `RTMP_PUBLISH_SECRET` | *(segredo longo)* | **Igual** à app Go |
 | `RTMP_GUARD_ADMIN_KEY` | *(chave)* | Ban/unban |
-| `RTMP_BAN_MAX_FAILS` | `3` | Auto-ban |
-| `RTMP_BAN_WINDOW_SEC` | `60` | Janela |
-| `RTMP_BAN_TTL_SEC` | `3600` | TTL ban |
+| `RTMP_BAN_MAX_FAILS` | `3` | Auto-ban (path/chave inválidos) |
+| `RTMP_BAN_WINDOW_SEC` | `60` | Janela hard |
+| `RTMP_BAN_TTL_SEC` | `3600` | TTL ban hard |
+| `RTMP_BAN_SOFT_MAX_FAILS` | `0` | EOF/DVR: `0` = nunca ban |
+| `RTMP_BAN_SOFT_WINDOW_SEC` | `300` | Janela soft |
+| `RTMP_BAN_SOFT_TTL_SEC` | `600` | TTL ban soft |
+| `RTMP_BAN_AUTO_UNBAN` | `1` | Desban ao publish OK |
+| `RTMP_PUBLISH_HEALTH_JSON` | `/recordings/rtmp_publish_health.json` | Último publish por path |
 | `MEDIAMTX_API_USER` | `dvr` | API MediaMTX |
 | `MEDIAMTX_API_PASS` | *(senha)* | Igual DVR |
 | `MEDIAMTX_API_BASE` | `http://127.0.0.1:9997` | Lista `/online` (já default na imagem) |
-| `RTMP_ALLOW_READ_OPEN` | `1` | HLS sem token |
+| `RTMP_ALLOW_READ_OPEN` | `0` | HLS/read usa mesma regra (bloqueado/ativo/plano) |
 
 > Não precisa mais de `MTX_AUTHHTTPADDRESS` apontando para outro container. O `/mediamtx.yml` embutido já usa `127.0.0.1:8100/auth`.
 
@@ -140,6 +145,7 @@ Processa câmeras com detecção de pessoas ativa. **Não** grava timelapse/DVR.
 |---|---|
 | `XANO_BASE_URL` | `https://xpcy-oyme-lno7.b2.xano.io/api:AC7rgWwW` |
 | `MEDIAMTX_RTSP_BASE` | `rtsp://foxpro_confvision:8554` |
+| `RTMP_PUBLISH_SECRET` | *(segredo longo)* | **Igual** ao `confvision` (MediaMTX) e à app Go |
 | `WORKER_ID` | `worker-docker-01` |
 | `WORKER_VERSION` | `0.3.0` |
 | `SYNC_INTERVAL_SEC` | `30` |
@@ -154,6 +160,9 @@ Processa câmeras com detecção de pessoas ativa. **Não** grava timelapse/DVR.
 | `SHARD_MODE` | `auto` |
 | `EVENT_QUEUE_BACKEND` | `memory` |
 | `CONTABO_S3_*` | Credenciais S3 para eventos/clips |
+
+> **Importante:** sem `RTMP_PUBLISH_SECRET` o worker não monta URLs RTSP (`cam/{hash12}`).
+> Log de subida deve mostrar `path=cam/…` e `[OK] Stream aberto`, **não** `live/{id}` (formato legado).
 
 ### Métricas típicas
 
@@ -187,6 +196,7 @@ Deve ser o **mesmo volume** onde o MediaMTX grava.
 | `XANO_BASE_URL` | `https://xpcy-oyme-lno7.b2.xano.io/api:AC7rgWwW` |
 | `MEDIAMTX_API_BASE` | `http://foxpro_confvision:9997` |
 | `MEDIAMTX_RTSP_BASE` | `rtsp://foxpro_confvision:8554` |
+| `RTMP_PUBLISH_SECRET` | *(segredo longo)* | **Igual** ao MediaMTX e app Go |
 | `DVR_RECORD_DIR` | `/recordings` |
 | `DVR_SYNC_INTERVAL_SEC` | `30` |
 | `WORKER_ID` | `worker-docker-01` |
@@ -216,6 +226,7 @@ Grava clipes quando detecta movimento (MOG2). Plano **movimento** — não timel
 |---|---|
 | `XANO_BASE_URL` | `https://xpcy-oyme-lno7.b2.xano.io/api:AC7rgWwW` |
 | `MEDIAMTX_RTSP_BASE` | `rtsp://foxpro_confvision:8554` |
+| `RTMP_PUBLISH_SECRET` | *(segredo longo)* | **Igual** ao MediaMTX e app Go |
 | `WORKER_ID` | `worker-docker-01` |
 | `MOTION_WORKER_VERSION` | `0.1.0` |
 | `MOTION_SYNC_INTERVAL_SEC` | `30` |
@@ -280,7 +291,7 @@ TIMELAPSE_FRAME_INTERVALO_SEG=720
 TIMELAPSE_FRAMES_POR_SEGMENTO=60
 ```
 
-Demais variáveis compartilhadas com motion: `MOTION_SYNC_INTERVAL_SEC`, `MOTION_RECORD_DIR`, `MOTION_CLIP_MAX_SEC`, `MOTION_POST_ROLL_SEC`, `MOTION_FRAME_SKIP`, `MOTION_MIN_AREA`, etc.
+Demais variáveis compartilhadas com motion: `RTMP_PUBLISH_SECRET`, `MOTION_SYNC_INTERVAL_SEC`, `MOTION_RECORD_DIR`, `MOTION_CLIP_MAX_SEC`, `MOTION_POST_ROLL_SEC`, `MOTION_FRAME_SKIP`, `MOTION_MIN_AREA`, etc.
 
 ### Logs esperados após deploy
 
@@ -324,8 +335,8 @@ URL no aparelho (sem `?pass=` / `?user=`, app fixo `cam`):
 rtmp://rtmp.dnsid.com.br:1935/cam/{hash12}
 ```
 
-- **WIFI:** sem `/` no fim  
-- **DVR:** com `/` no campo do aparelho (ele remove ao enviar)  
+- **Wifi:** sem `/` no fim  
+- **Cabeado IP:** com `/` no campo do aparelho (ele remove ao enviar)  
 - Guard: decode → existe + `bloqueado=false` + (`ativo=true` **ou** `plano=online`)
 
 HLS/ao vivo usam o mesmo path: `…/cam/{hash12}/index.m3u8`
@@ -369,7 +380,7 @@ HLS/ao vivo usam o mesmo path: `…/cam/{hash12}/index.m3u8`
 | `MEDIAMTX_API_BASE` | `http://foxpro_confvision:9997` | API Control (lista online) |
 | `MEDIAMTX_API_USER` | `dvr` | Auth da API MediaMTX |
 | `MEDIAMTX_API_PASS` | *(senha)* | Igual ao worker DVR |
-| `RTMP_ALLOW_READ_OPEN` | `1` | HLS/read sem token (fase 1) |
+| `RTMP_ALLOW_READ_OPEN` | `0` | HLS/read exige auth (bloqueado/ativo/plano online) |
 
 ### MediaMTX (modo combinado)
 

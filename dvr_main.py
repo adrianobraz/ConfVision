@@ -11,6 +11,7 @@ from config import (
     WORKER_ID,
     XANO_BASE_URL,
 )
+from bootstrap_check import check_rtmp_publish_secret
 from dvr_watcher import DvrWatcher
 from mediamtx_client import sync_record_paths
 from sharding import filter_gravacao_cameras
@@ -24,6 +25,8 @@ def _validate_dvr_config() -> bool:
         ok = False
     if not MEDIAMTX_API_BASE:
         print("[DVR] ERRO: MEDIAMTX_API_BASE nao definido")
+        ok = False
+    if not check_rtmp_publish_secret("DVR"):
         ok = False
     from pathlib import Path
 

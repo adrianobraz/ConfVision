@@ -21,7 +21,7 @@ from device_armed import is_dispositivo_armado, prefetch_armado
 from detector import PersonDetector
 from event_queue import EventJob, get_event_queue
 from sharding import shard_label
-from urls import rtsp_url, stream_path
+from urls import rtsp_url_for_camera, stream_path
 from xano_client import get_cameras_ativas, post_ping
 
 _restart_ids: set[int] = set()
@@ -51,7 +51,7 @@ def loop_camera(camera, detector: PersonDetector, event_queue):
     conf_min = float(camera.get("confianca_min") or 0.5)
     cooldown = int(camera.get("cooldown_seg") or 30)
     modo = normalize_modo_deteccao(camera.get("modo_deteccao"))
-    url = rtsp_url(camera_id, camera.get("id_franqueado"))
+    url = rtsp_url_for_camera(camera)
     zonas = areas_ativas(camera.get("areas"))
 
     if modo != "ambos" and not zonas:
@@ -201,7 +201,7 @@ def main():
                         f"[THREAD] camera id={camera_id} "
                         f"path={stream_path(camera_id, camera.get('id_franqueado'))} "
                         f"nome={camera.get('nome')} modo={normalize_modo_deteccao(camera.get('modo_deteccao'))} "
-                        f"url={rtsp_url(camera_id, camera.get('id_franqueado'))}"
+                        f"url={rtsp_url_for_camera(camera)}"
                     )
         except Exception as exc:
             print(f"[ERRO] sync: {exc}")

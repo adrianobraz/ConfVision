@@ -13,7 +13,7 @@ from config import (
     MEDIAMTX_RTSP_BASE,
 )
 from motion_worker import MotionWorkerManager
-from sharding import filter_gravacao_cameras, shard_label
+from bootstrap_check import check_rtmp_publish_secret
 from xano_client import get_cameras_gravacao_ativas, post_ping
 
 
@@ -24,6 +24,8 @@ def _validate_motion_config() -> bool:
         ok = False
     if not MEDIAMTX_RTSP_BASE:
         print("[MOTION] ERRO: MEDIAMTX_RTSP_BASE nao definido")
+        ok = False
+    if not check_rtmp_publish_secret("MOTION"):
         ok = False
     try:
         Path(MOTION_RECORD_DIR).mkdir(parents=True, exist_ok=True)

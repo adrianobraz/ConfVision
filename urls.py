@@ -2,6 +2,16 @@ from config import MEDIAMTX_HLS_BASE, MEDIAMTX_RTMP_PUBLISH_BASE, MEDIAMTX_RTSP_
 from rtmp_token import chave_rtmp, stream_path_from_chave
 
 
+def is_legacy_live_path(url_or_path: str) -> bool:
+    """True se URL/path usa formato antigo live/{id} (MediaMTX legado)."""
+    s = (url_or_path or "").strip().lower().rstrip("/")
+    if not s:
+        return False
+    if s.startswith("live/"):
+        return True
+    return "/live/" in s
+
+
 def stream_path(camera_id, id_franqueado=None) -> str:
     """Path MediaMTX: cam/{hash12+} (Hashids do id). id_franqueado ignorado."""
     if camera_id is None:
@@ -27,10 +37,16 @@ def rtsp_url(camera_id, id_franqueado=None) -> str:
 
 def rtsp_url_for_camera(camera) -> str:
     if camera:
+        cam_id = camera.get("id")
         sec = str(camera.get("rtsp_url_sec") or "").strip()
         if sec.lower().startswith(("rtsp://", "rtsps://")):
-            return sec
-        cam_id = camera.get("id")
+            if is_legacy_live_path(sec):
+                print(
+                    f"[URL] rtsp_url_sec legado live/ ignorado camera={cam_id} "
+                    f"— usando cam/{{hash12}}"
+                )
+            else:
+                return sec
         if cam_id is not None:
             return rtsp_url(cam_id, camera.get("id_franqueado"))
     return rtsp_url(None)
