@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-br">
+    <head>
+        {{ template "head" . }}
+        <link rel="stylesheet" href="/recursos/modulos/minha-empresa/whitelabel/whitelabel.css">
+    </head>
+    <body>
+        {{ template "variaveis-controle" . }}
+        {{ template "nav-bar" . }}
+
+        <div class="container-fluid container-principal">
+            <div class="row justify-content-center py-4">
+                <div class="col-12 col-lg-8">
+                    <div class="fp-wl-card">
+                        <h4>White Label — sua marca</h4>
+                        <p class="text-muted">Personalize cores e logotipo (plano Pro+). Tamanho recomendado do logo: 150×48 px.</p>
+                        <div id="wl-alerta" class="alert alert-warning d-none"></div>
+
+                        <h6 class="mt-3">Cores do tema</h6>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-4"><label class="form-label">Cor primária</label><input type="color" class="form-control form-control-color" id="wl-primary"></div>
+                            <div class="col-md-4"><label class="form-label">Navbar</label><input type="color" class="form-control form-control-color" id="wl-navbar"></div>
+                            <div class="col-md-4"><label class="form-label">Fundo</label><input type="color" class="form-control form-control-color" id="wl-bg"></div>
+                            <div class="col-md-4"><label class="form-label">Superfície</label><input type="color" class="form-control form-control-color" id="wl-surface"></div>
+                            <div class="col-md-4"><label class="form-label">Texto</label><input type="color" class="form-control form-control-color" id="wl-text"></div>
+                        </div>
+
+                        <h6>Logotipo</h6>
+                        <div class="mb-3">
+                            <input type="file" class="form-control" id="wl-logo-file" accept="image/png,image/jpeg,image/webp">
+                            <div class="mt-2">
+                                <img id="wl-logo-preview" class="fp-wl-logo-preview d-none" alt="Preview logo">
+                            </div>
+                        </div>
+
+                        <div class="fp-wl-dominio-card mt-4">
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                <h6 class="mb-0">Detalhes do domínio</h6>
+                                <button type="button" class="btn btn-sm btn-outline-danger d-none" id="wl-dominio-remover" title="Remover domínio">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                            <p class="text-muted small mb-2">Insira o domínio que deseja usar. Ao salvar, o sistema configura automaticamente o servidor.</p>
+                            <div id="wl-dominio-status" class="mb-3 d-none"></div>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label" for="wl-subdominio">Subdomínio</label>
+                                    <input type="text" class="form-control" id="wl-subdominio" placeholder="Ex: www, lp..." autocomplete="off">
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label" for="wl-dominio">Cole seu domínio aqui</label>
+                                    <input type="text" class="form-control" id="wl-dominio" placeholder="exemplo.com.br" autocomplete="off">
+                                </div>
+                            </div>
+                            <div id="wl-dns-instrucoes" class="fp-wl-dns-box d-none mt-3">
+                                <p class="mb-2 fw-semibold">Configure este registro na hospedagem do seu domínio:</p>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered mb-2 fp-wl-dns-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Tipo</th>
+                                                <th>Nome / Host</th>
+                                                <th>Valor / Aponta para</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td><code>A</code></td>
+                                                <td><code id="wl-dns-host">—</code></td>
+                                                <td><code id="wl-dns-ip">185.130.61.4</code></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <p class="small text-muted mb-2">Após propagar o DNS, acesse: <a id="wl-dns-url" href="#" target="_blank" rel="noopener">—</a></p>
+                                <button type="button" class="btn btn-sm btn-outline-primary d-none" id="wl-retentar-ssl">Verificar DNS e emitir SSL</button>
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn btn-primary" id="wl-salvar">Salvar personalização</button>
+                        <button type="button" class="btn btn-outline-secondary ms-2" id="wl-reset">Restaurar padrão</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{ template "link-js" . }}
+        <script src="/recursos/modulos/minha-empresa/whitelabel/whitelabel.js?v=20260710"></script>
+    </body>
+</html>

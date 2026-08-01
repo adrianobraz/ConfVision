@@ -1,0 +1,117 @@
+function ctrClienteBuscar_start() {
+    $('#boxDir').empty()
+    const uri = '/assets/modulos/ctrClienteBuscar/ctrClienteBuscar.html'
+    $('#boxDir').load(uri, () => {
+        $('#ctrClienteBuscar_gridWrap').addClass('d-none')
+        $('#ctrClienteBuscar_msgSemResultado').addClass('d-none').text('')
+        $('#ctrClienteBuscar_btnFechar').on('click', ctrMudarSenha_btnFechar)
+        $('#ctrClienteBuscar_btnFiltrar').on('click', ctrClienteBuscar_btnFiltrar)
+        $('input[name=filtro]').on('click', ctrClienteBuscar_selectFiltro)
+    })
+}
+
+function ctrMudarSenha_btnFechar() {
+    if (typeof terminalMovel_mostrarProcessoPrincipal === 'function') {
+        terminalMovel_mostrarProcessoPrincipal()
+    } else {
+        proFranqFiltro_start()
+    }
+}
+
+function ctrClienteBuscar_selectFiltro() {
+    let place
+    if ($('input[name="filtro"]:checked').val() == 'nome') {
+        $('#ctrClienteBuscar_filtroValor').unmask()
+        place = 'Entre com o nome do cliente'
+    } else if ($('input[name="filtro"]:checked').val() == 'celular') {
+        $('#ctrClienteBuscar_filtroValor').mask(gMkCel)
+        place = 'Entre com o numero do celular cliente'
+    } else {
+        $('#ctrClienteBuscar_filtroValor').unmask()
+        place = 'Entre com o numero da conta do cliente'
+    }
+
+    $('#ctrClienteBuscar_filtroValor').val('').attr('placeholder', place)
+
+}
+
+function ctrClienteBuscar_btnFiltrar() {
+    const filtro = $('input[name="filtro"]:checked').val()
+
+    let valor
+    if ($('input[name="filtro"]:checked').val() == 'celular') {
+        valor = gLimpaDocumento($('#ctrClienteBuscar_filtroValor').val())
+    } else {
+        valor = $('#ctrClienteBuscar_filtroValor').val()
+    }
+
+    if (valor == '') {
+        msgErro('Digite um valor para o filtro')
+        return
+    }
+
+    $.ajax({
+        url: 'ctrClienteBuscar/filtrar',
+        method: 'Post',
+        headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": "Bearer " + sessionStorage.getItem('token')
+        },
+        data: JSON.stringify({
+            filtro: filtro,
+            valor: valor
+        })
+    }).fail(function (e) {
+        console.log(e)
+    }).done(function (r) {
+        $('#ctrClienteBuscar tbody').empty()
+        $('#ctrClienteBuscar_gridWrap').addClass('d-none')
+        $('#ctrClienteBuscar_msgSemResultado').addClass('d-none').text('')
+
+        let dadosFiltrados = []
+        if (r.status != 'Vazio' && Array.isArray(r.dados)) {
+            if (sessionStorage.getItem('login_userVinculo') == 'CENTRAL') {
+                dadosFiltrados = r.dados
+            } else {
+                dadosFiltrados = r.dados.filter(item => (item.nomeFranq == sessionStorage.getItem('login_userVinculoNome')))
+            }
+        }
+
+        if (dadosFiltrados.length > 0) {
+            dadosFiltrados.forEach(item => ctrClienteBuscar_montaLinha(item))
+            $('#ctrClienteBuscar_gridWrap').removeClass('d-none')
+
+            $('td[tipo="ctrClienteBuscar_buscarDados"]').on('click', function () {
+                const idCliente = $(this).attr('idCliente')
+                ctrClienteBuscar_buscarDados(idCliente)
+            })
+        } else {
+            $('#ctrClienteBuscar_msgSemResultado')
+                .removeClass('d-none')
+                .text('Nenhum cliente encontrado para a busca informada.')
+        }
+
+    })
+}
+
+function ctrClienteBuscar_montaLinha(item) {
+
+    $('#ctrClienteBuscar tbody').append(`
+        <tr>
+            <td>${item.conta}</td>
+            <td>${item.nome}</td>
+            <td>${formatarCelular(item.telefone1)}</td>
+            <td>${item.nomeFranq}</td>
+            <td 
+                class="bg-success click" 
+                tipo="ctrClienteBuscar_buscarDados" idCliente="${item.idCliente}">
+                <i class="bi bi-check2-circle"></i>
+            </td>
+        </tr>
+    `)
+}
+
+function ctrClienteBuscar_buscarDados(idCliente) {
+    cliDados_start(idCliente)
+}

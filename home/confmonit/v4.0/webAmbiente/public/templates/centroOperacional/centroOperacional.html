@@ -1,0 +1,211 @@
+{{ template "pagina" . }} {{ define "body" }}
+<link rel="stylesheet" href="/public/css/mapa.css">
+<link rel="stylesheet" href="/public/css/centro-operacional.css">
+
+<div class="co-shell" id="coShell"
+    data-id-cliente="{{.IdCliente}}"
+    data-nome-cliente="{{.NomeCliente}}"
+    data-id-franqueado="{{.IdFranqueado}}"
+    data-modo-global="{{.ModoGlobal}}">
+
+    <div id="coAlertaSomOff" class="co-alerta-som-off hidden">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span>Som da sirene <strong>desligado</strong> — eventos não emitirão alerta sonoro.</span>
+        <button type="button" id="coAlertaSomAtivar" class="co-alerta-link">Ativar som</button>
+    </div>
+
+    <header class="co-header">
+        <div class="co-header-esq">
+            <button type="button" id="coAvatar" class="co-avatar" title="Alterar cor">
+                <span id="coAvatarIniciais">--</span>
+            </button>
+            <div class="co-header-titulos">
+                <h1 id="coNomeCliente" class="co-nome-cliente">{{.NomeCliente}}</h1>
+                <span class="co-subtitulo" id="coSubtitulo">Centro operacional</span>
+            </div>
+            <a href="/home" class="btn btn-ghost btn-sm co-btn-voltar">
+                <i class="bi bi-arrow-left"></i> Home
+            </a>
+        </div>
+        <div class="co-header-centro">
+            <span id="cmNotifMount"></span>
+            <button type="button" id="coBtnSirene" class="co-btn-sirene" title="Ligar/desligar som">
+                <i class="bi bi-volume-up-fill"></i>
+                <span>Sirene</span>
+            </button>
+            <button type="button" id="coBtnExportar" class="btn btn-ghost btn-sm">
+                <i class="bi bi-download"></i> Exportar
+            </button>
+        </div>
+        <div class="co-relogio">
+            <div id="coRelogioHora" class="co-relogio-hora">00:00:00</div>
+            <div id="coRelogioData" class="co-relogio-data"></div>
+        </div>
+    </header>
+
+    <div id="coAvatarPopover" class="co-avatar-popover hidden">
+        <p class="co-popover-titulo">Cor do avatar</p>
+        <div class="co-paleta" id="coPaleta"></div>
+        <input type="color" id="coCorPicker" class="co-cor-picker" value="#2563eb" />
+    </div>
+
+    <div class="co-corpo">
+        <aside class="co-col co-col-mapas" id="coColMapas">
+            <div class="co-painel-head">
+                <h2><i class="bi bi-map"></i> Mapas</h2>
+            </div>
+
+            <div class="co-hscroll-bar co-col-mapas-view-tabs" id="coColMapasViewTabs">
+                <div class="co-hscroll-wrap">
+                    <button type="button" class="co-hscroll-nav co-hscroll-prev hidden" title="Anterior" aria-label="Anterior">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                    <div class="co-hscroll-viewport">
+                        <div class="co-hscroll-track">
+                            <button type="button" class="co-col-mapas-view-tab co-col-view-ativo" data-view="mapas" id="coViewMapasLista">
+                                <i class="bi bi-list-ul"></i> Lista
+                            </button>
+                            <button type="button" class="co-col-mapas-view-tab" data-view="timeline" id="coViewTimeline">
+                                <i class="bi bi-clock-history"></i> Linha do Tempo
+                                <span class="co-timeline-badge hidden" id="coTimelineBadge">0</span>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="button" class="co-hscroll-nav co-hscroll-next hidden" title="Próximo" aria-label="Próximo">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="coPainelAnalise" class="co-painel-analise hidden">
+                <div class="co-analise-info">
+                    <strong>Análise de calor</strong>
+                    <span id="coAnaliseStatus">Sem trajetória</span>
+                </div>
+                <div class="co-analise-controles">
+                    <button type="button" id="coAnalisePrev" class="co-analise-btn" title="Passo anterior"><i class="bi bi-skip-start-fill"></i></button>
+                    <button type="button" id="coAnalisePlay" class="co-analise-btn co-analise-play" title="Reproduzir trajetória"><i class="bi bi-play-fill"></i></button>
+                    <button type="button" id="coAnaliseNext" class="co-analise-btn" title="Próximo passo"><i class="bi bi-skip-end-fill"></i></button>
+                    <button type="button" id="coAnaliseSair" class="co-analise-btn" title="Sair da análise"><i class="bi bi-x-lg"></i></button>
+                </div>
+                <input type="range" id="coAnaliseSlider" class="co-analise-slider" min="0" max="0" value="0" />
+            </div>
+
+            <div id="coListaMapasFixados" class="co-lista-mapas-fixados"></div>
+            <div id="coListaMapas" class="co-lista-mapas"></div>
+
+            <div id="coPainelTimeline" class="co-painel-timeline hidden">
+                <div class="co-timeline-toolbar">
+                    <div class="co-timeline-titulo">
+                        <i class="bi bi-shield-check"></i>
+                        <div>
+                            <strong>Caixa-preta</strong>
+                            <span>Registro da ocorrência</span>
+                        </div>
+                    </div>
+                    <div class="co-timeline-acoes">
+                        <button type="button" id="coTimelineCopiar" class="co-timeline-btn" title="Copiar linha do tempo">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                        <button type="button" id="coTimelineExportar" class="co-timeline-btn" title="Baixar .txt">
+                            <i class="bi bi-download"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="coTimelineLista" class="co-timeline-lista">
+                    <p class="co-msg">Nenhum evento registrado nesta sessão.</p>
+                </div>
+            </div>
+        </aside>
+
+        <main class="co-col co-col-mapa">
+            <div class="co-hscroll-bar co-tabs-bar">
+                <div class="co-hscroll-wrap co-tabs-wrap">
+                    <button type="button" class="co-hscroll-nav co-hscroll-prev hidden" title="Abas anteriores" aria-label="Abas anteriores">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                    <div id="coTabsFixadas" class="co-tabs-fixadas"></div>
+                    <div class="co-hscroll-viewport co-tabs-viewport">
+                        <div id="coTabs" class="co-hscroll-track co-tabs"></div>
+                    </div>
+                    <button type="button" class="co-hscroll-nav co-hscroll-next hidden" title="Próximas abas" aria-label="Próximas abas">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="coPainelMapas" class="co-painel-mapas">
+                <div id="coMapaVazio" class="co-mapa-vazio hidden">Selecione um mapa na lista.</div>
+            </div>
+            <div class="co-legenda legend" id="coLegendaMapa">
+                <span><span class="legend-dot mapa-ponto-normal"></span>Normal</span>
+                <span><span class="legend-dot mapa-ponto-alarme"></span>Disparo</span>
+                <span><span class="legend-dot mapa-ponto-falha"></span>Sem comunicação</span>
+            </div>
+        </main>
+
+        <aside class="co-col co-col-eventos">
+            <div class="co-painel-head">
+                <h2><i class="bi bi-list-ul"></i> Processos</h2>
+            </div>
+            <div class="co-hscroll-bar co-filtros" id="coFiltros">
+                <div class="co-hscroll-wrap">
+                    <button type="button" class="co-hscroll-nav co-hscroll-prev hidden" title="Filtros anteriores" aria-label="Filtros anteriores">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                    <div class="co-hscroll-viewport">
+                        <div class="co-hscroll-track co-filtros-track">
+                            <button type="button" class="co-filtro co-filtro-ativo" data-filtro="todos">Todos</button>
+                            <button type="button" class="co-filtro" data-filtro="alarmes">Alarmes</button>
+                            <button type="button" class="co-filtro" data-filtro="controle">Controle</button>
+                            <button type="button" class="co-filtro" data-filtro="falhas">Falhas</button>
+                        </div>
+                    </div>
+                    <button type="button" class="co-hscroll-nav co-hscroll-next hidden" title="Próximos filtros" aria-label="Próximos filtros">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="coFilaEventos" class="co-fila-eventos"></div>
+        </aside>
+    </div>
+
+    <div id="coModalProcesso" class="co-modal hidden">
+        <div class="co-modal-dialog">
+            <div class="co-modal-header">
+                <h3 id="coModalTitulo">Processo</h3>
+                <button type="button" class="co-modal-fechar" title="Fechar">&times;</button>
+            </div>
+            <div class="co-modal-body">
+                <div id="coModalResumo" class="co-modal-resumo"></div>
+                <label class="co-modal-label" for="coFinalizarDesc">Descrição do atendimento</label>
+                <textarea id="coFinalizarDesc" class="co-modal-textarea" rows="3" placeholder="Descreva o atendimento..."></textarea>
+                <h4 class="co-modal-sub">Eventos do processo</h4>
+                <div id="coTabelaEventos" class="co-tabela-eventos"></div>
+            </div>
+            <div class="co-modal-footer">
+                <button type="button" id="coBtnModalAoVivo" class="co-btn-aovivo-modal hidden">
+                    <i class="bi bi-camera-video-fill"></i> Ao vivo
+                </button>
+                <button type="button" id="coBtnFinalizar" class="co-btn-finalizar">Finalizar processo</button>
+                <button type="button" class="co-btn-ghost co-modal-fechar">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="coToastHost" class="co-toast-host" aria-live="polite"></div>
+
+    <audio id="coAudio1" src="/audio/1.mp3" loop preload="auto"></audio>
+    <audio id="coAudio2" src="/audio/2.mp3" loop preload="auto"></audio>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js"></script>
+    <script src="/public/js/mapaUtil.js"></script>
+    <script src="/public/js/mapaLayout.js"></script>
+    <script src="/public/js/mapaCameraLive.js"></script>
+    <script src="/public/js/mapaSetorPopup.js"></script>
+    <script src="/public/js/mapaMonitor.js"></script>
+    <script src="/public/js/mapaRastro.js"></script>
+    <script src="/public/js/coTimeline.js"></script>
+    <script src="/public/js/coNotificacoes.js"></script>
+    <script src="/public/templates/centroOperacional/centroOperacional.js"></script>
+</div>
+{{ end }}

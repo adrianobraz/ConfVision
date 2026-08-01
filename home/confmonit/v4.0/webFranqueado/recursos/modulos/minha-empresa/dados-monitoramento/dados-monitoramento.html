@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="pt-br">
+    <head>
+        {{ template "head" . }}
+    </head>
+    <body>
+        {{ template "variaveis-controle" . }}
+        {{ template "nav-bar" . }}
+
+        {{ template "sub-menu-fluid" }}
+        <div class="container-fluid container-principal">
+
+            <div class="row text-center pb-3 m-0 table-responsive altura-fixa">
+                <!-- COLUNA ESQUERDA -->
+                <div id="coluna-esquerda" class="col-lg-6 border-end ">
+                    <div class="row">
+                        <div class="col-lg-12 mt-2">
+                            <label>Dados da Empresa</label>
+                            <hr>
+                        </div>
+                        <div class="col-lg-10 mb-1 text-start">
+                            <label for="razao-social"
+                                class="form-label">
+                                Razao Social:
+                            </label>
+                            <input type="text"
+                                autofocus
+                                class="form-control form-control-sm
+                                text-uppercase"
+                                id="razao-social"
+                                disabled>
+                        </div>
+
+                        <div class="col-lg-2 mb-1 text-start">
+                            <label for="codigo-benuvem"
+                                class="form-label">
+                                Camera:
+                            </label>
+                            <input type="text"
+                                autofocus
+                                class="form-control form-control-sm
+                                text-uppercase"
+                                id="codigo-benuvem"
+                                disabled>
+                        </div>
+
+                        <div class="col-lg-8 mb-1 text-start">
+                            <label for="nome-fantasia"
+                                class="form-label">Nome Fantasia:</label>
+                            <input type="text"
+                                class="form-control form-control-sm
+                                text-uppercase"
+                                id="nome-fantasia"
+                                disabled>
+                        </div>
+
+                        <div class="col-lg-4 mb-1 text-start">
+                            <label for="cnpj"
+                                class="form-label">CNPJ:</label>
+                            <input type="text"
+                                class="form-control form-control-sm msk-cnpj"
+                                id="cnpj"
+                                disabled>
+                        </div>
+
+                        <div class="col-lg-4 mb-1 text-start">
+                            <label for="escricao-estadual"
+                                class="form-label">Escrição Estadual:</label>
+                            <input type="text"
+                                class="form-control form-control-sm"
+                                id="escricao-estadual"
+                                disabled>
+                        </div>
+
+                        <div class="col-lg-3 mb-1 text-start">
+                            <label for="cep"
+                                class="form-label">CEP:</label>
+                            <input type="text"
+                                class="form-control form-control-sm msk-cep"
+                                id="cep"
+                                disabled>
+                        </div>
+
+                        <div class="col-lg-5 mb-1 text-start">
+                            <label for="uf-cliente"
+                                class="form-label">
+                                UF:
+                            </label>
+                            <select class="form-control form-control-sm
+                                carregarUf text-uppercase"
+                                id="uf"
+                                disabled></select>
+                        </div>
+
+                        <div class="col-lg-12 mb-1 text-start">
+                            <label for="endereco"
+                                class="form-label">Endereço:</label>
+                            <input type="text"
+                                class="form-control form-control-sm
+                                text-uppercase"
+                                id="endereco"
+                                disabled>
+                        </div>
+
+                        <div class="col-lg-6 mb-1 text-start">
+                            <label for="bairro"
+                                class="form-label">Bairro:</label>
+                            <input type="text"
+                                class="form-control form-control-sm
+                                text-uppercase"
+                                id="bairro"
+                                disabled>
+                        </div>
+
+                        <div class="col-lg-6 mb-1 text-start">
+                            <label for="cidade"
+                                class="form-label">Cidade:</label>
+                            <input type="text"
+                                class="form-control form-control-sm
+                                text-uppercase"
+                                id="cidade"
+                                disabled>
+                        </div>
+
+                        <div class="col-lg-12 mb-1 text-start">
+                            <label for="observacao"
+                                class="form-label">Observações:</label>
+                            <textarea class="form-control form-control-sm
+                                text-uppercase"
+                                rows="5" maxlength="200"
+                                style="resize: none;"
+                                id="observacao"
+                                disabled></textarea>
+                        </div>
+                        
+
+                    </div>
+                </div><!-- COLUNA ESQUERDA -->
+
+                <!-- COLUNA DIREITA -->
+                <div id="coluna-direita" class="col-lg-6 mt-2">
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <label>Dados do Responsável</label>
+                            <hr>
+                        </div>
+
+                        <div class="col-lg-12 mb-1 text-start">
+                            <label for="nome-responsavel"
+                                class="form-label">Nome:</label>
+                            <input type="text"
+                                class="form-control form-control-sm
+                                text-uppercase"
+                                id="nome-responsavel"
+                                disabled>
+                        </div>
+
+                        <div class="col-lg-8 mb-1 text-start">
+                            <label for="nick-responsavel"
+                                class="form-label">Nick:</label>
+                            <input type="text"
+                                class="form-control form-control-sm
+                                text-uppercase"
+                                id="nick-responsavel"
+                                disabled>
+                        </div>
+
+                        <div class="col-lg-4 mb-1 text-start">
+                            <label for="user-voip-responsavel"
+                                class="form-label">Voip:</label>
+                            <input type="text"
+                                class="form-control form-control-sm
+                                text-uppercase"
+                                id="user-voip-responsavel"
+                                disabled>
+                        </div>
+
+                        
+                        <div class="col-lg-6 mb-1 text-start">
+                            <label for="email-principal-responsavel"
+                                class="form-label">E-mail Principal:</label>
+                            <input type="text"
+                                class="form-control form-control-sm
+                                text-lowercase"
+                                id="email-principal-responsavel"
+                                disabled>
+                        </div>
+
+
+                        <div class="col-lg-6 mb-1 text-start">
+                            <label for="telefone-principal-responsavel"
+                                class="form-label">Telefone Principal:</label>
+                            <input type="text"
+                                class="form-control form-control-sm
+                                msk-telefone"
+                                id="telefone-principal-responsavel"
+                                disabled>
+                        </div>
+
+                        <div class="col-lg-6 mb-1 text-start">
+                            <label for="email-alternativo-responsavel"
+                                class="form-label">E-mail Alternativo:</label>
+                            <input type="text"
+                                class="form-control form-control-sm
+                                text-lowercase"
+                                id="email-alternativo-responsavel"
+                                disabled>
+                        </div>
+
+
+
+                        <div class="col-lg-6 mb-1 text-start">
+                            <label for="telefone-alternativo-responsavel"
+                                class="form-label">Telefone Alternativo:</label>
+                            <input type="text"
+                                class="form-control form-control-sm
+                                msk-telefone"
+                                id="telefone-alternativo-responsavel"
+                                disabled>
+                        </div>
+                        <div class="col-lg-12"><hr></div>
+
+                        <div class="col-lg-12 mb-1 d-grid gap-2 mt-2 ">
+                            <button id="BtnAtivarEmail" class="btn"></button>
+                        </div>
+
+                        <div class="col-lg-12 mt-2">
+                            <label>Aterar Senha do Usuário Logado</label>
+                            <hr>
+                        </div>
+
+                        <div class="col-lg-8 mb-1 text-start">
+                            <div class="col-lg-12 mb-2 text-start">
+
+                                <input class="form-control form-control-sm
+                                    carregarUf text-uppercase"
+                                    type="password"
+                                    value=""
+                                    placeholder="Digite uma nova senha"
+                                    id="nova-senha-franqueado">
+                            </div>
+
+                            <div class="col-lg-12 mb-2 text-start">
+                                <input class="form-control form-control-sm
+                                    carregarUf text-uppercase"
+                                    type="password"
+                                    value=""
+                                    placeholder="Repetir a nova senha"
+                                    id="repetir-nova-senha-franqueado">
+                            </div>
+                        </div>
+                        <div class="col-lg-4 d-grid gap-2 px-1 pb-2">
+                            <button id="BtnGravarSenha"
+                                class="btn btn-lg btn-block btn-success fs-2
+                                py-4 py-lg-0"
+                                type="button">
+                                <i class="bi bi-save-fill fs-2"></i>
+                                Gravar
+                            </button>
+                        </div>
+
+
+                    </div>
+                </div><!-- COLUNA DIREITA -->
+
+                <!-- CONTROLES    
+                    <div class="col-lg-12"><hr></div>            
+                    <div class="col-lg-6 mb-3 d-grid gap-2">
+                        <button id="btn-limpar"
+                            class="btn btn-lg btn-block btn-danger fs-2"
+                            type="button">
+                            <i class="bi bi-eraser-fill fs-2"></i>
+                            &nbsp; Limpar
+                        </button>
+                    </div>
+                    <div class="col-lg-6 mb-3 d-grid gap-2">
+                        <button id="btn-gravar"
+                            class="btn btn-lg btn-success fs-2"
+                            type="button">
+                            <i class="bi bi-save-fill fs-2"></i>
+                            &nbsp; Gravar
+                        </button>
+                    </div>-->
+            </div>
+
+
+        </div>
+
+        {{ template "link-js" . }}
+        <script
+            src="/recursos/modulos/minha-empresa/dados-monitoramento/dados-monitoramento.js"></script>
+    </body>
+</html>

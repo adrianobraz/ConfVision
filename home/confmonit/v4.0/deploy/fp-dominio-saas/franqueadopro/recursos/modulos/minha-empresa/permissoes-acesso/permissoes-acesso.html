@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-br">
+
+<head>
+    {{ template "head" . }}
+    <link rel="stylesheet" href="/recursos/modulos/minha-empresa/permissoes-acesso/permissoes-acesso.css">
+</head>
+
+<body>
+    {{ template "variaveis-controle" . }}
+    {{ template "nav-bar" . }}
+    {{ template "sub-menu-fluid" }}
+    <div class="container-fluid container-principal">
+        <div class="row text-center mx-0">
+
+            <div id="coluna-esquerda" class="col-lg-5 mt-2">
+                <div class="px-1 mb-2">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" id="pesquisar-responsavel" class="form-control"
+                            placeholder="Pesquisar responsável...">
+                    </div>
+                </div>
+                <div class="table-responsive tab-height">
+                    <table class="table table-sm table-bordered table-striped">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Nome</th>
+                                <th>Nick</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista-responsaveis"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="coluna-direita" class="col-lg-7 mt-2 bg-form page-height">
+                <form id="formulario" class="px-4 pt-4">
+                    <div class="fp-perm-header">
+                        <i class="bi bi-person-badge-fill"></i>
+                        <div>
+                            <p class="fp-perm-header-label">Responsável selecionado</p>
+                            <p id="nome-selecionado" class="fp-perm-header-nome">—</p>
+                        </div>
+                    </div>
+
+                    <div class="form-height fp-perm-panel">
+                        <div id="arvore-permissoes"></div>
+                    </div>
+
+                    <div class="row g-3 fp-form-actions mx-0 pb-3 mt-2">
+                        <div class="col-12">
+                            <hr class="my-2">
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <button id="btn-limpar" type="button" class="btn btn-danger w-100 fp-btn-form-action">
+                                <i class="bi bi-eraser-fill" aria-hidden="true"></i>
+                                <span>Limpar</span>
+                            </button>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <button id="btn-gravar" type="button" class="btn btn-success w-100 fp-btn-form-action">
+                                <i class="bi bi-save-fill" aria-hidden="true"></i>
+                                <span>Gravar</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+    {{ template "link-js" . }}
+    <script src="/recursos/modulos/minha-empresa/permissoes-acesso/permissoes-acesso.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+.Python
+.venv/
+venv/
+*.pt
+!yolov8n.pt

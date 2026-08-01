@@ -1,0 +1,1363 @@
+/* ============================================================
+   FranqueadoPro - Tema (dark por padrao)
+   Carregado APOS bootstrap e preto.css para sobrescrever cores.
+   Layout/estrutura permanecem iguais ao sistema original.
+   As cores sao controladas por variaveis CSS que o theme.js
+   altera em tempo real e persiste em localStorage (sem banco).
+   ============================================================ */
+
+:root {
+    --fp-bg: #1a1d23;
+    --fp-surface: #252830;
+    --fp-surface-2: #2d323c;
+    --fp-navbar: #0f1117;
+    --fp-primary: #3b82f6;
+    --fp-primary-rgb: 59, 130, 246;
+    --fp-primary-hover: #2563eb;
+    --fp-secondary: #64748b;
+    --fp-text: #e8eaed;
+    --fp-text-muted: #9aa0a6;
+    --fp-accent-soft: rgba(59, 130, 246, 0.16);
+    --fp-accent-text: #93c5fd;
+    --fp-border: #3c4048;
+    --fp-input-bg: #1e2229;
+    --fp-danger: #ef4444;
+    --fp-success: #22c55e;
+}
+
+body {
+    background-color: var(--fp-bg);
+    color: var(--fp-text);
+}
+
+/* Logo whitelabel - tamanho fixo padrao 150x48 --------------
+   Mesmo que na Fase 2 o franqueado suba um logo maior, ele é
+   sempre contido nesta caixa (150x48) sem distorcer nem estourar
+   o layout (object-fit: contain preserva a proporcao). */
+.fp-logo,
+.fp-logo img {
+    width: 150px;
+    height: 48px;
+    max-width: 150px;
+    max-height: 48px;
+    object-fit: contain;
+    object-position: center;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* Container / cards ---------------------------------------- */
+.container-principal {
+    background-color: var(--fp-surface);
+    border-radius: 10px;
+}
+
+/* Navbar --------------------------------------------------- */
+.navbar.bg-dark,
+.navbar-dark.bg-dark {
+    background-color: var(--fp-navbar) !important;
+}
+
+.navbar-dark .navbar-brand,
+.navbar-dark .nav-link {
+    color: var(--fp-text);
+}
+
+.fp-navbar {
+    border-bottom: 1px solid var(--fp-border);
+    padding-top: .35rem;
+    padding-bottom: .35rem;
+}
+
+.fp-navbar-brand {
+    display: inline-flex;
+    align-items: center;
+    padding: 0;
+}
+
+.fp-screen-info {
+    min-width: 0;
+    line-height: 1.15;
+}
+
+.fp-screen-title {
+    color: var(--fp-text);
+    font-size: 1rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fp-screen-sub {
+    color: var(--fp-text-muted);
+    font-size: .78rem;
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fp-navbar-actions {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex-wrap: wrap;
+}
+
+/* Botao de icone (paleta de tema) --------------------------- */
+.fp-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    border-radius: 10px;
+    border: 1px solid var(--fp-border);
+    color: var(--fp-text);
+    background-color: transparent;
+    font-size: 1.15rem;
+    line-height: 1;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+
+/* Solta o tamanho fixo do .bi global para o icone centralizar */
+.fp-icon-btn i {
+    width: auto;
+    height: auto;
+    line-height: 1;
+    display: block;
+}
+
+.fp-icon-btn:hover {
+    background-color: var(--fp-primary);
+    border-color: var(--fp-primary);
+    color: #fff;
+}
+
+/* Texto / labels ------------------------------------------- */
+label {
+    color: var(--fp-text);
+}
+
+a {
+    color: var(--fp-accent-text);
+}
+
+hr {
+    border-color: var(--fp-border);
+    opacity: .4;
+}
+
+/* Destaques suaves (informativo, cabecalhos de tabela) ----- */
+.bg-vd-claro {
+    background-color: var(--fp-accent-soft) !important;
+    color: var(--fp-accent-text) !important;
+}
+
+.text-success {
+    color: var(--fp-success) !important;
+}
+
+.bg-form {
+    background-color: var(--fp-surface-2) !important;
+}
+
+/* Formularios ---------------------------------------------- */
+.form-control,
+.form-select {
+    background-color: var(--fp-input-bg);
+    border-color: var(--fp-border);
+    color: var(--fp-text);
+}
+
+.input-group-text {
+    background-color: var(--fp-surface-2);
+    border-color: var(--fp-border);
+    color: var(--fp-text-muted);
+}
+
+.form-control:focus,
+.form-select:focus {
+    background-color: var(--fp-input-bg);
+    border-color: var(--fp-primary);
+    color: var(--fp-text);
+    box-shadow: 0 0 0 0.2rem var(--fp-accent-soft);
+}
+
+.form-control:disabled,
+.form-control[readonly] {
+    background-color: var(--fp-surface-2);
+    color: var(--fp-text-muted);
+}
+
+.form-control::placeholder {
+    color: var(--fp-text-muted);
+}
+
+/* Tabelas -------------------------------------------------- */
+.table {
+    color: var(--fp-text);
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--fp-text);
+    --bs-table-striped-color: var(--fp-text);
+    --bs-table-striped-bg: rgba(255, 255, 255, 0.04);
+    --bs-table-hover-color: var(--fp-text);
+    --bs-table-hover-bg: rgba(255, 255, 255, 0.07);
+}
+
+.table-bordered,
+.table-bordered > :not(caption) > * > * {
+    border-color: var(--fp-border);
+}
+
+.table > thead {
+    color: var(--fp-text);
+}
+
+/* Botoes --------------------------------------------------- */
+.btn-primary {
+    background-color: var(--fp-primary);
+    border-color: var(--fp-primary);
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background-color: var(--fp-primary-hover);
+    border-color: var(--fp-primary-hover);
+}
+
+.btn-outline-light {
+    border-color: var(--fp-border);
+    color: var(--fp-text);
+}
+
+.btn-outline-light:hover {
+    background-color: var(--fp-primary);
+    border-color: var(--fp-primary);
+    color: #fff;
+}
+
+/* Botoes do menu principal (mantem posicao/tamanho) -------- */
+.botao {
+    color: var(--fp-text);
+}
+
+.botao .botaoFrame {
+    background-color: var(--fp-surface-2);
+    border-color: var(--fp-border);
+    color: var(--fp-text);
+    transition: border-color .15s ease, background-color .15s ease;
+}
+
+.botao .botaoFrame:hover {
+    border-color: var(--fp-primary);
+    background-color: var(--fp-surface);
+}
+
+/* Cards do menu principal (seguem a cor primaria do tema) --- */
+.fp-welcome {
+    font-size: 1.15rem;
+    font-weight: 700;
+    font-style: italic;
+    color: var(--fp-text);
+}
+
+.fp-menu-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 11px;
+    min-height: 180px;
+    height: 100%;
+    padding: 17px 12px;
+    border-radius: 14px;
+    background-color: var(--fp-primary);
+    border: 1px solid transparent;
+    color: #fff;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .25);
+    transition: transform .12s ease, box-shadow .15s ease, background-color .15s ease;
+}
+
+.fp-menu-card:hover,
+.fp-menu-card:focus {
+    background-color: var(--fp-primary-hover);
+    color: #fff;
+    transform: translateY(-4px);
+    box-shadow: 0 12px 26px rgba(0, 0, 0, .38);
+}
+
+.fp-menu-card i {
+    font-size: 53px;
+    line-height: 1;
+    width: auto;
+    height: auto;
+    display: block;
+}
+
+.fp-menu-card span {
+    font-size: 1.08rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+/* Cards com subtitulo (titulo + descricao) */
+.fp-menu-card.fp-menu-card-sub {
+    gap: 8px;
+    min-height: 190px;
+}
+
+.fp-menu-card .fp-card-title {
+    display: block;
+    font-size: 1.08rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.fp-menu-card .fp-card-sub {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 400;
+    line-height: 1.25;
+    opacity: 0.88;
+    max-width: 92%;
+}
+
+/* Indicador numerico em tempo real dentro de um card de menu */
+.fp-menu-card .fp-card-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 64px;
+    padding: 2px 14px;
+    margin-top: 4px;
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, .22);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .25);
+}
+
+/* Tag de tempo sem comunicacao na grid do menu principal */
+.fp-col-tempo {
+    width: 18%;
+    min-width: 160px;
+    padding-left: 2px;
+    padding-right: 2px;
+}
+
+td.fp-col-tempo .fp-tempo-badge {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 6px 8px;
+    font-size: .82rem;
+    font-weight: 700;
+    white-space: nowrap;
+    letter-spacing: .02em;
+    border-radius: 6px;
+}
+
+.fp-tempo-badge i {
+    font-size: .9rem;
+    flex-shrink: 0;
+}
+
+/* ============================================================
+   Dashboard KPI (menu principal)
+   ============================================================ */
+.fp-dash-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .95rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--fp-texto, #e9edf5);
+}
+
+.fp-dash-section-title i {
+    color: var(--fp-primary);
+    font-size: 1.1rem;
+}
+
+.fp-dash-kpi {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 88px;
+    padding: 12px 8px;
+    border-radius: 12px;
+    background: linear-gradient(145deg, var(--fp-primary-mid, rgba(80, 120, 200, .35)), var(--fp-primary-soft, rgba(80, 120, 200, .12)));
+    border: 1px solid var(--fp-primary-mid, rgba(120, 140, 180, .35));
+    color: #fff;
+    text-decoration: none;
+    text-align: center;
+    transition: transform .12s ease, box-shadow .15s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .2);
+}
+
+.fp-dash-kpi:hover,
+.fp-dash-kpi:focus {
+    color: #fff;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .35);
+}
+
+.fp-dash-kpi-static {
+    cursor: default;
+    pointer-events: none;
+}
+
+.fp-dash-kpi-static:hover {
+    transform: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .2);
+}
+
+.fp-dash-kpi-val {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.fp-dash-kpi-lbl {
+    font-size: .78rem;
+    font-weight: 600;
+    opacity: .9;
+    line-height: 1.2;
+}
+
+.fp-dash-kpi-warn {
+    border-color: rgba(255, 193, 7, .55);
+    box-shadow: 0 0 12px rgba(255, 193, 7, .25);
+}
+
+.fp-dash-kpi-danger,
+.fp-dash-kpi-alerta.fp-dash-kpi-danger {
+    border-color: rgba(220, 53, 69, .55);
+    box-shadow: 0 0 14px rgba(220, 53, 69, .3);
+}
+
+.fp-dash-kpi-alerta {
+    background: linear-gradient(145deg, rgba(var(--fp-primary-rgb), .45), var(--fp-primary-soft));
+}
+
+/* Dashboard 3 colunas — layout compacto com quebra de linha */
+.fp-dash-cols {
+    align-items: stretch;
+}
+
+.fp-dash-col {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 10px 8px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, .18);
+    border: 1px solid rgba(255, 255, 255, .06);
+}
+
+.fp-dash-col .fp-dash-section-title {
+    font-size: .78rem;
+    margin-bottom: 6px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fp-dash-col .fp-dash-section-title i {
+    font-size: .9rem;
+    flex-shrink: 0;
+}
+
+.fp-dash-kpi-wrap {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+    gap: 5px;
+    flex: 1;
+}
+
+.fp-dash-kpi-wrap .fp-dash-kpi-sm {
+    min-height: 52px;
+    padding: 6px 4px;
+    border-radius: 8px;
+    gap: 2px;
+    width: 100%;
+}
+
+.fp-dash-kpi-wrap .fp-dash-kpi-sm .fp-dash-kpi-val {
+    font-size: 1.15rem;
+    font-weight: 800;
+}
+
+.fp-dash-kpi-wrap .fp-dash-kpi-sm .fp-dash-kpi-lbl {
+    font-size: .62rem;
+    font-weight: 600;
+    line-height: 1.1;
+    word-break: break-word;
+}
+
+.fp-dash-kpi-wrap .fp-dash-kpi-sm:hover {
+    transform: translateY(-2px);
+}
+
+/* Resumo: clientes + eventos na mesma linha */
+.fp-dash-resumo-body {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 8px;
+    flex: 1;
+}
+
+.fp-dash-resumo-clientes {
+    flex: 0 0 72px;
+    display: flex;
+}
+
+.fp-dash-resumo-clientes .fp-dash-kpi-clientes {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.fp-dash-resumo-pct {
+    flex: 0 0 72px;
+}
+
+.fp-dash-resumo-pct .fp-dash-kpi-val {
+    font-size: 1rem;
+}
+
+.fp-nome-franqueado-header {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--fp-text);
+    line-height: 1.3;
+    margin: 0;
+}
+
+.fp-dash-kpi-clientes {
+    cursor: default;
+    pointer-events: none;
+    min-height: 52px;
+    padding: 6px 4px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .06);
+    border: 1px dashed rgba(255, 255, 255, .18);
+    color: rgba(255, 255, 255, .75);
+    box-shadow: none;
+}
+
+.fp-dash-kpi-clientes .fp-dash-kpi-val {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: rgba(255, 255, 255, .85);
+}
+
+.fp-dash-kpi-clientes .fp-dash-kpi-lbl {
+    font-size: .62rem;
+    font-weight: 600;
+    opacity: .7;
+}
+
+.fp-dash-subgroup {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    justify-content: center;
+}
+
+.fp-dash-subgroup-title {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: .68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: rgba(255, 255, 255, .55);
+    padding-left: 2px;
+}
+
+.fp-dash-subgroup-title i {
+    font-size: .72rem;
+    color: var(--fp-primary);
+}
+
+.fp-dash-kpi-wrap-sub {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+@media (max-width: 991.98px) {
+    .fp-dash-col {
+        margin-bottom: 8px;
+    }
+}
+
+/* Cabecalho de pagina (titulo + voltar) abaixo dos 4 atalhos */
+.fp-page-header-wrap {
+    padding-top: 10px;
+    padding-bottom: 6px;
+}
+
+.fp-page-header {
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, .18);
+    border: 1px solid rgba(255, 255, 255, .06);
+}
+
+.fp-page-header-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .95rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--fp-texto, #e9edf5);
+    flex-wrap: wrap;
+}
+
+.fp-page-header-title i {
+    color: var(--fp-primary);
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.fp-page-header-sub {
+    font-size: .72rem;
+    margin-top: 2px;
+    margin-left: 26px;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.fp-page-header-sub:empty {
+    display: none !important;
+}
+
+.fp-page-header-back {
+    white-space: nowrap;
+}
+
+
+/* ============================================================
+   Seçoes/blocos logicos de um menu (agrupamento de cards)
+   ============================================================ */
+.fp-menu-section {
+    margin-top: 10px;
+    margin-bottom: 22px;
+}
+
+.fp-menu-section-title {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 4px 4px 12px;
+    padding-bottom: 8px;
+    font-size: 1.02rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--fp-texto, #e9edf5);
+    border-bottom: 1px solid var(--fp-primary-mid, rgba(120, 130, 150, .35));
+}
+
+.fp-menu-section-title i {
+    font-size: 1.15rem;
+    line-height: 1;
+    color: var(--fp-primary);
+}
+
+/* ============================================================
+   Barra de atalhos (aparece no topo das paginas internas)
+   Mesmos cards do menu principal, porem compactos e com a cor
+   primaria semitransparente (mesma cor, aparencia diferente).
+   ============================================================ */
+.fp-atalhos {
+    padding: 0 12px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+.fp-atalhos .row {
+    --bs-gutter-x: .5rem;
+}
+
+.fp-atalhos .fp-menu-card {
+    gap: 8px;
+    min-height: 120px;
+    padding: 12px 10px;
+    border-radius: 12px;
+    background-color: rgba(var(--fp-primary-rgb), 0.25);
+    border: 1px solid rgba(var(--fp-primary-rgb), 0.35);
+    box-shadow: none;
+    color: var(--fp-text);
+}
+
+.fp-atalhos .fp-menu-card:hover,
+.fp-atalhos .fp-menu-card:focus {
+    background-color: rgba(var(--fp-primary-rgb), 0.45);
+    color: #fff;
+    transform: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .25);
+}
+
+/* Item selecionado: destaque "voce esta aqui" (pilula clara elevada,
+   com icone/texto na cor do tema e anel/brilho na cor primaria). */
+.fp-atalhos .fp-menu-card.fp-atalho-ativo,
+.fp-atalhos .fp-menu-card.fp-atalho-ativo:hover,
+.fp-atalhos .fp-menu-card.fp-atalho-ativo:focus {
+    background: linear-gradient(160deg, #ffffff 0%, #eef2f7 100%);
+    border-color: #ffffff;
+    color: var(--fp-primary);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .40),
+        0 0 0 2px rgba(var(--fp-primary-rgb), .60);
+    position: relative;
+}
+
+.fp-atalhos .fp-menu-card.fp-atalho-ativo i {
+    color: var(--fp-primary);
+}
+
+/* Barra de destaque na base da aba ativa */
+.fp-atalhos .fp-menu-card.fp-atalho-ativo::after {
+    content: "";
+    position: absolute;
+    left: 22%;
+    right: 22%;
+    bottom: 8px;
+    height: 3px;
+    border-radius: 3px;
+    background: var(--fp-primary);
+}
+
+.fp-atalhos .fp-menu-card i {
+    font-size: 38px;
+    flex: 0 0 auto;
+}
+
+.fp-atalhos .fp-menu-card span {
+    font-size: .9rem;
+    font-weight: 600;
+    line-height: 1.15;
+    text-align: center;
+}
+
+.fp-atalhos .fp-menu-card.fp-menu-card-sub {
+    min-height: 130px;
+    gap: 5px;
+}
+
+.fp-atalhos .fp-menu-card .fp-card-title {
+    font-size: .88rem;
+    font-weight: 700;
+    line-height: 1.15;
+}
+
+.fp-atalhos .fp-menu-card .fp-card-sub {
+    font-size: .7rem;
+    font-weight: 400;
+    line-height: 1.2;
+    opacity: 0.82;
+    max-width: 100%;
+}
+
+/* ============================================================
+   Painel de seletor de tema
+   ============================================================ */
+.fp-theme-btn {
+    border-color: var(--fp-border);
+    color: var(--fp-text);
+}
+
+.fp-theme-panel {
+    position: fixed;
+    top: 64px;
+    right: 16px;
+    z-index: 1080;
+    width: 280px;
+    background-color: var(--fp-surface);
+    border: 1px solid var(--fp-border);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, .45);
+    color: var(--fp-text);
+    display: none;
+}
+
+.fp-theme-panel.fp-open {
+    display: block;
+}
+
+.fp-theme-panel h6 {
+    font-weight: 700;
+    margin-bottom: 12px;
+    font-style: normal;
+}
+
+.fp-theme-presets {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.fp-preset {
+    height: 38px;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    padding: 0;
+}
+
+.fp-preset.fp-active {
+    border-color: #fff;
+    box-shadow: 0 0 0 2px var(--fp-primary);
+}
+
+.fp-theme-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.fp-theme-row label {
+    font-size: 14px;
+    font-weight: 500;
+    font-style: normal;
+    margin: 0;
+    color: var(--fp-text);
+}
+
+.fp-theme-row input[type="color"] {
+    width: 46px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid var(--fp-border);
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+}
+
+.fp-theme-reset {
+    width: 100%;
+    margin-top: 6px;
+    background-color: var(--fp-surface-2);
+    border: 1px solid var(--fp-border);
+    color: var(--fp-text);
+    border-radius: 8px;
+    padding: 8px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.fp-theme-reset:hover {
+    border-color: var(--fp-primary);
+}
+
+/* ============================================================
+   Combo de navegacao (navbar) - troca conforme a pagina atual
+   ============================================================ */
+.fp-nav-combo {
+    display: inline-flex;
+    align-items: center;
+}
+
+.fp-nav-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    max-width: 320px;
+    padding: .45rem .9rem;
+    border: 1px solid var(--fp-border);
+    border-radius: 10px;
+    background-color: var(--fp-surface);
+    color: var(--fp-text);
+    font-weight: 600;
+    font-size: 1.02rem;
+}
+
+.fp-nav-toggle:hover,
+.fp-nav-toggle:focus {
+    background-color: var(--fp-surface-2);
+    border-color: var(--fp-primary);
+    color: var(--fp-text);
+}
+
+.fp-nav-toggle #fp-nav-current {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fp-nav-toggle::after {
+    color: var(--fp-text-muted);
+}
+
+.fp-nav-menu {
+    background-color: var(--fp-surface);
+    border: 1px solid var(--fp-border);
+    border-radius: 12px;
+    padding: 6px;
+    min-width: 280px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, .45);
+}
+
+.fp-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    color: var(--fp-text);
+    font-weight: 500;
+    white-space: normal;
+}
+
+.fp-nav-item i {
+    width: 20px;
+    text-align: center;
+    font-size: 1.05rem;
+    color: var(--fp-accent-text);
+    flex: 0 0 auto;
+}
+
+.fp-nav-item:hover,
+.fp-nav-item:focus {
+    background-color: var(--fp-primary);
+    color: #fff;
+}
+
+.fp-nav-item:hover i,
+.fp-nav-item:focus i {
+    color: #fff;
+}
+
+.fp-nav-item.fp-nav-active {
+    background-color: var(--fp-accent-soft);
+    color: var(--fp-accent-text);
+}
+
+.fp-nav-item.fp-nav-active i {
+    color: var(--fp-accent-text);
+}
+
+.fp-nav-menu .dropdown-divider {
+    border-color: var(--fp-border);
+    opacity: .5;
+}
+
+/* Combo de pesquisa (lista filtravel) */
+.fp-combo-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1055;
+    margin-top: 2px;
+    max-height: 260px;
+    overflow-y: auto;
+    list-style: none;
+    padding: 4px;
+    background-color: var(--fp-surface);
+    border: 1px solid var(--fp-border);
+    border-radius: 8px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, .45);
+}
+
+.fp-combo-item {
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--fp-text);
+    font-size: .9rem;
+}
+
+.fp-combo-item:hover {
+    background-color: var(--fp-primary);
+    color: #fff;
+}
+
+.fp-combo-empty {
+    padding: 8px 10px;
+    color: var(--fp-text-muted);
+    font-size: .85rem;
+}
+
+/* ============================================================
+   CAMADA FUTURISTA / TECNOLOGICA (tom sobre tom)
+   Tudo derivado de --fp-primary-rgb, entao respeita 100% o
+   white-label: qualquer cor escolhida gera os mesmos efeitos
+   (tom forte, tom fraco, transparencia, brilho e animacao).
+   ============================================================ */
+:root {
+    --fp-primary-soft: rgba(var(--fp-primary-rgb), .10);
+    --fp-primary-mid: rgba(var(--fp-primary-rgb), .28);
+    --fp-primary-strong: rgba(var(--fp-primary-rgb), .55);
+    --fp-glow: rgba(var(--fp-primary-rgb), .45);
+}
+
+/* Fundo com brilho tom-sobre-tom (bem sutil) */
+body {
+    background-image:
+        radial-gradient(1100px 560px at 10% -12%, rgba(var(--fp-primary-rgb), .13), transparent 60%),
+        radial-gradient(900px 520px at 112% -4%, rgba(var(--fp-primary-rgb), .08), transparent 55%);
+    background-attachment: fixed;
+}
+
+/* Painel principal: leve vidro, borda que brilha e entrada suave */
+.container-principal {
+    position: relative;
+    border: 1px solid rgba(var(--fp-primary-rgb), .18);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .03);
+    overflow: hidden;
+    animation: fp-rise .35s ease both;
+}
+
+.container-principal::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--fp-primary), transparent);
+    opacity: .7;
+}
+
+@keyframes fp-rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+}
+
+/* Navbar com gradiente e linha inferior animada (scanner) */
+.fp-navbar {
+    position: relative;
+    background: linear-gradient(180deg, var(--fp-navbar), rgba(var(--fp-primary-rgb), .06)) !important;
+}
+
+.fp-navbar::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    height: 2px;
+    width: 100%;
+    background: linear-gradient(90deg, transparent, var(--fp-primary), transparent);
+    background-size: 200% 100%;
+    animation: fp-scan 7s linear infinite;
+    opacity: .55;
+    pointer-events: none;
+}
+
+@keyframes fp-scan {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Cards do menu principal: gradiente tom-sobre-tom + brilho passante */
+.fp-menu-card {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(145deg, var(--fp-primary), rgba(var(--fp-primary-rgb), .55));
+    border: 1px solid rgba(var(--fp-primary-rgb), .55);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .30);
+}
+
+.fp-menu-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -120%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(115deg, transparent, rgba(255, 255, 255, .22), transparent);
+    transform: skewX(-18deg);
+    transition: left .6s ease;
+    pointer-events: none;
+}
+
+.fp-menu-card:hover::before,
+.fp-menu-card:focus::before {
+    left: 140%;
+}
+
+.fp-menu-card:hover,
+.fp-menu-card:focus {
+    box-shadow: 0 14px 30px rgba(0, 0, 0, .42), 0 0 22px var(--fp-glow);
+    border-color: rgba(var(--fp-primary-rgb), .85);
+}
+
+.fp-menu-card i {
+    transition: transform .2s ease, filter .2s ease;
+}
+
+.fp-menu-card:hover i,
+.fp-menu-card:focus i {
+    transform: translateY(-2px) scale(1.06);
+    filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .4));
+}
+
+/* Atalhos mantem identidade translucida (tom mais fraco), sem gradiente forte */
+.fp-atalhos .fp-menu-card {
+    background-image: none;
+}
+
+/* Botoes primarios com gradiente + brilho na cor do tema */
+.btn-primary {
+    background: linear-gradient(145deg, var(--fp-primary), var(--fp-primary-hover));
+    border-color: rgba(var(--fp-primary-rgb), .70);
+    box-shadow: 0 2px 10px rgba(var(--fp-primary-rgb), .28);
+    transition: box-shadow .2s ease, transform .1s ease, filter .2s ease;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background: linear-gradient(145deg, var(--fp-primary-hover), var(--fp-primary));
+    box-shadow: 0 5px 20px rgba(var(--fp-primary-rgb), .50);
+    filter: brightness(1.05);
+}
+
+.btn-primary:active {
+    transform: translateY(1px);
+}
+
+.btn-success {
+    box-shadow: 0 2px 10px rgba(var(--fp-primary-rgb), .12);
+    transition: box-shadow .2s ease, transform .1s ease, filter .2s ease;
+}
+
+.btn-success:hover,
+.btn-success:focus {
+    filter: brightness(1.06);
+    box-shadow: 0 5px 18px rgba(34, 197, 94, .35);
+}
+
+.btn-success:active,
+.btn-danger:active {
+    transform: translateY(1px);
+}
+
+/* Inputs com anel/brilho na cor do tema ao focar */
+.form-control:focus,
+.form-select:focus {
+    box-shadow: 0 0 0 .18rem rgba(var(--fp-primary-rgb), .18),
+        0 0 14px rgba(var(--fp-primary-rgb), .22);
+}
+
+/* Botao de icone (paleta/home) com brilho ao passar */
+.fp-icon-btn {
+    transition: background-color .18s ease, border-color .18s ease,
+        color .18s ease, box-shadow .18s ease;
+}
+
+.fp-icon-btn:hover {
+    box-shadow: 0 0 16px var(--fp-glow);
+}
+
+/* Combo de navegacao (navbar) com borda que brilha */
+.fp-nav-toggle {
+    transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.fp-nav-toggle:hover,
+.fp-nav-toggle:focus {
+    box-shadow: 0 0 16px rgba(var(--fp-primary-rgb), .30);
+}
+
+/* Cabecalho de tabela com leve tom da cor primaria */
+.table > thead.table-dark,
+.table .table-dark {
+    background: linear-gradient(180deg, rgba(var(--fp-primary-rgb), .22), rgba(var(--fp-primary-rgb), .07));
+    --bs-table-bg: transparent;
+    color: var(--fp-text);
+    border-color: rgba(var(--fp-primary-rgb), .25);
+}
+
+/* Dropdowns (nav / busca) com borda tom sobre tom */
+.fp-nav-menu,
+.fp-combo-list {
+    border-color: rgba(var(--fp-primary-rgb), .30);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, .5), 0 0 0 1px rgba(var(--fp-primary-rgb), .10);
+}
+
+.fp-combo-item,
+.fp-nav-item {
+    transition: background-color .15s ease, color .15s ease, transform .1s ease;
+}
+
+.fp-combo-item:hover {
+    transform: translateX(2px);
+}
+
+/* Painel de tema com efeito de vidro */
+.fp-theme-panel {
+    background: linear-gradient(180deg, var(--fp-surface), rgba(var(--fp-primary-rgb), .05));
+    border-color: rgba(var(--fp-primary-rgb), .30);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, .55), 0 0 0 1px rgba(var(--fp-primary-rgb), .12);
+}
+
+/* Respeita usuarios que preferem menos animacao */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important;
+    }
+}
+
+.fp-menu-card-disabled,
+.fp-lic-bloqueado.fp-menu-card,
+a.fp-lic-bloqueado,
+a.fp-lic-bloqueado.fp-dash-kpi,
+a.fp-lic-bloqueado.fp-produto-card {
+    opacity: .45;
+    cursor: not-allowed !important;
+    pointer-events: auto;
+    filter: grayscale(.35);
+    user-select: none;
+}
+
+.fp-menu-card-disabled:hover,
+.fp-lic-bloqueado.fp-menu-card:hover,
+a.fp-lic-bloqueado:hover,
+a.fp-lic-bloqueado.fp-dash-kpi:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.fp-produtos-hub-title {
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--fp-text);
+}
+
+.fp-produtos-hub-cards {
+    margin-bottom: 0.25rem;
+}
+
+.fp-produto-card {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.45rem;
+    text-align: center;
+    padding: 1.1rem 0.85rem;
+    border-radius: 12px;
+    border: 1px solid rgba(var(--fp-primary-rgb), .35);
+    background: linear-gradient(160deg, rgba(var(--fp-primary-rgb), .22), rgba(var(--fp-primary-rgb), .08));
+    color: var(--fp-text);
+    text-decoration: none;
+    min-height: 148px;
+    height: 100%;
+    width: 100%;
+    box-sizing: border-box;
+    transition: box-shadow 0.15s ease, transform 0.12s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.fp-produto-card:hover:not(.fp-produto-desabilitado) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .25);
+    color: var(--fp-text);
+}
+
+.fp-produto-icone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 10px;
+    background: rgba(var(--fp-primary-rgb), .2);
+    flex-shrink: 0;
+}
+
+.fp-produto-icone i {
+    font-size: 1.65rem;
+    line-height: 1;
+    color: var(--fp-primary);
+    display: block;
+    margin: 0;
+}
+
+.fp-produto-nome {
+    display: block;
+    font-weight: 700;
+    font-size: 0.95rem;
+    line-height: 1.25;
+    width: 100%;
+}
+
+.fp-produto-desc {
+    display: block;
+    color: var(--fp-text-muted, #9ca3af);
+    font-size: 0.72rem;
+    line-height: 1.35;
+    margin: 0;
+    width: 100%;
+}
+
+.fp-produto-plano-min {
+    display: block;
+    color: var(--fp-accent, #60a5fa);
+    font-size: 0.68rem;
+    font-weight: 600;
+    margin-top: 0.35rem;
+    width: 100%;
+}
+
+.fp-produto-incluso {
+    border-color: var(--fp-accent, #60a5fa) !important;
+    cursor: help;
+}
+
+.fp-produto-desabilitado,
+a.fp-lic-bloqueado.fp-produto-card {
+    opacity: .5;
+    cursor: not-allowed !important;
+    filter: grayscale(.4);
+    pointer-events: auto;
+}
+
+.fp-produto-desabilitado:hover,
+a.fp-lic-bloqueado.fp-produto-card:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.fp-nav-disabled,
+.fp-nav-disabled.fp-lic-bloqueado {
+    cursor: not-allowed;
+    opacity: .55;
+    filter: grayscale(.3);
+}

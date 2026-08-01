@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-br">
+    <head>
+        {{ template "head" . }}
+        <link rel="stylesheet" href="/recursos/modulos/minha-empresa/dominio-saas/dominio-saas.css">
+    </head>
+    <body>
+        {{ template "variaveis-controle" . }}
+        {{ template "nav-bar" . }}
+
+        <div class="container-fluid container-principal">
+            <div class="row justify-content-center py-4">
+                <div class="col-12 col-lg-8">
+                    <div class="fp-ds-card" id="ds-card">
+                        <div id="ds-loading" class="fp-ds-loading d-none" aria-live="polite" aria-busy="false">
+                            <div class="fp-ds-loading-panel">
+                                <div class="spinner-border text-primary mb-3" role="status" aria-hidden="true"></div>
+                                <p class="mb-2 fw-semibold" id="ds-loading-texto">Processando...</p>
+                                <div class="progress fp-ds-progress">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <h4>Domínio Personalizado</h4>
+                        <p class="text-muted">Configure o endereço do seu FranqueadoPro na nuvem (plano Pro+). O sistema provisiona automaticamente o servidor e SSL.</p>
+                        <div id="ds-alerta" class="alert alert-warning d-none"></div>
+
+                        <div class="d-flex align-items-center justify-content-between mb-1 mt-3">
+                            <h6 class="mb-0">Detalhes do domínio</h6>
+                            <button type="button" class="btn btn-sm btn-outline-danger d-none" id="ds-dominio-remover" title="Remover domínio">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                        <div id="ds-dominio-status" class="mb-3 d-none"></div>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label" for="ds-subdominio">Subdomínio</label>
+                                <input type="text" class="form-control" id="ds-subdominio" placeholder="Ex: www, lp..." autocomplete="off">
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label" for="ds-dominio">Cole seu domínio aqui</label>
+                                <input type="text" class="form-control" id="ds-dominio" placeholder="exemplo.com.br" autocomplete="off">
+                            </div>
+                        </div>
+
+                        <div id="ds-dns-instrucoes" class="fp-ds-dns-box d-none mt-3">
+                            <p class="mb-2 fw-semibold">Configure este registro na hospedagem do seu domínio:</p>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered mb-2 fp-ds-dns-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Tipo</th>
+                                            <th>Nome / Host</th>
+                                            <th>Valor / Aponta para</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><code>A</code></td>
+                                            <td><code id="ds-dns-host">—</code></td>
+                                            <td><code id="ds-dns-ip">185.130.61.4</code></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="small text-muted mb-2">Após propagar o DNS, acesse: <a id="ds-dns-url" href="#" target="_blank" rel="noopener">—</a></p>
+                            <button type="button" class="btn btn-sm btn-outline-primary d-none" id="ds-retentar-ssl">Verificar DNS e emitir SSL</button>
+                        </div>
+
+                        <button type="button" class="btn btn-primary mt-4" id="ds-salvar">Salvar domínio</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{ template "link-js" . }}
+        <script src="/recursos/modulos/minha-empresa/dominio-saas/dominio-saas.js?v=20260711a"></script>
+    </body>
+</html>

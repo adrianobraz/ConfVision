@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="pt-br">
+
+<head>
+    {{ template "head" . }}
+    <link rel="stylesheet" href="/recursos/modulos/configuracao/configurar-relatorio-cliente/configurar-relatorio-cliente.css">
+</head>
+
+<body>
+    {{ template "variaveis-controle" . }}
+    {{ template "nav-bar" . }}
+    <input id="id-usuario-alarme" type="hidden" value="">
+    {{ template "sub-menu-fluid" }}
+
+
+
+
+    <form id="formulario"> </form>
+    <div class="container-fluid container-principal">
+        <div class="row text-center px-3">
+            <!-- Coluna esquerda-->
+            <div class=" col-lg-4 mt-2 bg-form p-3 ">
+                <div class="row">
+                    <div class="col-lg-12 mb-1 text-center ">
+                        <label> CLIENTE </label>
+                        <hr>
+                    </div>
+
+                    <div class="col-lg-12 mb-1 p-4 text-start">
+                        <label for="busca-cliente" class="form-label mb-0">
+                            Cliente:
+                        </label>
+                        <div class="position-relative">
+                            <input type="text" autocomplete="off"
+                                class="form-control form-control-sm text-uppercase"
+                                id="busca-cliente"
+                                placeholder="Pesquisar por nome, CPF, CNPJ ou nick...">
+                            <input type="hidden" form="formulario" id="id-cliente" value="0">
+                            <ul id="lista-clientes" class="fp-combo-list d-none"></ul>
+                        </div>
+                    </div>                   
+                </div>
+
+            </div><!-- Coluna esquerda-->
+           
+            <!-- Coluna direita-->
+            <div class=" col-lg-8  mt-2 bg-form p-3 ">
+                <div class="row">
+                    <div class="col-lg-12 mb-1 text-center ">
+                        <label> GRUPO DE EVENTOS </label>
+                        <hr>
+                    </div>
+
+                    <div class="col-lg-2 mb-1 text-start ">
+                        <label for="chk-alarme" class="form-label mb-0">
+                            Alarme:
+                        </label>
+                        <select class="form-control form-control-sm" id="chk-alarme" form="formulario">
+                            <option value="N">Não</option>
+                            <option value="S">Sim</option>
+                        </select>
+                    </div>
+
+                    <div class="col-lg-2 mb-1 text-start">
+                        <label for="chk-arme" class="form-label mb-0">
+                            Arme:
+                        </label>
+                        <select class="form-control form-control-sm" id="chk-arme" form="formulario">
+                            <option value="N">Não</option>
+                            <option value="S">Sim</option>
+                        </select>
+                    </div>
+
+                    <div class="col-lg-2 mb-1 text-start">
+                        <label for="chk-desarme" class="form-label mb-0">
+                            Desarme:
+                        </label>
+                        <select class="form-control form-control-sm" id="chk-desarme" form="formulario">
+                            <option value="N">Não</option>
+                            <option value="S">Sim</option>
+                        </select>
+                    </div>
+
+                    <div class="col-lg-2 mb-1 text-start">
+                        <label for="chk-emergencia" class="form-label mb-0">
+                            Emergêcia:
+                        </label>
+                        <select class="form-control form-control-sm" id="chk-emergencia" form="formulario">
+                            <option value="N">Não</option>
+                            <option value="S">Sim</option>
+                        </select>
+                    </div>
+
+                    <div class="col-lg-2 mb-1 text-start">
+                        <label for="chk-falhas" class="form-label mb-0">
+                            Falhas:
+                        </label>
+                        <select class="form-control form-control-sm" id="chk-falhas" form="formulario">
+                            <option value="N">Não</option>
+                            <option value="S">Sim</option>
+                        </select>
+                    </div>
+
+                    <div class="col-lg-2 mb-1 text-start">
+                        <label for="chk-geral" class="form-label mb-0">
+                            Geral:
+                        </label>
+                        <select class="form-control form-control-sm" id="chk-geral" form="formulario">
+                            <option value="N">Não</option>
+                            <option value="S">Sim</option>
+                        </select>
+                    </div>
+
+                    <div class="col-lg-2 mb-1 text-start">
+                        <label for="chk-medico" class="form-label mb-0">
+                            Medico:
+                        </label>
+                        <select class="form-control form-control-sm" id="chk-medico" form="formulario">
+                            <option value="N">Não</option>
+                            <option value="S">Sim</option>
+                        </select>
+                    </div>
+
+                    <div class="col-lg-2 mb-1 text-start">
+                        <label for="chk-panico" class="form-label mb-0">
+                            Panico:
+                        </label>
+                        <select class="form-control form-control-sm" id="chk-panico" form="formulario">
+                            <option value="N">Não</option>
+                            <option value="S">Sim</option>
+                        </select>
+                    </div>
+
+                    <div class="col-lg-2 mb-1 text-start">
+                        <label for="chk-restaure" class="form-label mb-0">
+                            Restaure:
+                        </label>
+                        <select class="form-control form-control-sm" id="chk-restaure" form="formulario">
+                            <option value="N">Não</option>
+                            <option value="S">Sim</option>
+                        </select>
+                    </div>
+
+                    <div class="col-lg-2 mb-1 text-start">
+                        <label for="chk-setup" class="form-label mb-0">
+                            Setup:
+                        </label>
+                        <select class="form-control form-control-sm" id="chk-setup" form="formulario">
+                            <option value="N">Não</option>
+                            <option value="S">Sim</option>
+                        </select>
+                    </div>
+
+                    <div class="col-lg-2 mb-1 text-start">
+                        <label for="chk-teste" class="form-label mb-0">
+                            Teste:
+                        </label>
+                        <select class="form-control form-control-sm" id="chk-teste" form="formulario">
+                            <option value="N">Não</option>
+                            <option value="S">Sim</option>
+                        </select>
+                    </div>
+
+
+                </div>
+
+            </div><!-- Coluna direita-->
+
+            <div class="col-12 bg-form">
+                <hr>
+            </div>
+
+            <div class="col-12 bg-form mb-3 pb-3">
+                <div class="row g-3 fp-form-actions mx-0 px-2">
+                    <div class="col-12 col-sm-6">
+                        <button id="btn-limpar" class="btn btn-danger w-100 fp-btn-form-action" type="button">
+                            <i class="bi bi-eraser-fill"></i>
+                            &nbsp; Limpar
+                        </button>
+                    </div>
+                    <div class="col-12 col-sm-6">
+                        <button id="btn-gravar" class="btn btn-success w-100 fp-btn-form-action" type="button">
+                            <i class="bi bi-save-fill"></i>
+                            &nbsp; Gravar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+
+        </div><!-- row interna form-->
+    </div>
+
+    {{ template "link-js" . }}
+    <script src="/recursos/modulos/configuracao/configurar-relatorio-cliente/configurar-relatorio-cliente.js"></script>
+</body>
+
+</html>

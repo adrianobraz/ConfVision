@@ -1,0 +1,36 @@
+{{ template "pagina" . }}
+
+{{ define "body" }}
+<div class="tech-login">
+    <div class="tech-login-visual">
+        <img src="/public/img/capaCentral2.jpg" alt="capa">
+        <div class="tech-scan"></div>
+    </div>
+
+    <div class="tech-login-form">
+        <div class="tech-login-card">
+            <div class="tech-subtitle">Break-glass</div>
+            <i class="bi bi-shield-lock-fill tech-icon"></i>
+            <h1>Administrator</h1>
+            <p>Acesso de emergência da Central</p>
+
+            <input
+                id="usuario"
+                type="text"
+                placeholder="Usuario"
+                autocomplete="username">
+
+            <input
+                id="senha"
+                type="password"
+                placeholder="Senha"
+                autocomplete="current-password">
+
+            <button id="btnLogin" class="tech-btn-primary" onclick="logar()">
+                <i class="bi bi-unlock-fill"></i> &nbsp; Entrar
+            </button>
+        </div>
+    </div>
+</div>
+<script src="/public/templates/administrator/administrator.js"></script>
+{{ end }}

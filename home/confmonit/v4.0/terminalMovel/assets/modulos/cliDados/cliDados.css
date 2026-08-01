@@ -1,0 +1,9 @@
+#cliDados_responsivo{
+    height: calc(100% - 130px);
+}
+
+#cliDados table{
+    font-size: 13px;
+}
+
+

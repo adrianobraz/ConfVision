@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <link rel="stylesheet" href="https://nvoipcom.s3-sa-east-1.amazonaws.com/public/webphone/v4/css/stylewebphone.css">
+  <!-- <link rel="stylesheet" href="https://s3-sa-east-1.amazonaws.com/nvoipcom/public/webphone/v4/css/minBootstrap4-0.css"/> -->
+  <script src="https://s3-sa-east-1.amazonaws.com/nvoipcom/public/webphone/v4/js/sip-0.15.11.js"></script>
+</head>
+<body>
+  <script src="https://nvoipcom.s3-sa-east-1.amazonaws.com/public/webphone/v4/js/newNvoipJs.js"></script>
+  
+  
+  <form id="nvoipconfig-form" action="" hidden>
+    <input id="nvoipconectarServ" type="submit" name="configSubmit" />
+  </form>
+  <div class="nvoipdesminimiza " onclick="nvoipdesminimiza();" id="nvoipdesminimiza"> 
+    <img id="nvoiptelmin" class="" src="https://s3-sa-east-1.amazonaws.com/nvoipcom/public/webphone/v4/img/ImagensAntigas/min.png">
+  </div>
+
+  <!-- UA Control Form -->
+  <div class="nvoipmove" id="ua" class="" hidden>
+    <div id="nvoipua-status" class="nvoipbarraSup ">Desconectado</div>
+    <button id="nvoipua-register" hidden></button>
+    <form id="nvoipnew-session-form" action="">
+      <div class="nvoipRow">
+        <input type="text" id="nvoipua-uri" placeholder="" class="nvoipinputgtx" autocomplete="off" />
+        <img id="nvoipapaga" src="https://nvoipcom.s3-sa-east-1.amazonaws.com/public/webphone/v4/img/apagar.png" onclick="apagaInput();">
+      </div>
+    </form>
+
+    <div class="nvoipRow">
+      <button class=" nvoipcircle " name="um" value="1" onclick="nvoipdigita(1);">1</button>
+      <button class="nvoipcircle" name="um" value="1" onclick="nvoipdigita(2);">2</button>
+      <button class=" nvoipcircle" name="um" value="1" onclick="nvoipdigita(3);">3</button>
+    </div>
+
+    <div class="nvoipRow">
+      <button class=" nvoipcircle" name="um" value="1" onclick="nvoipdigita(4);">4</button>
+      <button class="nvoipcircle" name="um" value="1" onclick="nvoipdigita(5);">5</button>
+      <button class=" nvoipcircle" name="um" value="1" onclick="nvoipdigita(6);">6</button>
+    </div>
+
+    <div class="nvoipRow">
+      <button class=" nvoipcircle" name="um" value="1" onclick="nvoipdigita(7);">7</button>
+      <button class=" nvoipcircle" name="um" value="1" onclick="nvoipdigita(8);">8</button>
+      <button class=" nvoipcircle" name="um" value="1" onclick="nvoipdigita(9);">9</button>
+    </div>
+
+    <div class="nvoipRow" style="margin-bottom: 20px!important;">
+      <button class=" nvoipcircle" name="um" value="1" onclick="nvoipdigita('*');">*</button>
+      <button class=" nvoipcircle" name="um" value="1" onclick="nvoipdigita(0);">0</button>
+      <button class=" nvoipcircle" name="um" value="1" onclick="nvoipdigita('#');">#</button>
+    </div>
+
+    <div class="nvoipRow" style="margin-bottom: 30px!important;">
+      <img type="submit" src="https://nvoipcom.s3-sa-east-1.amazonaws.com/public/webphone/v4/img/ligar.png" id="nvoipua-invite-submit" class="nvoipcircle2" height="42" width="42">
+      <input type="submit" id="nvoipua-message-submit" value="Begin Chat" hidden />
+      </form>
+    </div>
+
+    <div class="nvoipdev" style="font-size: 12px;"> <a style="color: black; text-decoration: none; display: flex; align-items: flex-end;" href="https://www.nvoip.com.br" target="_blank">
+      <img src="https://s3-sa-east-1.amazonaws.com/nvoipcom/public/webphone/v4/img/ImagensAntigas/iconeN.png" style="margin-right: 5px;height: 14px;"> Desenvolvido por Nvoip</a>
+    </div>
+    <ul id="nvoipsession-list"></ul>
+
+
+    <!-- Templates to clone Sessions and Messages -->
+    <ul id="nvoiptemplates">
+      <li id="nvoipsession-template" class="nvoiptemplate session ">
+        <div class="nvoipbarraSup ">
+          <img src="https://nvoipcom.s3-sa-east-1.amazonaws.com/public/webphone/v4/img/minimizar.png" style="height:6px; margin: auto; margin-left: 8px; cursor: pointer" onclick="minimiza();">
+          <img src="https://nvoipcom.s3-sa-east-1.amazonaws.com/public/webphone/v4/img/webphone.png" style="width:100px; display:flex; margin:auto">
+          <div class="nvoipconectado"></div>
+        </div>
+        <button class="nvoipfecharWebPhone" hidden>X</button>
+        <div class="nvoipespacoLig" hidden></div>
+        <div class="nvoiprecebendoLig" hidden>Recebendo Ligação</div>
+        <div class="nvoipefetuandoLig" hidden>Chamando<div id="nvoipalvo" style="display: inline-flex;"></div>
+        </div>
+        <div class="nvoipdisplay-name"></div> <span class="nvoipuri" hidden></span>
+        <div id="nvoipstatusLig" style="color: #595959 ;margin-bottom: 20px; text-align: center;"></div>
+        <div class="nvoipespacamento1"></div>
+        <div class="nvoipespacamento2"></div>
+        <div id="nvoiptempo" style="color: #595959; font-weight: 500; text-align: center; margin-bottom: 7px; font-size: 14px"></div>
+        <form class="dtmf" action="">
+          <label><input id="inputDTMF" type="text" maxlength="1" hidden /></label>
+          <input type="submit" value="Send" id="enviadorDTMF" hidden />
+        </form>
+
+
+        <div class="nvoipbotoes2" id="nvoipbotoes2" hidden>
+          <img src="https://nvoipcom.s3-sa-east-1.amazonaws.com/public/webphone/v4/img/user.png" style="width: 130px; display: flex; margin: auto;">
+        </div>
+
+        <div class="nvoipbotoes" id="tecladoLig" hidden>
+          <div class="nvoipRow">
+            <button class=" nvoipcircle " name="um" value="1" onclick="dtmf(1);">1</button>
+            <button class="nvoipcircle" name="um" value="1" onclick="dtmf(2);">2</button>
+            <button class=" nvoipcircle" name="um" value="1" onclick="dtmf(3);">3</button>
+          </div>
+          <div class="nvoipRow">
+            <button class=" nvoipcircle" name="um" value="1" onclick="dtmf(4);">4</button>
+            <button class="nvoipcircle" name="um" value="1" onclick="dtmf(5);">5</button>
+            <button class=" nvoipcircle" name="um" value="1" onclick="dtmf(6);">6</button>
+          </div>
+          <div class="nvoipRow">
+            <button class=" nvoipcircle" name="um" value="1" onclick="dtmf(7);">7</button>
+            <button class=" nvoipcircle" name="um" value="1" onclick="dtmf(8);">8</button>
+            <button class=" nvoipcircle" name="um" value="1" onclick="dtmf(9);">9</button>
+          </div>
+          <div class="nvoipRow" style="margin-bottom: 5px;">
+            <button class=" nvoipcircle" name="um" value="1" onclick="dtmf('*');">*</button>
+            <button class=" nvoipcircle" name="um" value="1" onclick="dtmf(0);">0</button>
+            <button class=" nvoipcircle" name="um" value="1" onclick="dtmf('#');">#</button>
+          </div>
+        </div>
+
+        <div class="nvoipRow">
+          <img type="submit" src="https://nvoipcom.s3-sa-east-1.amazonaws.com/public/webphone/v4/img/ligar.png" hidden id="nvoipua-invite-submit" class="nvoipcircle2 green" height="42" width="42">
+          <div id="unmute" class="unmute">
+            <img type="submit" src="https://nvoipcom.s3-sa-east-1.amazonaws.com/public/webphone/v4/img/muteoff.png" class="nvoipcircle2" height="42" width="42">
+          </div>
+          <div id="mute" class="mute" hidden>
+            <img type="submit" src="https://nvoipcom.s3-sa-east-1.amazonaws.com/public/webphone/v4/img/mute.png" class="nvoipcircle2" height="42" width="42">
+          </div>
+          <img type="submit" src="https://nvoipcom.s3-sa-east-1.amazonaws.com/public/webphone/v4/img/desligar.png" id="nvoipua-invite-submit" class="nvoipcircle2 red" height="42" width="42">
+          <img type="submit" src="https://nvoipcom.s3-sa-east-1.amazonaws.com/public/webphone/v4/img/teclado.png" id="teclado" class="nvoipcircle2 red teclado" height="42" width="42" onclick="abretec();">
+          <img type="submit" src="https://nvoipcom.s3-sa-east-1.amazonaws.com/public/webphone/v4/img/fechateclado.png" id="nvoipfechaTecla" class="nvoipcircle2 red nvoipfechaTecla" height="42" width="42" onclick="fechatec();" hidden>
+        <div class="nvoipdev2" id="linksnvoip">
+          <a style="color: black; text-decoration: none; display: flex; align-items: flex-end;" href="https://www.nvoip.com.br" target="_blank">
+            <img src="https://s3-sa-east-1.amazonaws.com/nvoipcom/public/webphone/v4/img/ImagensAntigas/iconeN.png" style="margin-right: 5px; height: 14px;"> Desenvolvido por Nvoip</a>
+        </div>
+        <video autoplay style="display: none"></video>
+      </li>
+    </ul>
+    <audio loop id="audio" src="https://s3-sa-east-1.amazonaws.com/nvoipcom/public/webphone/v4/audio/toque.mp3"></audio>
+    <audio loop id="audio2" src="https://s3-sa-east-1.amazonaws.com/nvoipcom/public/webphone/v4/audio/tom.mp3"></audio>
+
+    <script>
+      function fechatec() {
+        nvoipfechaTeclado();
+      };
+      function abretec() {
+        abreTeclado();
+      };
+    </script>
+</body>
+</html>

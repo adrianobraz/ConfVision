@@ -1,0 +1,44 @@
+#ctrOrdemServico {
+    box-sizing: border-box;
+    height: 100%;
+    display: flex;
+    flex-flow: row wrap;
+    opacity: 1;
+}
+
+#ctrOrdemServico_titulo {
+    height: 40px;
+    flex: 1 1 100%;
+    text-align: center;
+}
+
+
+#ctrOrdemServico_responsivo {
+    height: calc(100% - 110px);
+    flex: 1 1 100%;
+    padding: 5px;
+}
+
+#ctrOrdemServico_cpDescricao {
+    resize: none;
+}
+
+#ctrOrdemServico_boxBtn {  
+    flex: 1 1 100%;
+    flex-flow: row nowrap;
+
+    padding: 5px;
+    display: flex;
+    gap: 5px;
+    justify-content: space-between;
+}
+@media (width < 476px) {
+    #ctrOrdemServico_boxBtn {
+        flex-flow: column nowrap;
+    }
+}
+
+#ctrOrdemServico_boxBtn button {
+    height: 60px;
+    flex: 1 1 100%;
+}

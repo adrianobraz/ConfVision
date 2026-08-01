@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    {{ template "head" . }}
+    {{ template "confvision-head-extra" . }}
+    <link rel="stylesheet" href="/recursos/modulos/minha-empresa/dominio-saas/dominio-saas.css?v=20260714dom4">
+</head>
+<body class="cv-app">
+    {{ template "variaveis-controle" . }}
+    {{ template "confvision-config" . }}
+    {{ template "confvision-nav" . }}
+
+    <main class="cv-main cv-ds-main">
+        <div class="cv-page-header">
+            <p class="cv-page-eyebrow" id="display-nome-franqueado" data-eyebrow-suffix="Domínio"></p>
+            <h2>Domínio personalizado</h2>
+            <p>Mesmo domínio do FranqueadoPro, com subdomínio próprio da central de câmeras. No login, o sistema detecta o domínio e já sabe qual franqueado é.</p>
+        </div>
+
+        <div class="cv-lic-card" id="ds-card">
+            <div id="ds-loading" class="cv-ds-loading d-none">
+                <div class="spinner-border text-info" role="status"></div>
+                <p class="mt-2 mb-0" id="ds-loading-texto">Processando...</p>
+            </div>
+
+            <div id="ds-alerta" class="alert alert-warning d-none"></div>
+            <div id="ds-info-base" class="cv-ds-info d-none"></div>
+
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <h5 class="mb-0">Detalhes do domínio personalizado</h5>
+                <button type="button" class="cv-btn-ghost btn-sm d-none" id="ds-dominio-remover" title="Remover domínio personalizado">
+                    <i class="bi bi-x-lg"></i> Remover
+                </button>
+            </div>
+            <div id="ds-dominio-status" class="mb-3 d-none"></div>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="cv-label" for="ds-subdominio">Subdomínio da central</label>
+                    <input type="text" class="form-control cv-input" id="ds-subdominio" placeholder="Ex: vision, cameras" autocomplete="off">
+                </div>
+                <div class="col-md-8">
+                    <label class="cv-label" for="ds-dominio">Domínio base</label>
+                    <input type="text" class="form-control cv-input" id="ds-dominio" placeholder="exemplo.com.br" autocomplete="off">
+                </div>
+            </div>
+
+            <div id="ds-dns-instrucoes" class="cv-ds-dns-box d-none mt-3">
+                <p class="mb-2 fw-semibold">Configure este registro DNS:</p>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered mb-2 cv-ds-dns-table">
+                        <thead>
+                            <tr><th>Tipo</th><th>Nome / Host</th><th>Valor</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>A</code></td>
+                                <td><code id="ds-dns-host">—</code></td>
+                                <td><code id="ds-dns-ip">185.130.61.4</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="small text-muted mb-2">Após propagar: <a id="ds-dns-url" href="#" target="_blank" rel="noopener">—</a></p>
+                <button type="button" class="cv-btn-ghost btn-sm d-none" id="ds-retentar-ssl">Verificar DNS e emitir SSL</button>
+            </div>
+
+            <button type="button" class="cv-btn-primary mt-4" id="ds-salvar">
+                <i class="bi bi-check-lg"></i> Salvar domínio
+            </button>
+        </div>
+    </main>
+
+    {{ template "link-js" . }}
+    <script src="/recursos/modulos/confvision/urls.js?v=20260730wl1"></script>
+    <script src="/recursos/js/auxiliares/cv-whitelabel.js?v=20260730wl2"></script>
+    <script src="/recursos/modulos/minha-empresa/dominio-saas/dominio-saas.js?v=20260730wl1"></script>
+</body>
+</html>

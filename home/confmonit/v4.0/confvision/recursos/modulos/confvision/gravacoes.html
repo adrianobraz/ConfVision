@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    {{ template "head" . }}
+    {{ template "confvision-head-extra" . }}
+</head>
+<body class="cv-app">
+    {{ template "variaveis-controle" . }}
+    {{ template "confvision-config" . }}
+    {{ template "confvision-nav" . }}
+
+    <main class="cv-main">
+        <div class="cv-panel cv-gravacoes-panel">
+            <div class="cv-panel-toolbar">
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <h1 class="cv-page-title mb-0">Ativar gravação</h1>
+                    <a href="/gravacoes/timeline" class="cv-btn-ghost cv-btn-sm">
+                        <i class="bi bi-collection-play"></i> Ver timeline
+                    </a>
+                    <a href="/gravacoes/dvr" class="cv-btn-ghost cv-btn-sm">
+                        <i class="bi bi-play-btn"></i> Abrir DVR
+                    </a>
+                </div>
+                <button type="button" id="btn-atualizar-gravacoes" class="cv-btn-ghost" title="Atualizar">
+                    <i class="bi bi-arrow-clockwise"></i> Atualizar
+                </button>
+            </div>
+
+            <div class="cv-panel-body">
+                <div class="cv-gravacoes-layout">
+                    <div class="cv-gravacoes-col cv-gravacoes-col-esquerda">
+                        <section class="cv-gravacoes-secao">
+                            <h2 class="cv-gravacoes-secao-titulo"><i class="bi bi-camera-reels"></i> Câmeras com gravação</h2>
+                            <div class="table-responsive">
+                                <table class="cv-table cv-table-cards">
+                                    <thead>
+                                        <tr>
+                                            <th>Modo</th>
+                                            <th>Câmera</th>
+                                            <th>Retenção</th>
+                                            <th>Status</th>
+                                            <th>Ativada em</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tab-gravacao-cameras"></tbody>
+                                </table>
+                            </div>
+                        </section>
+                    </div>
+
+                    <div class="cv-gravacoes-col cv-gravacoes-col-direita">
+                        <section class="cv-gravacoes-secao">
+                            <h2 class="cv-gravacoes-secao-titulo"><i class="bi bi-record-circle"></i> Ativar gravação</h2>
+                            <p class="cv-form-hint mb-3" id="lbl-gravacao-acao-hint">Associe uma licença de gravação disponível à câmera selecionada.</p>
+                            <div class="d-flex flex-column gap-3">
+                                <div>
+                                    <label class="cv-label" for="sel-gravacao-camera">Câmera</label>
+                                    <select id="sel-gravacao-camera" class="cv-select form-select">
+                                        <option value="">Selecione...</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="cv-label" for="sel-gravacao-licenca">Licença gravação disponível</label>
+                                    <select id="sel-gravacao-licenca" class="cv-select form-select">
+                                        <option value="">Selecione...</option>
+                                    </select>
+                                    <p id="lbl-gravacao-licenca-vazia" class="cv-form-hint cv-licenca-vazia d-none">Nenhuma licença de gravação disponível.</p>
+                                </div>
+                                <div>
+                                    <button type="button" id="btn-ativar-gravacao" class="cv-btn-primary w-100">Ativar gravação</button>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="cv-vf-popover-backdrop" class="cv-vf-popover-backdrop d-none" aria-hidden="true"></div>
+    <div id="cv-vf-popover" class="cv-vf-popover d-none" role="dialog" aria-label="Gravação ao vivo"></div>
+
+    {{ template "link-js" . }}
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7"></script>
+    <script src="/recursos/modulos/confvision/urls.js?v=20260727mob4"></script>
+    <script src="/recursos/modulos/confvision/gravacoes-tipo.js?v=20250628a"></script>
+    <script src="/recursos/modulos/confvision/gravacoes.js?v=20260731grav1"></script>
+</body>
+</html>

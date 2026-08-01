@@ -1,0 +1,77 @@
+package aux
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+)
+
+type ErroApi struct {
+	Status string `json:"status"`
+}
+
+// Erro retorna um erro em formato JSON
+func RespostaErro(w http.ResponseWriter, statusCode int, erro error) {
+	RespostaJSON(w, statusCode, struct {
+		Erro string `json:"status"`
+	}{
+		fmt.Sprintf("Erro: %s", erro.Error()),
+	})
+}
+
+func RespostaJsonOK(w http.ResponseWriter) {
+	ok := struct {
+		Status string `json:"status"`
+	}{
+		Status: "OK",
+	}
+
+	RespostaJSON(w, http.StatusOK, ok)
+}
+
+func TratarStatusCodeDeErro(w http.ResponseWriter, r *http.Response) {
+	var erro ErroApi
+	corpo, _ := io.ReadAll(r.Body)
+	json.Unmarshal(corpo, &erro)
+	RespostaJSON(w, r.StatusCode, erro)
+}
+
+func RespostaJsonDados(w http.ResponseWriter, statusCode int, dados interface{}) {
+	RespostaJSON(w, statusCode, struct {
+		Status string      `json:"status"`
+		Dados  interface{} `json:"dados"`
+	}{
+		Status: "OK",
+		Dados:  dados,
+	})
+}
+
+func RespostaAPP(w http.ResponseWriter, corpo []byte) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(corpo)
+}
+
+func RespostaJsonVazio(w http.ResponseWriter) {
+	RespostaJSON(w, http.StatusOK, struct {
+		Status string `json:"status,omitempty"`
+	}{
+		Status: "Vazio",
+	})
+}
+
+// JSON retorna uma resposta em JSON para a requisição
+func RespostaJSON(w http.ResponseWriter, statusCode int, dados interface{}) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+
+	if dados != nil {
+		if erro := json.NewEncoder(w).Encode(dados); erro != nil {
+			log.Fatal(erro)
+		}
+	}
+
+}

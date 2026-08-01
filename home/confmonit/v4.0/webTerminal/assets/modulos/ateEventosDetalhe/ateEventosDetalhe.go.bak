@@ -1,0 +1,440 @@
+package ateEventosDetalhe
+
+import (
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	aux "terminal/src/auxiliar"
+	"terminal/src/tipos"
+	"time"
+)
+
+var Rotas = []tipos.Rota{
+	{
+		Uri:    "/ateEventosDetalhe/buscarEventos",
+		Metodo: http.MethodPost,
+		Funcao: buscarEventos,
+	},
+	{
+		Uri:    "/ateEventosDetalhe/buscarUltimos25",
+		Metodo: http.MethodPost,
+		Funcao: buscarUltimos25,
+	},
+	{
+		Uri:    "/ateEventosDetalhe/colocaSetorManutecao",
+		Metodo: http.MethodPost,
+		Funcao: colocaSetorManutecao,
+	},
+}
+
+func buscarEventos(w http.ResponseWriter, r *http.Request) {
+	type objeto struct {
+		IdProcesso string `json:"idProcesso"`
+		Quantidade string `json:"quantidade"`
+		Tipo       string `json:"tipo"`
+		Codigo     string `json:"codigo"`
+		CodigoFull string `json:"codigoFull"`
+		Descricao  string `json:"descricao"`
+		Particao   string `json:"particao"`
+		ZonaUser   string `json:"zonaUser"`
+		DescZonUse string `json:"descZonUse"`
+		IdDisp     string `json:"idDispositivo"`
+		Conta      string `json:"conta"`
+		CodBenuvem string `json:"codBenuvem"`
+		CameraOn   string `json:"cameraOn"`
+		IdSetor    string `json:"idSetor"`
+		SetorManu  string `json:"setorManu"`
+	}
+
+	body, erro := io.ReadAll(r.Body)
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+
+	var obj objeto
+	if erro := json.Unmarshal(body, &obj); erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+
+	db, erro := aux.Conectar()
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	defer db.Close()
+
+	tab, erro := db.Query(`
+		SELECT 
+			COUNT(evento.ID_Evento) AS qtd, 
+			evento.Codigo,
+			evento.Particao,
+			evento.ZonaUser,
+			
+			processo.ID_Dispositivo,
+
+			cliente.ID_Franqueado,
+
+			usuariosAlarme.Nome,
+
+			setorAlarme.ID_Setor,
+			setorAlarme.Nome,
+			setorAlarme.Camera,
+			listaManutencao.ID_Alvo,
+
+			dispositivo.Conta,
+
+			franqueado.CodBenuvem
+
+		FROM evento
+
+		LEFT JOIN processo
+		ON evento.ID_Processo = processo.ID_Processo	
+
+		LEFT JOIN dispositivo
+		ON processo.ID_Dispositivo = dispositivo.ID_Dispositivo
+
+		LEFT JOIN cliente
+		ON dispositivo.ID_Cliente = cliente.ID_Cliente
+
+		LEFT JOIN franqueado
+		ON cliente.ID_Franqueado = franqueado.ID_Franqueado
+
+		LEFT JOIN usuariosAlarme
+		ON processo.ID_Dispositivo = usuariosAlarme.ID_Dispositivo
+		AND evento.ZonaUser = usuariosAlarme.codigo 
+
+		LEFT JOIN setorAlarme
+		ON processo.ID_Dispositivo = setorAlarme.ID_Dispositivo
+		AND evento.ZonaUser = setorAlarme.Numero
+
+		LEFT JOIN listaManutencao
+		ON setorAlarme.ID_Setor = listaManutencao.ID_Alvo
+
+		WHERE evento.ID_Processo = ?
+		GROUP BY evento.Codigo, evento.ZonaUser
+		ORDER BY MAX(evento.DataEntrada) ASC
+	`, obj.IdProcesso)
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	defer tab.Close()
+
+	var lista []objeto
+	for tab.Next() {
+		var (
+			item          objeto
+			idDispositivo sql.NullString
+			idFranq       string
+			user          sql.NullString
+			setorId       sql.NullString
+			setor         sql.NullString
+			setorManu     sql.NullString
+
+			conta      sql.NullString
+			codBenuvem sql.NullString
+			camera     sql.NullString
+		)
+
+		if erro := tab.Scan(
+			&item.Quantidade,
+			&item.CodigoFull,
+			&item.Particao,
+			&item.ZonaUser,
+			&idDispositivo,
+			&idFranq,
+
+			&user,
+
+			&setorId,
+			&setor,
+			&camera,
+			&setorManu,
+
+			&conta,
+			&codBenuvem,
+		); erro != nil {
+			aux.RespostaErro(w, http.StatusBadRequest, erro)
+			return
+		}
+
+		item.IdDisp = idDispositivo.String
+		item.IdProcesso = obj.IdProcesso
+		item.Conta = conta.String
+		item.CodBenuvem = codBenuvem.String
+		if string(item.CodigoFull[0]) == "1" {
+			item.Tipo = "E"
+		} else if string(item.CodigoFull[0]) == "3" {
+			item.Tipo = "R"
+		}
+
+		item.Codigo = item.CodigoFull[1:]
+
+		var grupo string
+		if err := aux.GetCtiGrupoAndDescricao(idFranq, item.CodigoFull, &grupo, &item.Descricao); err != nil {
+			aux.RespostaErro(w, http.StatusBadRequest, err)
+			return
+		}
+
+		if setorManu.Valid {
+			item.SetorManu = "N"
+		} else {
+			item.SetorManu = "S"
+		}
+
+		/*
+			Descricao  string `json:"descricao"`
+			DescZonUse string `json:"descZonUse"`
+
+		*/
+		item.CameraOn = "N"
+		if grupo == "ARME" || grupo == "DESARME" || grupo == "PANICO" {
+			if user.Valid {
+				item.DescZonUse = user.String
+			} else {
+				item.DescZonUse = "NÃO CADASTRADO"
+			}
+
+			item.IdSetor = "USER"
+
+		} else {
+			if setorId.Valid {
+				item.IdSetor = setorId.String
+			} else {
+				item.IdSetor = "USER"
+			}
+
+			if setor.Valid {
+				item.DescZonUse = setor.String
+			} else {
+				item.DescZonUse = "NÃO CADASTRADO"
+			}
+			if camera.Valid {
+				item.CameraOn = camera.String
+			}
+		}
+
+		lista = append(lista, item)
+	}
+
+	if len(lista) > 0 {
+		aux.RespostaJsonDados(w, http.StatusOK, lista)
+	} else {
+		aux.RespostaJsonVazio(w)
+	}
+}
+
+func buscarUltimos25(w http.ResponseWriter, r *http.Request) {
+	type objeto struct {
+		IdProcesso       string `json:"idProcesso"`
+		Tipo             string `json:"tipo"`
+		Codigo           string `json:"codigo"`
+		Descricao        string `json:"descricao"`
+		Particao         string `json:"particao"`
+		ZonaUser         string `json:"zonaUser"`
+		DescZonUse       string `json:"descZonUse"`
+		Entrada          string `json:"entrada"`
+		IdDisp           string `json:"idDispositivo"`
+		DescrAtendimento string `json:"descrAtendimento"`
+	}
+
+	body, erro := io.ReadAll(r.Body)
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	var obj objeto
+	if erro := json.Unmarshal(body, &obj); erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+
+	db, erro := aux.Conectar()
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	defer db.Close()
+
+
+	tab, erro := db.Query(`
+	SELECT 
+		sub.Codigo,
+		sub.Particao,
+		sub.ZonaUser,
+		sub.DataEntrada,
+		sub.ID_Dispositivo,
+		sub.Descricao,
+		sub.ID_Franqueado,
+		usuariosAlarme.Nome,
+		setorAlarme.Nome
+	FROM (
+		SELECT 
+			evento.Codigo,
+			evento.Particao,
+			evento.ZonaUser,
+			evento.DataEntrada,
+			processo.ID_Dispositivo,
+			processo.Descricao,
+			cliente.ID_Franqueado
+		FROM dispositivo
+		STRAIGHT_JOIN processo
+			ON processo.ID_Dispositivo = dispositivo.ID_Dispositivo
+			AND processo.DataAtenFim IS NOT NULL
+		STRAIGHT_JOIN cliente
+			ON cliente.ID_Cliente = dispositivo.ID_Cliente
+		STRAIGHT_JOIN evento
+			ON evento.ID_Processo = processo.ID_Processo
+		WHERE dispositivo.ID_Dispositivo = ?
+		ORDER BY evento.DataEntrada DESC
+		LIMIT 25
+	) AS sub
+	LEFT JOIN usuariosAlarme
+		ON usuariosAlarme.ID_Dispositivo = sub.ID_Dispositivo
+		AND usuariosAlarme.Codigo = sub.ZonaUser
+	LEFT JOIN setorAlarme
+		ON setorAlarme.ID_Dispositivo = sub.ID_Dispositivo
+		AND setorAlarme.Numero = sub.ZonaUser
+		AND setorAlarme.Particao = sub.Particao
+	ORDER BY sub.DataEntrada DESC
+	`, obj.IdDisp)
+
+
+
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	defer tab.Close()
+
+	var lista []objeto
+	for tab.Next() {
+		var (
+			item                 objeto
+			idDispositivo        sql.NullString
+			descricaoAtendimento sql.NullString
+			idFranq              string
+			usuarioAlarme        sql.NullString
+			setorAlarme          sql.NullString
+			entrada              sql.NullTime
+		)
+
+		if erro := tab.Scan(
+			&item.Codigo,
+			&item.Particao,
+			&item.ZonaUser,
+			&entrada,
+
+			&idDispositivo,
+			&descricaoAtendimento,
+
+			&idFranq,
+			&usuarioAlarme,
+			&setorAlarme,
+		); erro != nil {
+			aux.RespostaErro(w, http.StatusBadRequest, erro)
+			return
+		}
+
+		item.IdDisp = idDispositivo.String
+		item.IdProcesso = obj.IdProcesso
+		item.DescrAtendimento = descricaoAtendimento.String
+		item.Entrada = entrada.Time.Format("02/01/2006 15:04:05")
+		if string(item.Codigo[0]) == "1" {
+			item.Tipo = "E"
+		} else if string(item.Codigo[0]) == "3" {
+			item.Tipo = "R"
+		}
+
+//ADICIONADO POR ADRIANO BRAZ
+		var grupo string
+		if err := aux.GetCtiGrupoAndDescricaoDB(db, idFranq, item.Codigo, &grupo, &item.Descricao); err != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, err)
+		return
+		}
+
+
+		//		var grupo string
+//		if err := aux.GetCtiGrupoAndDescricao(idFranq, item.Codigo, &grupo, &item.Descricao); err != nil {
+//			aux.RespostaErro(w, http.StatusBadRequest, erro)
+//			return
+//		}
+		//fmt.Println(item.ZonaUser, grupo, usuarioAlarme.String, setorAlarme.String)
+		if grupo == "ARME" || grupo == "DESARME" || grupo == "PANICO" {
+			if usuarioAlarme.Valid {
+				item.DescZonUse = usuarioAlarme.String
+			} else {
+				item.DescZonUse = "NÃO CADASTRADO"
+			}
+		} else {
+			if setorAlarme.Valid {
+				item.DescZonUse = setorAlarme.String
+			} else {
+				item.DescZonUse = "NÃO CADASTRADO"
+			}
+		}
+
+		lista = append(lista, item)
+	}
+
+	if len(lista) > 0 {
+		aux.RespostaJsonDados(w, http.StatusOK, lista)
+	} else {
+		aux.RespostaJsonVazio(w)
+	}
+}
+
+func colocaSetorManutecao(w http.ResponseWriter, r *http.Request) {
+	type objeto struct {
+		IdSetor  string `json:"idSetor"`
+		Operador string `json:"operador"`
+	}
+	body, erro := io.ReadAll(r.Body)
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+
+	var obj objeto
+	if erro := json.Unmarshal(body, &obj); erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+
+	db, erro := aux.Conectar()
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+
+	stm, err := db.Prepare(`
+		INSERT INTO listaManutencao(
+			listaManutencao.ID_Alvo, 
+			listaManutencao.DataBloqueio, 
+			listaManutencao.DataRetirada, 
+			listaManutencao.Descricao
+		) VALUES ( ?, ?, ?, ? )
+	`)
+	if err != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	defer stm.Close()
+
+	if _, err := stm.Exec(
+		obj.IdSetor,
+		time.Now().Format("2006-01-02 15:04:05"),
+		time.Now().Add(time.Minute*30).Format("2006-01-02 15:04:05"),
+		fmt.Sprintf("ADICIONADO PELO OPERADOR %s", strings.ToUpper(obj.Operador)),
+	); err != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+
+	aux.RespostaJsonOK(w)
+}

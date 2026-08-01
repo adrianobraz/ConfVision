@@ -1,0 +1,78 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    height: 100dvh;
+    width: 100vw;
+    margin: 0;
+    /* background-color: #212529; */
+    opacity: 1;
+    overflow: hidden;
+
+}
+
+.box-flex {
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#boxTop,
+#boxEsq,
+#boxDir {
+    justify-content: center;
+
+}
+
+#boxTop {
+    min-height: 120px;
+}
+
+#boxEsq,
+#boxDir {
+    flex: 1 1 auto;
+    height: auto;
+    padding-bottom: var(--terminalmovel-footer-height, 96px);
+    overflow-y: auto;
+    min-height: 0;
+}
+
+body.tm-atendimento-secundario #boxDir {
+    height: 100dvh !important;
+    padding-bottom: 0 !important;
+}
+
+body.tm-atendimento-secundario #boxDir > div {
+    height: 100% !important;
+    min-height: 0;
+}
+
+@media screen and (width >=992px) {
+
+    .box-flex {
+        height: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    #boxTop {
+        min-height: 100px;
+        height: auto;
+    }
+
+    #boxEsq,
+    #boxDir {
+        height: calc(100dvh - var(--terminalmovel-top-height, 100px));
+        padding-bottom: var(--terminalmovel-footer-height, 96px);
+        overflow-y: auto;
+        min-height: 0;
+    }
+
+    body.tm-atendimento-secundario #boxDir {
+        height: 100dvh !important;
+        padding-bottom: 0 !important;
+    }
+
+}

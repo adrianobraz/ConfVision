@@ -1,0 +1,151 @@
+{{ define "confvision-head-extra" }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/recursos/css/confvision.css?v=20260731theme3">
+<meta name="theme-color" content="#070b14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Central de Câmeras">
+{{ end }}
+
+{{ define "confvision-nav" }}
+{{/* topbar sem backdrop-filter no ancestral do nav — evita drawer “pela metade” e scroll horizontal no mobile */}}
+<div class="cv-header">
+    <div class="cv-header-inner">
+        <a href="/carregar-menu-confvision" class="cv-brand">
+            <img
+                src="/recursos/img/brand/logo-confvision-horizontal-white.png"
+                alt="Logo"
+                class="cv-brand-logo"
+                width="168"
+                height="40">
+        </a>
+        <button type="button" class="cv-nav-toggle" id="cv-nav-toggle" aria-label="Abrir menu" aria-expanded="false" aria-controls="cv-nav-main">
+            <i class="bi bi-list"></i>
+        </button>
+        <nav class="cv-nav cv-nav-main" id="cv-nav-main" aria-label="Menu principal">
+            <a href="/carregar-menu-confvision" class="cv-nav-link"><i class="bi bi-grid-1x2"></i> Início</a>
+            <div class="cv-nav-dropdown" data-nav-group="cadastros">
+                <button type="button" class="cv-nav-link cv-nav-dropdown-toggle" aria-haspopup="true" aria-expanded="false">
+                    <i class="bi bi-folder-plus"></i> Cadastros <i class="bi bi-chevron-down cv-nav-chevron"></i>
+                </button>
+                <div class="cv-nav-dropdown-menu">
+                    <a href="/CarregarPaginaGerenciarCliente" class="cv-nav-dropdown-item"><i class="bi bi-people"></i> Clientes</a>
+                    <a href="/carregar-gerenciar-dispositivo" class="cv-nav-dropdown-item"><i class="bi bi-hdd-network"></i> Dispositivos</a>
+                    <a href="/carregar-gerenciar-setores-alarme" class="cv-nav-dropdown-item"><i class="bi bi-bounding-box"></i> Setores</a>
+                    <a href="/cameras" class="cv-nav-dropdown-item" title="Cadastrar e gerenciar câmeras">
+                        <i class="bi bi-camera-video"></i> Câmera
+                    </a>
+                    <a href="/grade-horario" class="cv-nav-dropdown-item" title="Armar/desarmar e pausar por horário">
+                        <i class="bi bi-calendar-week"></i> Grade horária
+                    </a>
+                </div>
+            </div>
+            <div class="cv-nav-dropdown" data-nav-group="relatorios">
+                <button type="button" class="cv-nav-link cv-nav-dropdown-toggle" aria-haspopup="true" aria-expanded="false">
+                    <i class="bi bi-bar-chart"></i> Relatórios <i class="bi bi-chevron-down cv-nav-chevron"></i>
+                </button>
+                <div class="cv-nav-dropdown-menu">
+                    <a href="/eventos" class="cv-nav-dropdown-item" title="Histórico de alertas">
+                        <i class="bi bi-activity"></i> Eventos
+                    </a>
+                    <a href="/relatorio-armado" class="cv-nav-dropdown-item" title="Câmeras armadas e desarmadas">
+                        <i class="bi bi-shield-lock"></i> Armado
+                    </a>
+                    <a href="/relatorio-licencas" class="cv-nav-dropdown-item" title="Licenças usadas e disponíveis">
+                        <i class="bi bi-key"></i> Licenças
+                    </a>
+                    <a href="/relatorio-faturas" class="cv-nav-dropdown-item" title="Faturas de compra de licenças">
+                        <i class="bi bi-receipt"></i> Faturas
+                    </a>
+                </div>
+            </div>
+            <div class="cv-nav-dropdown" data-nav-group="configuracoes">
+                <button type="button" class="cv-nav-link cv-nav-dropdown-toggle" aria-haspopup="true" aria-expanded="false">
+                    <i class="bi bi-sliders"></i> Configurações <i class="bi bi-chevron-down cv-nav-chevron"></i>
+                </button>
+                <div class="cv-nav-dropdown-menu">
+                    <a href="/cameras" class="cv-nav-dropdown-item" title="Cadastrar, editar câmeras e escolher licença de câmera">
+                        <i class="bi bi-camera-video"></i> Câmera/Licença
+                    </a>
+                    <a href="/carregar-whitelabel" class="cv-nav-dropdown-item" title="Logo da empresa">
+                        <i class="bi bi-palette"></i> Minha marca
+                    </a>
+                    <a href="/carregar-dominio" class="cv-nav-dropdown-item" title="Domínio personalizado da central">
+                        <i class="bi bi-globe2"></i> Domínio personalizado
+                    </a>
+                    <a href="/minhas-licencas?tab=comprar" class="cv-nav-dropdown-item" title="Comprar licenças — gera fatura no financeiro">
+                        <i class="bi bi-cart-plus"></i> Comprar licenças
+                    </a>
+                    <a href="/gravacoes" class="cv-nav-dropdown-item" title="Associar licença de gravação à câmera">
+                        <i class="bi bi-record-circle"></i> Ativar gravação
+                    </a>
+                </div>
+            </div>
+            <div class="cv-nav-dropdown" data-nav-group="monitoramento">
+                <button type="button" class="cv-nav-link cv-nav-dropdown-toggle" aria-haspopup="true" aria-expanded="false">
+                    <i class="bi bi-display"></i> Monitoramento <i class="bi bi-chevron-down cv-nav-chevron"></i>
+                </button>
+                <div class="cv-nav-dropdown-menu">
+                    <a href="/ao-vivo" class="cv-nav-dropdown-item" title="Assistir em tempo real">
+                        <i class="bi bi-broadcast"></i> Ao vivo
+                    </a>
+                    <a href="/gravacoes/dvr" class="cv-nav-dropdown-item" title="Player com timeline do dia">
+                        <i class="bi bi-play-btn"></i> DVR
+                    </a>
+                    <a href="/gravacoes/timeline" class="cv-nav-dropdown-item" title="Lista de segmentos gravados">
+                        <i class="bi bi-collection-play"></i> Timeline
+                    </a>
+                </div>
+            </div>
+        </nav>
+        <div class="cv-header-user">
+            <span id="cmNotifMount" class="cv-notif-mount"></span>
+            <span id="display-nome-usuario" class="cv-user-name"></span>
+            <a href="/logout" class="cv-btn-ghost cv-btn-logout"><i class="bi bi-box-arrow-right"></i><span class="cv-btn-logout-text"> Sair</span></a>
+        </div>
+    </div>
+</div>
+<div class="cv-nav-backdrop" id="cv-nav-backdrop" hidden></div>
+{{ end }}
+
+{{ define "confvision-nav-dvr" }}
+<header class="cv-dvr-bar">
+    <div class="cv-dvr-bar-inner">
+        <a href="/carregar-menu-confvision" class="cv-brand cv-dvr-bar-brand">
+            <img
+                src="/recursos/img/brand/logo-confvision-horizontal-white.png"
+                alt="Logo"
+                class="cv-brand-logo cv-brand-logo-sm"
+                width="140"
+                height="34">
+        </a>
+        <span class="cv-dvr-bar-title"><i class="bi bi-play-btn"></i> DVR</span>
+        <nav class="cv-dvr-bar-nav">
+            <a href="/carregar-menu-confvision" class="cv-btn-ghost cv-btn-sm"><i class="bi bi-grid-1x2"></i> Início</a>
+            <a href="/gravacoes/timeline" class="cv-btn-ghost cv-btn-sm"><i class="bi bi-collection-play"></i> Timeline</a>
+            <a href="/cameras" class="cv-btn-ghost cv-btn-sm"><i class="bi bi-sliders"></i> Configurar</a>
+        </nav>
+        <div class="cv-dvr-bar-user">
+            <span id="cmNotifMount" class="cv-notif-mount"></span>
+            <span id="display-nome-usuario" class="cv-user-name"></span>
+            <a href="/logout" class="cv-btn-ghost cv-btn-logout cv-btn-sm"><i class="bi bi-box-arrow-right"></i><span class="cv-btn-logout-text"> Sair</span></a>
+        </div>
+    </div>
+</header>
+{{ end }}
+
+{{ define "confvision-page-header" }}
+<div class="cv-page-header">
+    <div>
+        <p class="cv-page-eyebrow" id="display-nome-franqueado"></p>
+        <h1 class="cv-page-title">{{.NomeTela}}</h1>
+    </div>
+    {{ if .LinkRetorno }}
+    <a href="{{ .LinkRetorno }}" class="cv-btn-ghost cv-back-link">
+        <i class="bi bi-arrow-left"></i> Voltar
+    </a>
+    {{ end }}
+</div>
+{{ end }}

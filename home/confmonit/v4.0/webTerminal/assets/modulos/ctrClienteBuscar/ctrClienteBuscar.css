@@ -1,0 +1,14 @@
+
+#ctrClienteBuscar .table-responsive {
+    height: calc(100% - 185px);
+}
+
+#ctrClienteBuscar td{
+    font-size: 11px;
+    
+}
+
+#ctrClienteBuscar .bi {
+    font-size: 20px;
+    
+}

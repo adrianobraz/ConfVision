@@ -1,0 +1,160 @@
+/* Feedback — icone bug/melhoria/ideia na navbar */
+.cm-feedback-wrap {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 0.35rem;
+}
+
+.cm-feedback-btn {
+  position: relative;
+  color: #fbbf24 !important;
+  opacity: 1 !important;
+}
+
+.cm-feedback-btn .bi {
+  font-size: 1.2rem;
+  line-height: 1;
+  color: #fbbf24 !important;
+  opacity: 1 !important;
+}
+
+.cm-feedback-btn:hover,
+.cm-feedback-btn:hover .bi {
+  color: #fde68a !important;
+}
+
+.cv-header-user .cm-feedback-btn,
+.cv-dvr-bar-user .cm-feedback-btn,
+.navbar .cm-feedback-btn {
+  border: 1px solid rgba(251, 191, 36, 0.45) !important;
+  background: rgba(251, 191, 36, 0.18) !important;
+  padding: 0.35rem 0.55rem !important;
+  border-radius: 8px !important;
+  min-width: 2.4rem;
+  min-height: 2.4rem;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
+.cv-header-user .cm-feedback-btn:hover,
+.cv-dvr-bar-user .cm-feedback-btn:hover,
+.navbar .cm-feedback-btn:hover {
+  background: rgba(251, 191, 36, 0.35) !important;
+  border-color: #fbbf24 !important;
+  color: #fff !important;
+}
+
+.cv-header-user .cm-feedback-btn:hover .bi,
+.cv-dvr-bar-user .cm-feedback-btn:hover .bi,
+.navbar .cm-feedback-btn:hover .bi {
+  color: #fff !important;
+}
+
+.cm-feedback-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2100;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.cm-feedback-modal.cm-feedback-hide {
+  display: none !important;
+}
+
+.cm-feedback-card {
+  width: min(420px, 100%);
+  background: #fff;
+  color: #0f172a;
+  border-radius: 12px;
+  padding: 1.1rem 1.25rem 1rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+}
+
+.cm-feedback-card h5 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.cm-feedback-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.25rem;
+}
+
+.cm-feedback-tipos {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.cm-feedback-tipo {
+  flex: 1;
+  min-width: 90px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  border-radius: 8px;
+  padding: 0.45rem 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cm-feedback-tipo.active {
+  border-color: #0ea5e9;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.cm-feedback-card textarea {
+  width: 100%;
+  min-height: 110px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.9rem;
+  resize: vertical;
+  margin-bottom: 0.85rem;
+  box-sizing: border-box;
+}
+
+.cm-feedback-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.cm-feedback-foot button {
+  border-radius: 8px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+}
+
+.cm-feedback-foot .cm-feedback-enviar {
+  border-color: #0ea5e9;
+  background: #0ea5e9;
+  color: #fff;
+}
+
+.cm-feedback-foot .cm-feedback-enviar:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cm-feedback-hide {
+  display: none !important;
+}

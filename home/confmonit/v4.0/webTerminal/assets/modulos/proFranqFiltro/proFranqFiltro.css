@@ -1,0 +1,16 @@
+#proFranqFiltro .table-responsive {
+    height: calc(100% - 110px);
+    
+}
+
+#proFranqFiltro .sem-atendimento {
+    font-size: 200px;
+    color: green;
+    font-weight: bold;
+}
+
+.figura {
+   
+    color: green;
+    font-size: 30px;
+}

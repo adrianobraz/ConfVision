@@ -1,0 +1,156 @@
+{{ template "pagina" . }}
+
+{{ define "body" }}
+<div class="tech-page">
+    {{ template "navbar" . }}
+
+    <div class="tech-workspace">
+        <!-- Listagem (esquerda) -->
+        <section class="tech-col-list">
+            <div class="tech-panel">
+                <div class="tech-panel-head">
+                    <i class="bi bi-table"></i> Listagem · Representantes
+                </div>
+                <div class="tech-panel-body">
+                    <div class="bg-only hidden mb-2 px-1">
+                        <label for="filtroCentral" class="ps-1">Filtrar por Central</label>
+                        <select id="filtroCentral" class="w-full px-3 py-2 text-center"></select>
+                    </div>
+                    {{ template "tabela" }}
+                </div>
+            </div>
+        </section>
+
+        <!-- Cadastro (direita) -->
+        <section class="tech-col-form">
+            <div class="tech-panel">
+                <div class="tech-panel-head">
+                    <i class="bi bi-building"></i> Cadastro · Representante
+                </div>
+                <div class="tech-panel-body">
+                    <div class="tech-form-block">
+                        <h3>Dados do Representante</h3>
+
+                        <div class="bg-only hidden mb-2">
+                            <label for="formCentral" class="ps-1">Central</label>
+                            <select id="formCentral" class="w-full px-3 py-2 text-center"></select>
+                        </div>
+
+                        <div class="flex flex-col md:flex-row gap-2">
+                            <div class="w-full">
+                                <label for="razaoSocial" class="ps-1">Razão Social</label>
+                                <input id="razaoSocial" type="text"
+                                    class="w-full px-3 py-2 uppercase text-center">
+                            </div>
+                            <div class="w-full">
+                                <label for="nomeFantasia" class="ps-1">Nome Fantasia</label>
+                                <input id="nomeFantasia" type="text"
+                                    class="w-full px-3 py-2 uppercase text-center">
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col md:flex-row gap-2 mt-2">
+                            <div class="w-full md:w-4/12">
+                                <label for="cnpj" class="ps-1">CNPJ</label>
+                                <input id="cnpj" type="text" placeholder="00.000.000/0000-00"
+                                    class="w-full px-3 py-2 text-center mskCnpj">
+                            </div>
+                            <div class="w-full md:w-4/12">
+                                <label for="inscricao" class="ps-1">Insc. Estadual</label>
+                                <input id="inscricao" type="text"
+                                    class="w-full px-3 py-2 text-center">
+                            </div>
+                            <div class="w-full md:w-2/12">
+                                <label for="cep" class="ps-1">CEP</label>
+                                <input id="cep" type="text" placeholder="00.000-000"
+                                    class="w-full px-3 py-2 text-center mskCep">
+                            </div>
+                            <div class="w-full md:w-2/12">
+                                {{ template "selectUf" }}
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col md:flex-row gap-2 mt-2">
+                            <div class="w-full">
+                                <label for="endereco" class="ps-1">Endereco</label>
+                                <input id="endereco" type="text"
+                                    class="w-full px-3 py-2 uppercase text-center">
+                            </div>
+                            <div class="w-full">
+                                <label for="bairro" class="ps-1">Bairro</label>
+                                <input id="bairro" type="text"
+                                    class="w-full px-3 py-2 uppercase text-center">
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col md:flex-row gap-2 mt-2">
+                            <div class="w-full md:w-2/3">
+                                <label for="cidade" class="ps-1">Cidade</label>
+                                <input id="cidade" type="text"
+                                    class="w-full px-3 py-2 uppercase text-center">
+                            </div>
+                            <div class="w-full md:w-1/3">
+                                <label for="pacote" class="ps-1">Pacote</label>
+                                <select id="pacote" class="w-full px-3 py-2 text-center"></select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tech-form-block">
+                        <h3>Usuario Master</h3>
+
+                        <div class="flex flex-col md:flex-row gap-2">
+                            <div class="w-full md:w-2/3">
+                                <label for="nome" class="ps-1">Nome</label>
+                                <input id="nome" type="text"
+                                    class="w-full px-3 py-2 uppercase text-center">
+                            </div>
+                            <div class="w-full md:w-1/3">
+                                <label for="telefone1" class="ps-1">Celular</label>
+                                <input id="telefone1" type="text" placeholder="(00) 00000-0000"
+                                    class="w-full px-3 py-2 text-center mskCel">
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col md:flex-row gap-2 mt-2">
+                            <div class="w-full md:w-2/3">
+                                <label for="nick" class="ps-1">Nick</label>
+                                <input id="nick" type="text"
+                                    class="w-full px-3 py-2 uppercase text-center">
+                            </div>
+                            <div class="w-full md:w-1/3">
+                                <label for="telefone2" class="ps-1">Telefone</label>
+                                <input id="telefone2" type="text" placeholder="(00) 0000-0000"
+                                    class="w-full px-3 py-2 text-center mskTel">
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col md:flex-row gap-2 mt-2">
+                            <div class="w-full md:w-1/2">
+                                <label for="email1" class="ps-1">Email Principal</label>
+                                <input id="email1" type="text"
+                                    class="w-full px-3 py-2 lowercase text-center">
+                            </div>
+                            <div class="w-full md:w-1/2">
+                                <label for="email2" class="ps-1">Email Alternativo</label>
+                                <input id="email2" type="text"
+                                    class="w-full px-3 py-2 text-center">
+                            </div>
+                        </div>
+                    </div>
+
+                    {{ template "btnLimparGravar" }}
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+<script src="/public/templates/representante/representante.js"></script>
+{{ end }}
+
+
+{{ define "thead" }}
+<th class="py-2 col-central bg-only hidden">Central</th>
+<th class="py-2 w-5/12">Razão Social</th>
+<th class="py-2 w-5/12" colspan="6">Ação</th>
+{{end}}

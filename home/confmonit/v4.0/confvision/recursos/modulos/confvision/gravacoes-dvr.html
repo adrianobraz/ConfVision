@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    {{ template "head" . }}
+    {{ template "confvision-head-extra" . }}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+</head>
+<body class="cv-app cv-dvr-page">
+    {{ template "variaveis-controle" . }}
+    {{ template "confvision-config" . }}
+    {{ template "confvision-nav-dvr" . }}
+
+    <main class="cv-main cv-dvr-main">
+        <div class="cv-dvr-body">
+            <div class="cv-dvr-layout">
+                <div class="cv-dvr-player-col">
+                    <div class="cv-dvr-player-wrap">
+                        <video id="dvr-player" playsinline preload="metadata"></video>
+                        <div id="dvr-player-overlay" class="cv-dvr-player-overlay d-none">
+                            <span id="dvr-player-msg">Selecione uma gravação</span>
+                        </div>
+                        <div id="dvr-player-label" class="cv-dvr-player-label"></div>
+                        <button type="button" id="dvr-btn-fullscreen" class="cv-dvr-btn-fullscreen" title="Tela cheia">
+                            <i class="bi bi-fullscreen"></i>
+                        </button>
+                    </div>
+                    <p id="dvr-status" class="cv-dvr-status"></p>
+                </div>
+
+                <aside class="cv-dvr-sidebar">
+                    <div class="cv-dvr-sidebar-sec cv-dvr-sidebar-sec-camera">
+                        <label class="cv-label" for="sel-dvr-camera">Câmera</label>
+                        <select id="sel-dvr-camera" class="cv-select form-select"></select>
+                    </div>
+                    <div class="cv-dvr-sidebar-sec cv-dvr-sidebar-sec-lista">
+                        <h2 class="cv-dvr-sidebar-titulo"><i class="bi bi-film"></i> Gravações do dia</h2>
+                        <ul id="dvr-lista-segmentos" class="cv-dvr-lista-segmentos">
+                            <li class="cv-dvr-lista-vazia">Carregando...</li>
+                        </ul>
+                    </div>
+                    <div class="cv-dvr-sidebar-sec cv-dvr-sidebar-sec-data">
+                        <h2 class="cv-dvr-sidebar-titulo"><i class="bi bi-calendar3"></i> Data</h2>
+                        <input type="text" id="dvr-data" class="cv-input form-control cv-dvr-data-input" readonly placeholder="Selecione a data">
+                    </div>
+                </aside>
+            </div>
+
+            <div class="cv-dvr-timeline-sec">
+                <div class="cv-dvr-timeline-header">
+                    <span id="dvr-timeline-hora" class="cv-dvr-timeline-hora">00:00:00</span>
+                    <span class="cv-dvr-timeline-legenda">
+                        <span class="cv-dvr-leg-item cv-dvr-leg-gravado"></span> Contínua
+                        <span class="cv-dvr-leg-item cv-dvr-leg-movimento"></span> Movimento
+                        <span class="cv-dvr-leg-item cv-dvr-leg-vazio"></span> Sem gravação
+                        <span id="dvr-timeline-intervalo" class="cv-dvr-timeline-intervalo"></span>
+                    </span>
+                </div>
+                <div id="dvr-timeline-scroll" class="cv-dvr-timeline-scroll">
+                    <div id="dvr-timeline-inner" class="cv-dvr-timeline-inner">
+                        <canvas id="dvr-timeline-canvas"></canvas>
+                        <div id="dvr-timeline-playhead" class="cv-dvr-timeline-playhead"></div>
+                        <div class="cv-dvr-timeline-marcas" id="dvr-timeline-marcas"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cv-dvr-controles">
+                <button type="button" id="dvr-btn-seg-anterior" class="cv-dvr-btn-ctrl" title="Segmento anterior">
+                    <i class="bi bi-skip-start-fill"></i><span>Anterior</span>
+                </button>
+                <button type="button" id="dvr-btn-menos-10s" class="cv-dvr-btn-ctrl" title="Voltar 10 segundos">
+                    <i class="bi bi-skip-backward-fill"></i><span>−10s</span>
+                </button>
+                <button type="button" id="dvr-btn-play" class="cv-dvr-btn-ctrl cv-dvr-btn-play" title="Play / Pausa">
+                    <i class="bi bi-play-fill" id="dvr-icon-play"></i>
+                </button>
+                <button type="button" id="dvr-btn-mais-10s" class="cv-dvr-btn-ctrl" title="Avançar 10 segundos">
+                    <i class="bi bi-skip-forward-fill"></i><span>+10s</span>
+                </button>
+                <button type="button" id="dvr-btn-seg-proximo" class="cv-dvr-btn-ctrl" title="Próximo segmento">
+                    <i class="bi bi-skip-end-fill"></i><span>Próximo</span>
+                </button>
+                <button type="button" id="dvr-btn-stop" class="cv-dvr-btn-ctrl" title="Parar">
+                    <i class="bi bi-stop-fill"></i><span>Stop</span>
+                </button>
+                <div class="cv-dvr-velocidade">
+                    <label class="cv-label mb-0" for="sel-dvr-velocidade">Velocidade</label>
+                    <select id="sel-dvr-velocidade" class="cv-select form-select form-select-sm">
+                        <option value="0.5">0.5×</option>
+                        <option value="1" selected>1×</option>
+                        <option value="1.5">1.5×</option>
+                        <option value="2">2×</option>
+                        <option value="4">4×</option>
+                    </select>
+                </div>
+                <button type="button" id="dvr-btn-captura" class="cv-dvr-btn-ctrl cv-dvr-btn-captura" title="Baixar imagem no computador">
+                    <i class="bi bi-crop"></i><span>Baixar imagem</span>
+                </button>
+                <button type="button" id="dvr-btn-download" class="cv-dvr-btn-ctrl" title="Baixar vídeo do segmento atual">
+                    <i class="bi bi-download"></i><span>Baixar vídeo</span>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal fade cv-modal-midia" id="modal-dvr-captura" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content cv-modal-content">
+                <div class="modal-header cv-modal-header">
+                    <h5 class="modal-title">Aproximar e baixar imagem</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body cv-modal-body cv-dvr-captura-body">
+                    <div class="cv-dvr-captura-toolbar">
+                        <span id="dvr-captura-nivel" class="cv-dvr-captura-nivel">Vista completa</span>
+                        <button type="button" id="dvr-captura-reset" class="cv-btn-ghost cv-btn-sm"><i class="bi bi-arrows-angle-expand"></i> Vista completa</button>
+                    </div>
+                    <p class="cv-form-hint mb-2">Desenhe um retângulo sobre o que deseja ver de perto (ex.: um objeto na mesa). Ao soltar, a imagem aproxima nessa área. Repita para aproximar mais. Depois clique em <strong>Baixar PNG</strong>.</p>
+                    <div id="dvr-captura-stage" class="cv-dvr-captura-stage">
+                        <div id="dvr-captura-wrap" class="cv-dvr-captura-wrap">
+                            <div id="dvr-captura-viewport" class="cv-dvr-captura-viewport">
+                                <canvas id="dvr-captura-canvas"></canvas>
+                            </div>
+                            <canvas id="dvr-captura-overlay"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer cv-modal-footer">
+                    <button type="button" class="cv-btn-ghost" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" id="dvr-captura-salvar" class="cv-btn-primary"><i class="bi bi-download"></i> Baixar PNG</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{ template "link-js" . }}
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
+    <script src="/recursos/modulos/confvision/urls.js?v=20260727mob4"></script>
+    <script src="/recursos/modulos/confvision/gravacoes-tipo.js?v=20250628a"></script>
+    <script src="/recursos/modulos/confvision/gravacoes-dvr.js?v=20250702a"></script>
+</body>
+</html>

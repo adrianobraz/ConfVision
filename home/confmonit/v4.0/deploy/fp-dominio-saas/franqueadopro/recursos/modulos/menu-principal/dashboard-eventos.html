@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-br">
+
+<head>
+    {{ template "head" . }}
+</head>
+
+<body>
+    {{ template "variaveis-controle" . }}
+    {{ template "nav-bar" . }}
+
+    <div class="container-fluid container-principal py-3 my-3 px-3">
+
+        <div class="table-responsive">
+            <table class="table table-sm table-striped table-hover table-bordered">
+                <thead class="text-center bg-vd-claro fw-bold">
+                    <tr>
+                        <td colspan="6">HORÁRIO DE BRASILIA</td>
+                    </tr>
+                    <tr>
+                        <td colspan="6">
+                            Total de <span id="qtd-eventos">0</span> eventos
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width: 14%;">Data/Hora</td>
+                        <td style="width: 22%;">Conta - Cliente</td>
+                        <td style="width: 6%;">Cód</td>
+                        <td style="width: 28%;">Descrição</td>
+                        <td style="width: 8%;">Zona/User</td>
+                        <td style="width: 22%;">Descrição Zona/User</td>
+                    </tr>
+                </thead>
+                <tbody id="tab-eventos"></tbody>
+            </table>
+        </div>
+
+    </div>
+
+    {{ template "link-js" . }}
+    <script src="/recursos/js/auxiliares/eventos-dashboard.js"></script>
+    <script src="/recursos/modulos/menu-principal/dashboard-eventos.js"></script>
+</body>
+
+</html>

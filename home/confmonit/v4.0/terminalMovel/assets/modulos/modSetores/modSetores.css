@@ -1,0 +1,39 @@
+#modSetores{
+    box-sizing: border-box;
+    height: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    opacity: 1;
+}
+
+
+#modSetores_titulo {
+    height: 40px;
+    flex: 1 1 100%;
+    text-align: center;
+    
+}
+
+#modSetores_responsivo {
+    height: calc(100% - 100px);
+    display: flex;
+    flex-wrap: wrap;
+    padding: 10px 5px;
+    flex: 1 1 100%;
+    background-color: inherit;
+    align-items: start;
+    text-align: center;
+}
+
+#modSetores_boxBtn {
+    padding: 5px;
+    height: 60px;
+    flex: 1 1 100%;
+    background-color: inherit;
+}
+
+    #modSetores_boxBtn button {
+        height: 100%;
+        width: 100%;
+        flex: 1 1 100%;
+    }

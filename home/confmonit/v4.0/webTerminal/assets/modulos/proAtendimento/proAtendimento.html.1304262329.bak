@@ -1,0 +1,61 @@
+<link rel="stylesheet" href="/assets/modulos/proAtendimento/proAtendimento.css">
+<div id="includedContent"></div>
+
+<div id="proAtendimento" class="fmt-color">
+    <div id="proAtendimento_titulo" class="fmt-titulo">
+        <h5 class="py-1">Processo para atendimento</h5>
+    </div>
+
+    <div id="proAtendimento_responsivo" class="table-responsive fmt-color">
+        <table class="
+                    table table-sm  align-middle 
+                    table-bordered">
+            <tbody></tbody>
+        </table>
+    </div>
+
+</div><!-- /proAtendimento -->
+
+<div id="proAtendimento_modalUltimos" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header fmt-painel">
+                <h6 class="modal-title">Últimos 10 atendimentos finalizados</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body fmt-color" style="font-size: 11px;">
+                <div id="proAtendimento_ultimos_lista_modal"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="proAtendimento_modalManutencao" class="modal fade bg-dark" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-black">
+
+            <div class="modal-header">
+                <h6 id="proAtendimento_modalManutencao_cpNomeDisp" class="modal-title">Dispositivo </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <select id="proAtendimento_modalManutencao_cpTempo" class="form-control bg-dark text-bg-dark">
+                    <option value="15">15 Minutos</option>
+                    <option value="30">30 Minutos</option>
+                    <option value="45">45 Minutos</option>
+                    <option value="60">1 Hora</option>
+                    <option value="300">5 Hora</option>
+                    <option value=""></option>
+                </select>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Cancelar</button>
+
+                <button id="proAtendimento_modalManutencao_btnGravar" type="button"
+                    class="btn btn-success">Gravar</button>
+            </div>
+        </div>
+    </div>
+</div>

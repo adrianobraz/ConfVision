@@ -1,0 +1,49 @@
+{{ template "pagina" . }}
+
+{{ define "body" }}
+<div class="h-screen w-screen flex">
+    <!-- Imagem -->
+    <div class="h-full w-4/6 hidden md:block">
+        <img class="h-full w-full" src="/public/img/capaCentral2.jpg" alt="capa">
+    </div>
+
+    <!-- Formulario -->
+    <div class="h-full w-full md:w-2/6 p-4 flex flex-col justify-center items-center bg-blue-950">
+
+        <div class="w-full p-3 rounded-md flex flex-col items-center gap-3 focus:outline-none bg-blue-800">
+
+            <i class="text-[150px] leading-0 bi bi-person-circle text-blue-950"></i>
+
+            <label class="w-full text-center mb-2 text-4xl font-black text-white">Login Cliente</label>
+
+            <input id="email" type="text" placeholder="Digite o email"
+                class="w-full px-3 py-3 rounded-md text-center focus:outline-none text-slate-700">
+
+            <input id="senha" type="password" placeholder="Digite o Senha"
+                class="w-full px-3 py-3 rounded-md text-center focus:outline-none text-slate-700">
+
+            <button id="btnLogin"
+                class="py-3 w-full rounded-md text-white font-black text-3xl bg-blue-950 hover:bg-blue-700"
+                onclick="logar()">
+                <i class="bi bi-lock-fill"></i> &nbsp;
+                Logar
+            </button>
+        </div>
+
+    </div>
+</div>
+<script src="/public/templates/login/login.js"></script>
+{{ end }}
+
+
+{{ define "menuIntes" }}
+
+<a href="/central/usuario"
+    class="hover:bg-gray-700 text-center text-white px-3 py-2 rounded-md text-sm font-medium transition duration-300 ease-in-out">Gerenciar
+    Usuario</a>
+
+<a href="/central/operador"
+    class="hover:bg-gray-700 text-center text-white px-3 py-2 rounded-md text-sm font-medium transition duration-300 ease-in-out">Gerenciar
+    Operador</a>
+
+{{ end }}

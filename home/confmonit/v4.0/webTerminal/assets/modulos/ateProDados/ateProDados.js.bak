@@ -1,0 +1,248 @@
+function ateProDados_start(idProcesso, next) {
+    fetch(`/assets/modulos/ateProDados/ateProDados.html`).then((res) => res.text()).then((html) => {
+        const box = document.getElementById('boxEsq')
+        box.innerHTML = html
+         // finaliza o eveto na benuvem
+         ateProDado_fecharEventosBenuvem(idProcesso)
+
+        ateProDado_setup(idProcesso, () => {
+            ateProDado_buscarDados(idProcesso, next)
+
+        })
+    })
+}
+
+function ateProDado_setup(idProcesso, next) {
+    $('#atenProDados_btnAguardar').on('click', () => { ateProDado_aguardar(idProcesso) })
+
+    $('#atenProDados_btnFinalizar').on('click', () => { ateProDado_finalizar(idProcesso) })
+
+    // Adiciona menssagem pre definidas no campo atenProDados_cpDescricaoAtendimento 
+    $('#atenProDados_cpMenssagemPreFormatada').on('change', () => {
+        $('#atenProDados_cpDescricaoAtendimento').html(
+            $('#atenProDados_cpMenssagemPreFormatada').val()
+        )
+    })
+
+    next()
+}
+
+function ateProDado_buscarDados(idProcesso, next) {
+
+    $.ajax({
+        url: '/ateProDados/buscarDados',
+        method: 'Post',
+        headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": "Bearer " + sessionStorage.getItem('token')
+        },
+        data: JSON.stringify({ idProcesso: idProcesso })
+    }).fail(function (e) {
+        console.log(e)
+    }).done(function (r) {
+        const d = r.dados
+
+        sessionStorage.setItem('ateProDado_proc_idProcesso', d.idProcesso)
+        sessionStorage.setItem('ateProDado_proc_descricao', d.descricao)
+
+        sessionStorage.setItem('ateProDado_proc_idFranqueado', d.idFranqueado)
+        sessionStorage.setItem('ateProDado_proc_franqNome', d.franqNome)
+        sessionStorage.setItem('ateProDado_proc_franqCodBenuvem', d.franqCodBenuvem)
+
+        sessionStorage.setItem('ateProDado_proc_idCliente', d.idCliente)
+        sessionStorage.setItem('ateProDado_proc_cliNome', d.cliNome)
+
+        sessionStorage.setItem('ateProDado_proc_idDispositivo', d.idDispositivo)
+        sessionStorage.setItem('ateProDado_proc_dispNome', d.dispNome)
+        sessionStorage.setItem('ateProDado_proc_dispConta', d.dispConta)
+        sessionStorage.setItem('ateProDado_proc_dispParticao', d.dispParticao)
+        sessionStorage.setItem('ateProDado_proc_dispSenha', d.dispSenha)
+        sessionStorage.setItem('ateProDado_proc_dispArmado', d.dispArmado)
+        sessionStorage.setItem('ateProDado_proc_dispMsgAtendente', d.dispMsgAtend)
+
+        ateProDado_montarTela(d)
+
+        next()
+
+    })
+}
+
+function ateProDado_montarTela(i) {
+    
+    if (i.dispArmado == "S") {
+        $('#atenProDados_armado').html(
+            `<i armado="S" class="bi bi-lock-fill bg-success 
+            h-100 w-100 text-center rounded-3"></i>`
+        )
+    } else {
+        $('#atenProDados_armado').html(
+            `<i armado="N" class="bi bi-unlock-fill bg-danger 
+            h-100 w-100 text-center rounded-3"></i>`
+        )
+    }
+
+    $('#atenProDados_cpFranqNome').html(i.franqNome)
+    $('#atenProDados_cpCliNome').val(i.cliNome)
+    $('#atenProDados_cpDispNome').val(i.dispNome)
+    $('#atenProDados_cpAtendimentoAnterior').val(i.descricao)
+    $('#atenProDados_cpMensagemAtendente').val(i.dispMsgAtend)
+
+    // Exibe um caixa dialogo caso tenha alguma messagem para o atendete
+    if (i.dispMsgAtend != '') msgBox(i.dispMsgAtend)
+}
+
+// ateProDado_aguardar libera o processo e volta para tela processo
+function ateProDado_aguardar(idProcesso) {
+    // Desliga o contador de atendimento
+    flags.ateControles_gTimer = -1
+
+
+    const descricaoAnterior = $('#atenProDados_cpAtendimentoAnterior').val()
+    const tag = gGeraTag(sessionStorage.getItem('login_userNick'))
+    const descricaoAtual = $('#atenProDados_cpDescricaoAtendimento').val().toUpperCase()
+
+    let descricao
+    if (descricaoAtual == '') {
+        if (descricaoAnterior == '') {
+            descricao = tag + '\n   VISUALIZOU O PROCESSO'
+        } else {
+            descricao = descricaoAnterior + '\n\n' + tag + '\n   VISUALIZOU O PROCESSO'
+        }
+    } else {
+        if (descricaoAnterior == '') {
+            descricao = tag + '\n   ' + descricaoAtual
+        } else {
+            descricao = descricaoAnterior + '\n\n' + tag + '\n   ' + descricaoAtual
+        }
+    }
+
+    $.ajax({
+        url: '/ateProDados/aguardar',
+        method: 'Post',
+        headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": "Bearer " + sessionStorage.getItem('token')
+        },
+        data: JSON.stringify({
+            idProcesso: idProcesso,
+            descricao: descricao
+        })
+    }).fail(function (e) {
+        console.log(e)
+    }).done(function (r) {
+        setupTelaProcesso()
+    })
+}
+
+function ateProDado_finalizar(idProcesso) {
+    // Desliga o contador de atendimento
+    flags.ateControles_gTimer = -1
+
+    if ($('#atenProDados_cpDescricaoAtendimento').val() == "") {
+        msgErro("O campo descrição não pode estar vazio")
+        return
+    }
+    const descricaoAnterior = $('#atenProDados_cpAtendimentoAnterior').val()
+
+    const tag = gGeraTag(sessionStorage.getItem('login_userNick'))
+
+    const descricaoAtual = $('#atenProDados_cpDescricaoAtendimento').val().toUpperCase()
+    const descricao = (descricaoAtual == '') ?
+        ((descricaoAnterior == '') ?
+            tag + '\n   VISUALIZOU O PROCESSO' :
+            descricaoAnterior + '\n\n' + tag + '\n   VISUALIZOU O PROCESSO') :
+        ((descricaoAnterior == '') ?
+            tag + '\n   ' + descricaoAtual :
+            descricaoAnterior + '\n\n' + tag + '\n   ' + descricaoAtual)
+
+
+    $.ajax({
+        url: '/ateProDados/finalizar',
+        method: 'Post',
+        headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": "Bearer " + sessionStorage.getItem('token')
+        },
+        data: JSON.stringify({
+            idProcesso: idProcesso,
+            idCliente: sessionStorage.getItem('ateProDado_proc_idCliente'),
+            descricao: descricao,
+            idOperador: sessionStorage.getItem('login_userIdOperador'),
+            nomeOperador: sessionStorage.getItem('login_userNome')
+        })
+    }).fail(function (e) {
+        console.log(e)
+    }).done(function (r) {
+        // finaliza o eveto na benuvem
+        //ateProDado_fecharEventosBenuvem(idProcesso)
+        setupTelaProcesso()
+    })
+}
+
+function ateProDado_armarCentral() {
+    const idDisp = sessionStorage.getItem('ateProDado_proc_idDispositivo')
+    const senha = sessionStorage.getItem('ateProDado_proc_dispSenha')
+    const numero = sessionStorage.getItem('ateProDado_proc_dispParticao')    
+    const armado = $('#atenProDados_armado i').attr('armado')
+   console.log(idDisp, senha, numero, armado)
+    if (armado == 'N') {    
+          
+        armarCentral(idDisp, senha, numero, ()=>{
+            $('#atenProDados_armado').html(
+                `<i armado="S" class="bi bi-lock-fill bg-success 
+                h-100 w-100 text-center rounded-3"></i>`
+            )
+            
+        } )
+    } else {      
+
+        msgSucesso('A central já se encontra armada')
+        // desarmarCentral(idDisp, senha, numero, ()=>{
+        //     $('#atenProDados_armado').html(
+        //        `<i armado="N" class="bi bi-unlock-fill bg-danger 
+        //        h-100 w-100 text-center rounded-3"></i>`
+        //     )
+            
+        // } )
+    }
+}
+
+function ateProDado_fecharEventosBenuvem(idProcesso) {
+
+    $.ajax({
+        url: '/ateProDados/eventoProcesso',
+        method: 'Post',
+        headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": "Bearer " + sessionStorage.getItem('token')
+        },
+        data: JSON.stringify({ idProcesso: idProcesso })
+    }).fail(function (e) {
+        console.log(e)
+    }).done(function (r) {
+        if (r.status == 'OK') {
+
+            let fechar = '000'
+            r.dados.setor.forEach(i => {
+
+                if (i.img != "" && i.img != "SEM IMAGEM") {
+                    const d = JSON.parse(i.img)
+                    if (d.channels != fechar) {
+                        fechar = d.channels
+                        benuvem_finalizarEvento(
+                            d.company_code,
+                            d.partition,
+                            d.client_code,
+                            d.channels,
+                        )
+                    }
+                }
+            });
+        }
+    })
+}
+

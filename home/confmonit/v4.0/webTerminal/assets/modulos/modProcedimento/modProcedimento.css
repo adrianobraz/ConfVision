@@ -1,0 +1,41 @@
+#modProcedimento{
+    box-sizing: border-box;
+    height: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    opacity: 1;
+}
+
+#modProcedimento textarea {
+    resize: none;
+}
+
+#modProcedimento_titulo {
+    height: 40px;
+    flex: 1 1 100%;
+    text-align: center;
+}
+
+#modProcedimento_responsivo {
+    height: calc(100% - 100px);
+    display: flex;
+    flex-direction: column;
+    padding: 10px 5px;
+    flex: 1 1 100%;
+    background-color: inherit;
+    align-items: start;
+    text-align: center;
+}
+ 
+#modProcedimento_boxBtn {
+    padding: 5px;
+    height: 60px;
+    flex: 1 1 100%;
+    background-color: inherit;
+}
+
+    #modProcedimento_boxBtn button {
+        height: 100%;
+        width: 100%;
+        flex: 1 1 100%;
+    }

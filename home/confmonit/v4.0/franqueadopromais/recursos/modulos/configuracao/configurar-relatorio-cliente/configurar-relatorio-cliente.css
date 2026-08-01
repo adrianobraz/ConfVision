@@ -1,0 +1,13 @@
+.fp-btn-form-action {
+    min-height: 60px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.fp-btn-form-action i {
+    font-size: 1.2rem;
+}

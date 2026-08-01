@@ -1,0 +1,28 @@
+<link rel="stylesheet" href="/assets/modulos/proManutencoesAtivas/proManutencoesAtivas.css">
+<div id="proManutencoesAtivas" class="h-100 d-flex flex-column text-center">
+    <div id="proManutencoesAtivas_titulo" class="fmt-titulo">
+        <div class="py-2">Manutenções ativas</div>
+    </div>
+
+    <div class="h-100 container-fluid fmt-color py-2 d-flex flex-column">
+        <div class="table-responsive flex-fill overflow-auto">
+            <table class="table table-sm table-striped table-bordered align-middle text-white proManutencoesAtivas_table">
+                <thead>
+                    <tr>
+                        <th>Alvo</th>
+                        <th>Período</th>
+                        <th class="proManutencoesAtivas_colAcao">Ação</th>
+                    </tr>
+                </thead>
+                <tbody id="proManutencoesAtivas_tbody"></tbody>
+            </table>
+        </div>
+
+        <div class="col-12 mb-1 d-flex mx-1 mt-2 mt-auto">
+            <button id="proManutencoesAtivas_btnFechar" class="flex-fill btn btn-primary text-bg-primary fs-3 fmt-botao">
+                <i class="bi bi-x-circle"></i>
+                &nbsp; Voltar
+            </button>
+        </div>
+    </div>
+</div>

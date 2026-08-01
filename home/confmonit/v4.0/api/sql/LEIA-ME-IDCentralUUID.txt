@@ -1,0 +1,29 @@
+IDCentralUUID - multi-tenant hibrido
+====================================
+
+Regra de vinculo (atual):
+- central.ID_Central identifica a empresa (legado = 'CENTRAL'; ids novos = gerador)
+- As tabelas filhas guardam esse valor na coluna IDCentralUUID:
+    representante.IDCentralUUID  = central.ID_Central
+    usuarios.IDCentralUUID       = central.ID_Central
+    pacotes.IDCentralUUID        = central.ID_Central
+    faturas.IDCentralUUID        = central.ID_Central
+- central.IDCentralUUID (hex) e metadado opcional; NAO e a chave de filtro/vinculo
+
+1) Se ainda nao rodou a criacao das colunas:
+   api/sql/20260722_id_central_uuid.sql
+
+2) Obrigatorio apos ajuste do vinculo por ID_Central:
+   api/sql/20260725_idcentraluuid_usa_id_central.sql
+
+3) Conferir:
+   SELECT ID_Central, IDCentralUUID, RazaoSocial FROM central;
+   SELECT ID_Representante, RazaoSocial, IDCentralUUID FROM representante;
+
+4) Deploy:
+   - rebuild/restart confmonit4api
+   - rebuild/restart confmonit4webCentral
+   - hard refresh no browser (JS do filtro)
+
+5) Login Administrator:
+   sessionStorage.loginIdCentralUUID deve ser "CENTRAL" (legado)

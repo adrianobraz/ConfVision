@@ -1,0 +1,15 @@
+.fp-wl-card {
+    background: var(--fp-surface);
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+.fp-wl-logo-preview {
+    max-width: 150px;
+    max-height: 48px;
+    object-fit: contain;
+    background: var(--fp-navbar);
+    padding: 4px 8px;
+    border-radius: 6px;
+}

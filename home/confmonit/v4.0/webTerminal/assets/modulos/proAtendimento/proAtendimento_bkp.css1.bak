@@ -1,0 +1,68 @@
+#proAtendimento {
+    box-sizing: border-box;
+    height: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    opacity: 1;
+}
+@media(width <576px) {
+    #proAtendimento {
+        max-height: 400px;
+    }
+}
+
+#proAtendimento_titulo {
+    height: 40px;
+    flex: 1 1 100%;
+    text-align: center;
+   
+}
+
+#proAtendimento_responsivo {
+    height: calc(100% - 40px);
+    display: flex;
+    flex-wrap: wrap;
+    padding: 0 5px;
+    flex: 1 1 100%;
+    
+    align-items: start;
+    text-align: center;
+}
+
+/* Cores por nível na lista de processos – todas as células da linha */
+#proAtendimento_responsivo .table tbody tr.table-secondary td { background-color: #d1d1d1 !important; }
+#proAtendimento_responsivo .table tbody tr.table-success td   { background-color: #a1beb1 !important; }
+#proAtendimento_responsivo .table tbody tr.table-primary td   { background-color: #90aad1 !important; }
+#proAtendimento_responsivo .table tbody tr.table-warning td   { background-color: #faf1d8 !important; }
+#proAtendimento_responsivo .table tbody tr.table-danger td    { background-color: #e0bfc2 !important; }
+/* Texto preto em todas as células da lista de processos (sobrescreve .fmt-color) */
+#proAtendimento_responsivo .table tbody td,
+#proAtendimento_responsivo .table tbody td.click { color: #000000 !important; }
+/* Ícones dos botões (headset, olho, chave) continuam brancos */
+#proAtendimento_responsivo .table tbody td.bg-success,
+#proAtendimento_responsivo .table tbody td.bg-primary,
+#proAtendimento_responsivo .table tbody td.bg-warning { color: #fff !important; }
+
+.proAtendimento-dot{
+    display:inline-block;
+    width:14px;
+    height:14px;
+    border-radius:50%;
+    margin-right:6px;
+    border:2px solid #fff;
+    vertical-align:middle;
+}
+
+.dot-secondary{ background:#6c757d; }
+.dot-success{ background:#198754; }
+.dot-primary{ background:#0d6efd; }
+.dot-warning{ background:#ffc107; }
+.dot-danger{ background:#dc3545; }
+
+
+.proAtendimento-semProcesso{
+    background-color: #adb5bd !important;
+    color: #fff !important;
+    font-weight: 500;
+    text-align: center;
+}

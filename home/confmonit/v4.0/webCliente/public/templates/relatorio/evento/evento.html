@@ -1,0 +1,125 @@
+{{ template "pagina" . }}
+
+{{ define "body" }}
+<div class="min-h-full w-full flex-col">
+    {{ template "navbar" . }}
+
+    <div id="linha-1" class="w-full flex flex-col md:flex-row gap-2 px-2 py-4 font-bold bg-zinc-600 justify-center">
+
+
+        <div id="grupo" class="md:w-6/12 flex flex-wrap text-sm items-center md:border-e-2">
+            <div class="w-1/4 pb-2">
+                <input id="alarme" type="checkbox">
+                ALARME
+            </div>
+            <div class="w-1/4">
+                <input id="arme" type="checkbox">
+                ARME
+            </div>
+            <div class="w-1/4">
+                <input id="desarme" type="checkbox">
+                DESARME
+            </div>
+            <div class="w-1/4">
+                <input id="panico" type="checkbox">
+                PANICO
+            </div>
+
+
+            <div class="w-1/4 pb-2">
+                <input id="geral" type="checkbox">
+                GERAL
+            </div>
+            <div class="w-1/4">
+                <input id="medico" type="checkbox">
+                MEDICO
+            </div>
+            <div class="w-1/4">
+                <input id="falhas" type="checkbox">
+                FALHAS
+            </div>
+            <div class="w-1/4">
+                <input id="setup" type="checkbox">
+                SETUP
+            </div>
+
+            <div class="w-1/4">
+                <input id="teste" type="checkbox">
+                TESTE
+            </div>
+            <div class="w-2/4">
+                <input id="emergencia" type="checkbox">
+                EMERGÊNCIA
+            </div>
+
+        </div>
+
+        <div class="md:w-6/12 flex flex-wrap">
+            <div class="w-full py-2 md:flex md:gap-2 items-center">
+                <label for="dispositivo" class="ps-2 font-black">
+                    Dispositivo:
+                </label>
+                <select id="dispositivo"
+                    class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase">
+
+                </select>
+            </div>
+
+            <div class="w-full flex flex-wrap">
+
+                <div class="w-full md:w-3/4 flex">
+
+                    <div class="w-1/2">
+                        <label for="dtInicial" class="ps-2 font-black">
+                            Data Inicial:
+                        </label>
+                        <input id="dtInicial" type="datetime-local"
+                            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase">
+                    </div>
+
+                    <div class="w-1/2 ps-1">
+                        <label for="dtFinal" class="ps-2 font-black">
+                            Data Final:
+                        </label>
+                        <input id="dtFinal" type="datetime-local"
+                            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase">
+                    </div>
+                </div>
+
+                <div id="botoes" class="w-full p-2 md:w-1/4 flex gap-2">
+                    <button id="btnLimpar" class="w-1/3 py-3 text-3xl rounded-md text-white font-black  bg-red-700"><i
+                            class="bi bi-eraser-fill"></i></button>
+
+                    <button id="btnFiltrar" class="w-1/3 py-3 text-3xl rounded-md text-white font-black  bg-blue-700"><i
+                            class="bi bi-funnel-fill"></i></button>
+
+                    <button id="btnImprimir" class="w-1/3 py-3 text-3xl rounded-md text-white font-black  bg-blue-700">
+                        <i class="bi bi-printer-fill"></i></button>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="linha-2" class="py-2 text-center text-3xl">
+        <div>Total de eventos:
+            <span id="qtdEventos" class="font-bold">0</span>
+        </div>
+    </div>
+    {{ template "tabela"}}
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.30.1/moment-with-locales.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+<script src="/public/js/geraTabelaPdf.js"></script>
+<script src="/public/templates/relatorio/evento/evento.js"></script>
+{{ end }}
+
+{{ define "thead"}}
+<th style="width:13%;">Entrada</th>
+<th style="width:5%;">Conta</th>
+<th style="width:5%;">Cód</th>
+<th style="width:36%;">Evento</th>
+<th style="width:5%;">S/U</th>
+<th style="width:36%;">Desc. S/U</th>
+{{ end }}

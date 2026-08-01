@@ -1,0 +1,41 @@
+#coluna-direita.page-height {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#coluna-direita #formulario {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+#coluna-direita .form-height {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.fp-form-actions {
+    flex-shrink: 0;
+    margin-top: auto;
+}
+
+.fp-btn-form-action {
+    min-height: 60px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.fp-btn-form-action i {
+    font-size: 1.2rem;
+}
+
+#tabela-grupos-email select {
+    min-width: 90px;
+}

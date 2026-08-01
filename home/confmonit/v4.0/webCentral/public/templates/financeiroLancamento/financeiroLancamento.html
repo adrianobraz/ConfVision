@@ -1,0 +1,86 @@
+{{ template "pagina" . }}
+
+{{ define "body" }}
+<div class="tech-page">
+    {{ template "navbar" . }}
+
+    <div class="tech-workspace">
+        <section class="tech-col-list">
+            <div class="tech-panel">
+                <div class="tech-panel-head">
+                    <i class="bi bi-list-ul"></i> Lançamentos pendentes
+                </div>
+                <div class="tech-panel-body">
+                    <div class="tech-form-block mb-3">
+                        <label for="filtroRepLista" class="ps-1">Filtrar por representante</label>
+                        <select id="filtroRepLista" class="w-full px-3 py-2 text-center">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                    {{ template "tabela" }}
+                </div>
+            </div>
+        </section>
+
+        <section class="tech-col-form">
+            <div class="tech-panel">
+                <div class="tech-panel-head">
+                    <i class="bi bi-plus-circle"></i> Inserir lançamento
+                </div>
+                <div class="tech-panel-body">
+                    <div class="tech-form-block flex flex-col gap-2">
+                        <div>
+                            <label for="idVinculo" class="ps-1">Representante</label>
+                            <select id="idVinculo" class="w-full px-3 py-2 text-center">
+                                <option value="">Selecione...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="dadoOperacao" class="ps-1">Descrição</label>
+                            <input id="dadoOperacao" type="text" class="w-full px-3 py-2 text-center uppercase"
+                                placeholder="Descrição do lançamento" maxlength="120">
+                        </div>
+                        <div class="flex flex-col md:flex-row gap-2">
+                            <div class="w-full md:w-1/2">
+                                <label for="tipo" class="ps-1">Tipo</label>
+                                <select id="tipo" class="w-full px-3 py-2 text-center">
+                                    <option value="0">Débito</option>
+                                    <option value="1">Crédito</option>
+                                </select>
+                            </div>
+                            <div class="w-full md:w-1/2">
+                                <label for="valor" class="ps-1">Valor</label>
+                                <input id="valor" type="text" class="w-full px-3 py-2 text-center mskReal"
+                                    placeholder="0,00" maxlength="14">
+                            </div>
+                        </div>
+                        <div class="w-full flex flex-col md:flex-row gap-2 mt-2">
+                            <button id="btnLimpar" class="py-2 w-full rounded-md text-white font-black text-xl bg-red-700">
+                                <i class="bi bi-eraser-fill"></i> &nbsp; Limpar
+                            </button>
+                            <button id="btnGravar" class="py-2 w-full rounded-md text-white font-black text-xl bg-green-700">
+                                <i class="bi bi-floppy-fill"></i> &nbsp; Gravar
+                            </button>
+                        </div>
+                        <p class="text-sm opacity-70 mt-2">
+                            O lançamento entra na próxima fatura do representante (fechamento S004).
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+<script src="/public/templates/financeiroLancamento/financeiroLancamento.js"></script>
+{{ end }}
+
+{{ define "thead" }}
+<th class="py-2 w-3/12 text-sm">Representante</th>
+<th class="py-2 w-4/12 text-sm">Descrição</th>
+<th class="py-2 w-2/12 text-sm">Valor</th>
+<th class="py-2 w-2/12 text-sm">Data</th>
+<th class="py-2 w-1/12 text-sm">Ação</th>
+{{ end }}
+
+{{ define "tbody" }}
+{{ end }}

@@ -1,0 +1,27 @@
+{{ define "navbar" }}
+<nav id="navbar" class="h-[4rem] bg-blue-950" style="z-index: 1;">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+
+
+            <a id="navBarLink" href="/home" class="text-4xl font-black text-white flex items-center">
+                <i class="bi bi-house"></i>
+                
+            </a>
+
+            <div class="text-xl font-black text-white flex items-center">{{ .NavbarTitulo }}</div>
+
+            <a href="/logout"
+                class="border-2 border-blue-400 hover:bg-blue-700 text-white px-6 py-2 rounded-md text-sm font-medium transition duration-300 ease-in-out  md:flex">Sair</a>
+
+
+
+        </div>
+    </div>
+
+
+</nav>
+{{ end }}
+
+{{ block "menuIntes" . }}
+{{ end }}

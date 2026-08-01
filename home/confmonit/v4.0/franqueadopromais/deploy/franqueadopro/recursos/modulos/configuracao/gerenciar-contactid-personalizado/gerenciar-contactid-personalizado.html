@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="pt-br">
+
+<head>
+    {{ template "head" . }}
+    <link rel="stylesheet" href="/recursos/modulos/configuracao/gerenciar-contactid-personalizado/gerenciar-contactid-personalizado.css">
+</head>
+
+<body>
+    {{ template "variaveis-controle" . }}
+    <input id="id-contactid-personalizado" type="hidden" value="">
+    {{ template "nav-bar" . }}
+    {{ template "sub-menu-fluid" }}
+
+    <!-- CONTAINER PRINCIPAL -->
+    <div class="container-principal">
+
+        <!-- ROW PRINCIPAL -->
+        <div class="row text-center mx-0">
+
+            <!-- COLUNA ESQUERDA -->
+            <div id="coluna-direita" class="col-lg-8 mt-2">
+
+                <div class="table-responsive tab-height">
+                    <table class="table table-bordered table-sm">
+                        <thead class="table-dark">
+                            <th style="width: 10%;">Evento</th>
+                            <th style="width: 70%;">Descricao</th>
+                            <th style="width: 8%;">Prior.</th>
+                            <th colspan="2">Ações</th>
+                        </thead>
+                        <tbody>
+                            <!-- preenchido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+            </div><!-- COLUNA ESQUERDA -->
+
+
+            <!-- COLUNA DIREITA -->
+            <div id="coluna-esquerda" class="col-lg-4 mt-2 bg-form page-height">
+                <form id="formulario" class="px-4 pt-4">
+                    <!-- FORMULARIO -->
+                    <div class="table-responsive form-height">
+                        <div class="row mx-0">
+
+                            <div class="col-lg-12 mb-1 text-start editando">
+                                <label for="busca-modalidade" class="form-label mb-0">
+                                    Modalidade do Evento:
+                                </label>
+                                <div class="position-relative">
+                                    <input type="text" autocomplete="off"
+                                        class="form-control form-control-sm text-uppercase text-center"
+                                        id="busca-modalidade"
+                                        placeholder="Pesquisar modalidade...">
+                                    <input type="hidden" id="idContactidPadrao" value="NOVO">
+                                    <ul id="lista-modalidades" class="fp-combo-list d-none"></ul>
+                                </div>
+                            </div>
+
+                            <div id="personaliza-nivel" class="col-lg-6 mb-1 text-start">
+                                <label for="nivel" class="form-label mb-0">
+                                    Prioridade:
+                                </label>
+                                <select id="nivel" maxlength="50"
+                                    class="form-control form-control-sm text-uppercase text-center">
+                                    <option value="0">PRIORIDADE 0</option>
+                                    <option value="1">PRIORIDADE 1</option>
+                                    <option value="2">PRIORIDADE 2</option>
+                                    <option value="3">PRIORIDADE 3</option>
+                                    <option value="4">PRIORIDADE 4</option>
+                                    <option value="5">PRIORIDADE 5</option>
+                                </select>
+                            </div>
+
+                            <div class="col-lg-6 mb-1 text-start">
+                                <label for="grupo" class="form-label mb-0">
+                                    Grupo:
+                                </label>
+                                <select id="grupo" class="form-control form-control-sm text-uppercase text-center">
+                                </select>
+                            </div>
+
+                            <div class="col-lg-6 mb-1 text-start ">
+                                <label for="tipo" class="form-label mb-0">
+                                    Tipo:
+                                </label>
+                                <select id="tipo"
+                                    class="form-control form-control-sm text-uppercase text-center">
+                                    <option value="1">EVENTO</option>
+                                    <option value="3">RESTAURE</option>
+                                </select>
+                            </div>
+
+                            <div class="col-lg-6 mb-2 text-start personalizado">
+                                <label for="codigo" class="form-label mb-0">
+                                    Codigo:
+                                </label>
+                                <input id="codigo" type="text" maxlength="3"
+                                    class="form-control form-control-sm text-uppercase text-center" value=""
+                                    placeholder="XXX">
+                            </div>
+
+                            <div class="col-lg-12 mb-2 text-start personalizado">
+                                <label for="descricao" class="form-label mb-0">
+                                    Descricao:
+                                </label>
+                                <textarea id="descricao" rows="2" maxlength="70"
+                                    class="form-control form-control-sm text-uppercase"
+                                    placeholder="Breve descrição do evento" value="">
+                                </textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- /FORMULARIO -->
+
+                    <!-- CONTROLES -->
+                    <div class="row g-3 fp-form-actions mx-0 pb-3">
+                        <div class="col-12">
+                            <hr class="my-2">
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <button id="btn-limpar" class="btn btn-danger w-100 fp-btn-form-action" type="button">
+                                <i class="bi bi-eraser-fill"></i>
+                                &nbsp; Limpar
+                            </button>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <button id="btn-gravar" class="btn btn-success w-100 fp-btn-form-action" type="button">
+                                <i class="bi bi-save-fill"></i>
+                                &nbsp; Gravar
+                            </button>
+                        </div>
+                    </div>
+                    <!-- CONTROLES -->
+                </form>
+            </div><!-- COLUNA DIREITA -->
+        </div>
+        <!-- R/OW PRINCIPAL -->
+
+    </div>
+    <!-- /CONTAINER PRINCIPAL -->
+
+    {{ template "link-js" . }}
+    <script
+        src="/recursos/modulos/configuracao/gerenciar-contactid-personalizado/gerenciar-contactid-personalizado.js"></script>
+</body>
+
+</html>

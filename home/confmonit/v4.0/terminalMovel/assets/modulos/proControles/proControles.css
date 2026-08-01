@@ -1,0 +1,111 @@
+#proControles_status {
+    border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.proControles_infoRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.proControles_actionRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+#proControles_cpRelogio {
+    text-align: left;
+    font-size: 0.95rem;
+}
+
+#proControles_cpAtendente {
+    text-align: center;
+    min-width: 110px;
+    max-width: 56%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#proControles_topActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+}
+
+.proControles_topBtn {
+    width: 52px;
+    height: 52px;
+    padding: 0;
+    font-size: 1.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#proControles_cpQtdEventos {
+    width: 52px;
+    height: 52px;
+    font-size: 1.6rem;
+    background: rgba(0, 0, 0, 0.2);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+#proControles_ledA.ledOff {
+    color: #8b9197 !important;
+}
+
+#proControles_footerMenu {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1040;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+    padding: 8px;
+}
+
+.proControles_menuBtn {
+    min-height: 72px;
+    font-size: 1.6rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@media screen and (max-width: 480px) {
+    .proControles_topBtn {
+        width: 46px;
+        height: 46px;
+        font-size: 1.1rem;
+    }
+
+    #proControles_cpQtdEventos {
+        width: 46px;
+        height: 46px;
+        font-size: 1.35rem;
+    }
+
+    #proControles_cpRelogio {
+        font-size: 0.85rem;
+    }
+
+    #proControles_cpAtendente {
+        font-size: 0.9rem;
+        min-width: 92px;
+    }
+}
+

@@ -1,0 +1,67 @@
+.fp-ds-card {
+    background: var(--fp-surface);
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 12px;
+    padding: 1.5rem;
+    position: relative;
+}
+
+.fp-ds-loading {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, .55);
+    border-radius: 12px;
+    backdrop-filter: blur(2px);
+}
+
+.fp-ds-loading-panel {
+    width: min(320px, 90%);
+    text-align: center;
+    padding: 1.25rem 1.5rem;
+    background: var(--fp-surface, #1e293b);
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+}
+
+.fp-ds-progress {
+    height: 6px;
+    background: rgba(255, 255, 255, .12);
+}
+
+.fp-ds-progress .progress-bar {
+    width: 100%;
+}
+
+.fp-ds-dns-box {
+    background: rgba(0, 0, 0, .2);
+    border-radius: 8px;
+    padding: .75rem 1rem;
+}
+
+.fp-ds-dns-table {
+    margin-bottom: 0;
+    color: inherit;
+}
+
+.fp-ds-dns-table th,
+.fp-ds-dns-table td {
+    vertical-align: middle;
+}
+
+.fp-ds-readonly {
+    background-color: rgba(0, 0, 0, .12) !important;
+    cursor: not-allowed;
+}
+
+#ds-dominio-remover {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    line-height: 1;
+    border-radius: 50%;
+}

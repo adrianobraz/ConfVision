@@ -1,0 +1,99 @@
+<link rel="stylesheet" href="/assets/modulos/ctrClienteBuscar/ctrClienteBuscar.css">
+
+<div id="ctrClienteBuscar" class="h-100  d-flex flex-column text-center">
+    <div id="ctrClienteBuscar_titulo" class="fmt-titulo">
+        <div class="py-2">Buscar Cliente</div>
+    </div>
+
+    <div class="h-100 container-fluid fmt-color">
+
+        <div class="col mt-3">
+            <div id="ctrClienteBuscar_boxFiltroTipo">
+                <div class="form-check form-check-inline">
+                    <label class="form-check-label" for="">Buscar por: </label>
+                </div>
+
+                <div class="form-check form-check-inline form-switch">
+                    <input class="form-check-input form-control-color" type="radio" role="switch" name="filtro" value="nome"
+                        checked>
+                    <label class="form-check-label" for="">Nome</label>
+                </div>
+
+                <div class="form-check form-check-inline form-switch">
+                    <input class="form-check-input" type="radio" role="switch" name="filtro" value="celular">
+                    <label class="form-check-label" for="">Celular</label>
+                </div>
+
+                <div class="form-check form-check-inline form-switch">
+                    <input 
+                        class="form-check-input " 
+                        type="radio" 
+                        role="switch" 
+                        name="filtro" 
+                        value="conta"
+                    >
+                    <label class="form-check-label" for="">Conta</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="col mt-3">
+            <div id="ctrClienteBuscar_boxBusca">
+                <div class="input-group mb-3">
+                    <input 
+                        id="ctrClienteBuscar_filtroValor" 
+                        type="text" 
+                        class="form-control fw-bold fs-5 text-center fmt-campo"
+                        placeholder="Entre com o nome do cliente">
+
+                    <button class="btn btn-success text-bg-success" type="button" id="ctrClienteBuscar_btnFiltrar"><i
+                            class="bi bi-check2-circle"></i> &nbsp; Selecionar</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="ctrClienteBuscar_msgSemResultado" class="d-none">Nenhum cliente encontrado para a busca informada.</div>
+
+        <div id="ctrClienteBuscar_gridWrap" class="table-responsive mt-3 d-none">
+            <table class="table table-sm table-bordered table-dark align-middle">
+                <thead>
+                    <tr>
+                        <th 
+                            style="width: 10%;"
+                            class="fmt-thead"
+                        >Conta</th>
+                       
+                        <th 
+                            style="width: 35%;"
+                            class="fmt-thead"
+                        >Cliente</th>
+                       
+                        <th 
+                            style="width: 15%;"
+                            class="fmt-thead"
+                        >Celular</th>
+                       
+                        <th 
+                            style="width: 40%;"
+                            colspan="2"
+                            class="fmt-thead"
+                        >Franqueado</th>
+                       
+                        
+                    </tr>
+                </thead>
+                <tbody class="fs-6"> </tbody>
+            </table>
+        </div>
+        
+        <div id="ctrClienteBuscar_footer" class="h-60 col-12 mb-1 d-flex mx-1">
+            <button id="ctrClienteBuscar_btnFechar" class="flex-fill btn btn-primary text-bg-primary fs-3">
+                <i class="bi bi-x-circle"></i>
+                &nbsp; Voltar
+            </button>
+        </div>
+
+    </div>
+
+
+</div>

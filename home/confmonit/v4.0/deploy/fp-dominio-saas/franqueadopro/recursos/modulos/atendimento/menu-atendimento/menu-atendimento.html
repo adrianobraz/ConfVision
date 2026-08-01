@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-br">
+    <head>
+        {{ template "head" . }}
+    </head>
+    <body>
+        {{ template "variaveis-controle" . }}
+        {{ template "nav-bar" . }}
+
+        <div class="container-fluid container-principal">
+            <div class="row text-center g-3 py-3 justify-content-center">
+
+                <div class="col-6 col-lg-3">
+                    <a href="/CarregarGeradorEventos" class="fp-menu-card">
+                        <i class="bi bi-broadcast-pin"></i>
+                        <span>Gerar Evento</span>
+                    </a>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <a href="/carregar-inteligencia-artificial" class="fp-menu-card">
+                        <i class="bi bi-robot"></i>
+                        <span>Inteligência Artificial</span>
+                    </a>
+                </div>
+
+            </div>
+        </div><!-- container -->
+
+        {{ template "link-js" . }}
+        <script
+            src="/recursos/modulos/atendimento/menu-atendimento/menu-atendimento.js"></script>
+    </body>
+</html>

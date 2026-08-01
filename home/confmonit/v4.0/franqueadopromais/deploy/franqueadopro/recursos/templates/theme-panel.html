@@ -1,0 +1,36 @@
+{{ define "theme-panel" }}
+<div id="fp-theme-panel" class="fp-theme-panel">
+    <h6><i class="bi bi-palette"></i>&nbsp; Tema</h6>
+
+    <div id="fp-theme-presets" class="fp-theme-presets"></div>
+
+    <div class="fp-theme-row">
+        <label for="fp-color-primary">Cor principal</label>
+        <input type="color" id="fp-color-primary" value="#3b82f6">
+    </div>
+
+    <div class="fp-theme-row">
+        <label for="fp-color-navbar">Barra superior</label>
+        <input type="color" id="fp-color-navbar" value="#0f1117">
+    </div>
+
+    <div class="fp-theme-row">
+        <label for="fp-color-bg">Fundo</label>
+        <input type="color" id="fp-color-bg" value="#161a21">
+    </div>
+
+    <div class="fp-theme-row">
+        <label for="fp-color-surface">Cards / paineis</label>
+        <input type="color" id="fp-color-surface" value="#222630">
+    </div>
+
+    <div class="fp-theme-row">
+        <label for="fp-color-text">Texto</label>
+        <input type="color" id="fp-color-text" value="#e8eaed">
+    </div>
+
+    <button type="button" id="fp-theme-reset" class="fp-theme-reset">
+        <i class="bi bi-arrow-counterclockwise"></i>&nbsp; Restaurar padrao
+    </button>
+</div>
+{{ end }}

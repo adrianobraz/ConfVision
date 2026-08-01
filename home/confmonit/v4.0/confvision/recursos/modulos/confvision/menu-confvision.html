@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    {{ template "head" . }}
+    {{ template "confvision-head-extra" . }}
+</head>
+<body class="cv-app">
+    {{ template "variaveis-controle" . }}
+    {{ template "confvision-config" . }}
+    {{ template "confvision-nav" . }}
+
+    <main class="cv-main cv-main-home">
+        <div class="cv-dashboard-hero">
+            <p class="cv-page-eyebrow" id="display-nome-franqueado"></p>
+            <h2 id="cv-home-titulo">Painel de monitoramento</h2>
+            <p id="cv-home-subtitulo">Câmeras inteligentes · Eventos · Transmissão ao vivo</p>
+        </div>
+
+        <div class="cv-home-split">
+            <section class="cv-home-split-left">
+                <div class="cv-cards cv-cards-menu" id="cv-home-cards-fra">
+                    <button type="button" class="cv-card-link cv-home-menu-btn cv-home-desktop-only" data-home-menu="cadastros">
+                        <div class="cv-card">
+                            <div class="cv-card-icon clientes"><i class="bi bi-folder-plus"></i></div>
+                            <h3>Cadastros <i class="bi bi-chevron-right cv-home-menu-chevron"></i></h3>
+                            <p>Clientes, dispositivos, setores e câmeras</p>
+                        </div>
+                    </button>
+                    <button type="button" class="cv-card-link cv-home-menu-btn cv-home-desktop-only" data-home-menu="relatorios">
+                        <div class="cv-card">
+                            <div class="cv-card-icon armado"><i class="bi bi-bar-chart"></i></div>
+                            <h3>Relatórios <i class="bi bi-chevron-right cv-home-menu-chevron"></i></h3>
+                            <p>Eventos, armado, licenças e faturas</p>
+                        </div>
+                    </button>
+                    <button type="button" class="cv-card-link cv-home-menu-btn cv-home-desktop-only" data-home-menu="configuracoes">
+                        <div class="cv-card">
+                            <div class="cv-card-icon cameras"><i class="bi bi-sliders"></i></div>
+                            <h3>Configurações <i class="bi bi-chevron-right cv-home-menu-chevron"></i></h3>
+                            <p>Câmera/Licença, marca, domínio e gravação</p>
+                        </div>
+                    </button>
+                    <button type="button" class="cv-card-link cv-home-menu-btn cv-home-desktop-only" data-home-menu="monitoramento">
+                        <div class="cv-card">
+                            <div class="cv-card-icon gravacoes"><i class="bi bi-display"></i></div>
+                            <h3>Monitoramento <i class="bi bi-chevron-right cv-home-menu-chevron"></i></h3>
+                            <p>Ao vivo, DVR e timeline</p>
+                        </div>
+                    </button>
+                    <a href="/ao-vivo" class="cv-card-link cv-home-quick cv-home-mobile-only">
+                        <div class="cv-card">
+                            <div class="cv-card-icon live"><i class="bi bi-broadcast"></i></div>
+                            <h3>Ao vivo</h3>
+                            <p>Assistir em tempo real</p>
+                        </div>
+                    </a>
+                    <a href="/eventos" class="cv-card-link cv-home-quick cv-home-mobile-only">
+                        <div class="cv-card">
+                            <div class="cv-card-icon eventos"><i class="bi bi-activity"></i></div>
+                            <h3>Eventos</h3>
+                            <p>Histórico de alertas</p>
+                        </div>
+                    </a>
+                    <a href="/gravacoes/dvr" class="cv-card-link cv-home-quick cv-home-mobile-only">
+                        <div class="cv-card">
+                            <div class="cv-card-icon gravacoes"><i class="bi bi-play-btn"></i></div>
+                            <h3>DVR</h3>
+                            <p>Player e linha do tempo</p>
+                        </div>
+                    </a>
+                </div>
+
+                <div class="cv-cards cv-cards-menu d-none" id="cv-home-cards-cli">
+                    <a href="/eventos" class="cv-card-link cv-home-quick">
+                        <div class="cv-card">
+                            <div class="cv-card-icon eventos"><i class="bi bi-activity"></i></div>
+                            <h3>Eventos</h3>
+                            <p>Alertas das suas câmeras</p>
+                        </div>
+                    </a>
+                    <a href="/gravacoes/dvr" class="cv-card-link cv-home-quick">
+                        <div class="cv-card">
+                            <div class="cv-card-icon gravacoes"><i class="bi bi-play-btn"></i></div>
+                            <h3>DVR</h3>
+                            <p>Player e linha do tempo</p>
+                        </div>
+                    </a>
+                    <a href="/ao-vivo" class="cv-card-link cv-home-quick">
+                        <div class="cv-card">
+                            <div class="cv-card-icon live"><i class="bi bi-broadcast"></i></div>
+                            <h3>Ao vivo</h3>
+                            <p>Assistir suas câmeras</p>
+                        </div>
+                    </a>
+                    <a href="/gravacoes/timeline" class="cv-card-link cv-home-desktop-only">
+                        <div class="cv-card">
+                            <div class="cv-card-icon gravacoes"><i class="bi bi-collection-play"></i></div>
+                            <h3>Timeline</h3>
+                            <p>Buscar e assistir gravações</p>
+                        </div>
+                    </a>
+                    <a href="/relatorio-armado" class="cv-card-link cv-home-desktop-only">
+                        <div class="cv-card">
+                            <div class="cv-card-icon armado"><i class="bi bi-shield-lock"></i></div>
+                            <h3>Armado</h3>
+                            <p>Armar e desarmar dispositivos</p>
+                        </div>
+                    </a>
+                </div>
+            </section>
+
+            <section class="cv-home-split-right">
+                <div class="cv-section-title cv-section-title-compact">
+                    <h2 id="cv-home-clientes-titulo">Clientes com câmeras</h2>
+                    <p id="cv-home-clientes-desc">Armar/desarmar e Editar</p>
+                </div>
+                <div class="cv-home-filtros-estado" id="cv-home-filtros-estado">
+                    <span class="cv-home-filtros-label">Filtrar</span>
+                    <button type="button" class="cv-home-filtro-chip cv-home-filtro-alerta is-active" data-filtro="desarmado" title="Câmeras analíticas com dispositivo desarmado">
+                        <i class="bi bi-unlock-fill"></i> Desarmado
+                    </button>
+                    <button type="button" class="cv-home-filtro-chip cv-home-filtro-alerta is-active" data-filtro="pausado" title="Detecção analítica pausada">
+                        <i class="bi bi-pause-fill"></i> Pausado
+                    </button>
+                    <button type="button" class="cv-home-filtro-chip cv-home-filtro-ok is-active" data-filtro="armado" title="Armado e detecção ativa">
+                        <i class="bi bi-lock-fill"></i> Armado
+                    </button>
+                    <button type="button" class="cv-home-filtro-chip cv-home-filtro-ok is-active" data-filtro="despausado" title="Detecção analítica ativa (24h)">
+                        <i class="bi bi-play-fill"></i> Ativo
+                    </button>
+                </div>
+                <div id="box-clientes-cameras-loading" class="cv-empty">
+                    <i class="bi bi-arrow-repeat cv-snapshot-spin"></i> Carregando câmeras…
+                </div>
+                <div id="box-clientes-cameras-empty" class="cv-empty d-none">
+                    Nenhum cliente com câmera cadastrada.
+                </div>
+                <div id="box-clientes-cameras-filtro-empty" class="cv-empty d-none">
+                    Nenhuma câmera corresponde aos filtros selecionados.
+                </div>
+                <div id="box-clientes-cameras" class="cv-home-clientes"></div>
+            </section>
+        </div>
+    </main>
+
+    <div class="cv-home-drawer-backdrop" id="cv-home-drawer-backdrop" hidden></div>
+    <aside class="cv-home-drawer" id="cv-home-drawer" hidden aria-hidden="true">
+        <div class="cv-home-drawer-head">
+            <h3 id="cv-home-drawer-title">Menu</h3>
+            <button type="button" class="cv-btn-ghost cv-btn-sm" id="cv-home-drawer-close" aria-label="Fechar">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <nav class="cv-home-drawer-links" id="cv-home-drawer-links"></nav>
+    </aside>
+
+    {{ template "link-js" . }}
+    <script src="/recursos/modulos/confvision/urls.js?v=20260727mob4"></script>
+    <script src="/recursos/modulos/confvision/armado.js?v=20260730pausa7"></script>
+    <script src="/recursos/modulos/confvision/menu.js?v=20260731nav1"></script>
+</body>
+</html>

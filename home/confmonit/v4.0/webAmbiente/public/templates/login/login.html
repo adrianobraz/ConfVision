@@ -1,0 +1,33 @@
+{{ template "pagina" . }}
+
+{{ define "body" }}
+<div class="login-page">
+    <div class="login-hero">
+        <img src="/public/img/capaCentral2.jpg" alt="ConfMonit Ambiente">
+        <div class="login-hero-overlay"></div>
+        <div class="login-hero-text">
+            <h1>ConfMonit Ambiente</h1>
+            <p>Monitoramento visual de plantas e setores em tempo real.</p>
+        </div>
+    </div>
+
+    <div class="login-panel">
+        <div class="login-card">
+            <i class="bi bi-person-circle login-icon"></i>
+            <h2>Login Operador</h2>
+            <p class="login-desc">Acesso ao monitoramento de mapas</p>
+
+            <input id="email" type="text" placeholder="E-mail" class="form-input">
+            <input id="senha" type="password" placeholder="Senha" class="form-input">
+
+            <button id="btnLogin" type="button" class="btn-login" onclick="logar()">
+                <i class="bi bi-lock-fill"></i> Entrar
+            </button>
+        </div>
+    </div>
+</div>
+<script src="/public/templates/login/login.js"></script>
+{{ end }}
+
+{{ define "menuIntes" }}
+{{ end }}

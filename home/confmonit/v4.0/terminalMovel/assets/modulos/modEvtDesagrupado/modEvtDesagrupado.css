@@ -1,0 +1,79 @@
+#modEvtDesagrupado {
+  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: #212529;
+  opacity: 1;
+}
+
+#modEvtDesagrupado .table-line {
+  font-size: 12px;
+}
+
+.modEvtDesagrupado-dataRow td {
+  vertical-align: middle;
+}
+
+#modEvtDesagrupado_titulo {
+  height: 40px;
+  flex: 0 0 40px;
+  text-align: center;
+  background-color: black;
+}
+
+#modEvtDesagrupado_fixos {
+  flex: 0 0 auto;
+  padding: 6px 5px 2px;
+  text-align: center;
+}
+
+#modEvtDesagrupado_responsivo {
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 5px;
+  flex: 1 1 auto;
+  min-height: 0;
+  background-color: inherit;
+  align-items: start;
+  text-align: center;
+  overflow-y: auto;
+}
+
+#modEvtDesagrupado_camBox {
+  display: block;
+  height: 60px;
+  flex: 0 0 60px;
+  padding: 5px;
+}
+
+#modEvtDesagrupado_camBox .btn {
+  height: 100%;
+  font-size: 0.85rem;
+  width: 100%;
+}
+
+.modEvtDesagrupado-gravacaoCell {
+  text-align: center;
+}
+
+.modEvtDesagrupado-actionBtn {
+  min-height: 40px;
+  font-size: 0.8rem;
+  padding: 6px 10px;
+  color: #fff !important;
+}
+
+#modEvtDesagrupado_boxBtn {
+  padding: 5px;
+  height: 60px;
+  flex: 0 0 60px;
+  background-color: inherit;
+}
+
+#modEvtDesagrupado_boxBtn button {
+  height: 100%;
+  width: 100%;
+  flex: 1 1 100%;
+}

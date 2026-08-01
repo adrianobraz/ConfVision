@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="pt-br">
+
+<head>
+    {{ template "head" . }}
+</head>
+
+<body>
+    {{ template "variaveis-controle" . }}
+    {{ template "nav-bar" . }}
+
+    <div class="container-fluid container-principal py-3 my-3 px-3">
+
+        <!-- Cabecalho: franqueado + boas-vindas -->
+        <div class="row align-items-center mb-2">
+            <div class="col-lg-7 mb-2">
+                <div id="display-nome-monitoramento" class="fp-nome-franqueado-header"></div>
+            </div>
+            <div class="col-lg-5 text-lg-end mb-2">
+                <div class="fp-welcome">
+                    <span id="display-nome-usuario" class="text-capitalize"></span>,
+                    bem-vindo à sua Área Administrativa
+                </div>
+            </div>
+        </div>
+
+        <hr>
+
+        <!-- Informativo (aparece somente quando ha mensagem do backend) -->
+        <div id="informativo-container" class="mb-3 d-none">
+            <textarea id="display-informativo" rows="3" disabled
+                class="form-control bg-vd-claro text-success fw-bold text-center"
+                style="resize: none;"></textarea>
+        </div>
+
+        <!-- Menu principal (cards que seguem o tema) -->
+        <div class="row g-3 mb-2">
+            <div class="col-6 col-lg-3">
+                <a href="/carregar-menu-configuracoes" class="fp-menu-card">
+                    <i class="bi bi-gear-fill"></i>
+                    <span>Parâmetros Técnicos</span>
+                </a>
+            </div>
+            <div class="col-6 col-lg-3">
+                <a href="/carregar-menu-atendimento" class="fp-menu-card">
+                    <i class="bi bi-headset"></i>
+                    <span>Atendimento</span>
+                </a>
+            </div>
+            <div class="col-6 col-lg-3">
+                <a href="/carregar-menu-minha-empresa" class="fp-menu-card">
+                    <i class="bi bi-briefcase-fill"></i>
+                    <span>Minha Empresa</span>
+                </a>
+            </div>
+            <div class="col-6 col-lg-3">
+                <a href="/carregar-menu-relatorio" class="fp-menu-card">
+                    <i class="bi bi-journal-text"></i>
+                    <span>Relatórios</span>
+                </a>
+            </div>
+        </div>
+
+        <hr>
+
+        <!-- Dashboard: 3 colunas lado a lado -->
+        <div class="row g-2 fp-dash-cols">
+
+            <!-- Coluna 1: Sem Comunicação -->
+            <div class="col-12 col-lg-4">
+                <div class="fp-dash-col">
+                    <div class="fp-dash-section-title mb-2">
+                        <i class="bi bi-wifi-off"></i>
+                        <span>Sem Comunicação</span>
+                    </div>
+                    <div class="fp-dash-kpi-wrap" id="dash-sc-wrap">
+                        <a href="/carregar-dashboard-sem-comunicacao?faixa=1" class="fp-dash-kpi fp-dash-kpi-sm" data-faixa="1" id="dash-sc-card-1">
+                            <span class="fp-dash-kpi-val" id="dash-sc-1"><span class="spinner-border spinner-border-sm"></span></span>
+                            <span class="fp-dash-kpi-lbl">+1h</span>
+                        </a>
+                        <a href="/carregar-dashboard-sem-comunicacao?faixa=3" class="fp-dash-kpi fp-dash-kpi-sm" data-faixa="3" id="dash-sc-card-3">
+                            <span class="fp-dash-kpi-val" id="dash-sc-3"><span class="spinner-border spinner-border-sm"></span></span>
+                            <span class="fp-dash-kpi-lbl">+3h</span>
+                        </a>
+                        <a href="/carregar-dashboard-sem-comunicacao?faixa=6" class="fp-dash-kpi fp-dash-kpi-sm" data-faixa="6" id="dash-sc-card-6">
+                            <span class="fp-dash-kpi-val" id="dash-sc-6"><span class="spinner-border spinner-border-sm"></span></span>
+                            <span class="fp-dash-kpi-lbl">+6h</span>
+                        </a>
+                        <a href="/carregar-dashboard-sem-comunicacao?faixa=12" class="fp-dash-kpi fp-dash-kpi-sm" data-faixa="12" id="dash-sc-card-12">
+                            <span class="fp-dash-kpi-val" id="dash-sc-12"><span class="spinner-border spinner-border-sm"></span></span>
+                            <span class="fp-dash-kpi-lbl">+12h</span>
+                        </a>
+                        <a href="/carregar-dashboard-sem-comunicacao?faixa=24" class="fp-dash-kpi fp-dash-kpi-sm fp-dash-kpi-alerta" data-faixa="24" id="dash-sc-card-24">
+                            <span class="fp-dash-kpi-val" id="dash-sc-24"><span class="spinner-border spinner-border-sm"></span></span>
+                            <span class="fp-dash-kpi-lbl">+24h</span>
+                        </a>
+                        <a href="/carregar-dashboard-sem-comunicacao?faixa=todos" class="fp-dash-kpi fp-dash-kpi-sm" data-faixa="todos" id="dash-sc-card-todos" title="Ver todos acima de 24h">
+                            <span class="fp-dash-kpi-val"><i class="bi bi-plus-lg"></i></span>
+                            <span class="fp-dash-kpi-lbl">Todos</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coluna 2: Resumo -->
+            <div class="col-12 col-lg-4">
+                <div class="fp-dash-col">
+                    <div class="fp-dash-section-title mb-2">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Resumo</span>
+                    </div>
+                    <div class="fp-dash-resumo-body">
+                        <div class="fp-dash-resumo-clientes">
+                            <div class="fp-dash-kpi fp-dash-kpi-sm fp-dash-kpi-clientes">
+                                <span class="fp-dash-kpi-val" id="dash-total-clientes"><span class="spinner-border spinner-border-sm"></span></span>
+                                <span class="fp-dash-kpi-lbl">Clientes</span>
+                            </div>
+                        </div>
+                        <div class="fp-dash-subgroup">
+                            <div class="fp-dash-subgroup-title">
+                                <i class="bi bi-shield-fill"></i>
+                                <span>Alarmes</span>
+                            </div>
+                            <div class="fp-dash-kpi-wrap fp-dash-kpi-wrap-sub">
+                                <a href="/carregar-listar-dispositivos-armados" class="fp-dash-kpi fp-dash-kpi-sm" title="Alarmes Armados">
+                                    <span class="fp-dash-kpi-val" id="dash-alarmes-armados"><span class="spinner-border spinner-border-sm"></span></span>
+                                    <span class="fp-dash-kpi-lbl">Armados</span>
+                                </a>
+                                <a href="/carregar-listar-dispositivos-desarmados" class="fp-dash-kpi fp-dash-kpi-sm" title="Alarmes Desarmados">
+                                    <span class="fp-dash-kpi-val" id="dash-alarmes-desarmados"><span class="spinner-border spinner-border-sm"></span></span>
+                                    <span class="fp-dash-kpi-lbl">Desarmados</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="fp-dash-subgroup">
+                            <div class="fp-dash-subgroup-title">
+                                <i class="bi bi-lightning-fill"></i>
+                                <span>Eventos</span>
+                            </div>
+                            <div class="fp-dash-kpi-wrap fp-dash-kpi-wrap-sub">
+                                <a href="/carregar-dashboard-eventos?periodo=hoje" class="fp-dash-kpi fp-dash-kpi-sm">
+                                    <span class="fp-dash-kpi-val" id="dash-evt-hoje"><span class="spinner-border spinner-border-sm"></span></span>
+                                    <span class="fp-dash-kpi-lbl">Hoje</span>
+                                </a>
+                                <a href="/carregar-dashboard-eventos?periodo=ontem" class="fp-dash-kpi fp-dash-kpi-sm">
+                                    <span class="fp-dash-kpi-val" id="dash-evt-ontem"><span class="spinner-border spinner-border-sm"></span></span>
+                                    <span class="fp-dash-kpi-lbl">Ontem</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="fp-dash-resumo-clientes fp-dash-resumo-pct">
+                            <div class="fp-dash-kpi fp-dash-kpi-sm fp-dash-kpi-clientes">
+                                <span class="fp-dash-kpi-val" id="dash-pct-armado"><span class="spinner-border spinner-border-sm"></span></span>
+                                <span class="fp-dash-kpi-lbl">% Armado</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coluna 3: Eventos por grupo -->
+            <div class="col-12 col-lg-4">
+                <div class="fp-dash-col">
+                    <div class="fp-dash-section-title mb-2">
+                        <i class="bi bi-lightning-fill"></i>
+                        <span>Eventos / 7 dias</span>
+                    </div>
+                    <div class="fp-dash-kpi-wrap">
+                        <a href="/carregar-dashboard-eventos?grupo=ALARME&dias=7" class="fp-dash-kpi fp-dash-kpi-sm" data-grupo="ALARME">
+                            <span class="fp-dash-kpi-val" id="dash-evt-ALARME"><span class="spinner-border spinner-border-sm"></span></span>
+                            <span class="fp-dash-kpi-lbl">Alarme</span>
+                        </a>
+                        <a href="/carregar-dashboard-eventos?grupo=ARME&dias=7" class="fp-dash-kpi fp-dash-kpi-sm" data-grupo="ARME">
+                            <span class="fp-dash-kpi-val" id="dash-evt-ARME"><span class="spinner-border spinner-border-sm"></span></span>
+                            <span class="fp-dash-kpi-lbl">Arme</span>
+                        </a>
+                        <a href="/carregar-dashboard-eventos?grupo=DESARME&dias=7" class="fp-dash-kpi fp-dash-kpi-sm" data-grupo="DESARME">
+                            <span class="fp-dash-kpi-val" id="dash-evt-DESARME"><span class="spinner-border spinner-border-sm"></span></span>
+                            <span class="fp-dash-kpi-lbl">Desarme</span>
+                        </a>
+                        <a href="/carregar-dashboard-eventos?grupo=EMERGENCIA&dias=7" class="fp-dash-kpi fp-dash-kpi-sm" data-grupo="EMERGENCIA">
+                            <span class="fp-dash-kpi-val" id="dash-evt-EMERGENCIA"><span class="spinner-border spinner-border-sm"></span></span>
+                            <span class="fp-dash-kpi-lbl">Emerg.</span>
+                        </a>
+                        <a href="/carregar-dashboard-eventos?grupo=FALHAS&dias=7" class="fp-dash-kpi fp-dash-kpi-sm" data-grupo="FALHAS">
+                            <span class="fp-dash-kpi-val" id="dash-evt-FALHAS"><span class="spinner-border spinner-border-sm"></span></span>
+                            <span class="fp-dash-kpi-lbl">Falhas</span>
+                        </a>
+                        <a href="/carregar-dashboard-eventos?grupo=GERAL&dias=7" class="fp-dash-kpi fp-dash-kpi-sm" data-grupo="GERAL">
+                            <span class="fp-dash-kpi-val" id="dash-evt-GERAL"><span class="spinner-border spinner-border-sm"></span></span>
+                            <span class="fp-dash-kpi-lbl">Geral</span>
+                        </a>
+                        <a href="/carregar-dashboard-eventos?grupo=MEDICO&dias=7" class="fp-dash-kpi fp-dash-kpi-sm" data-grupo="MEDICO">
+                            <span class="fp-dash-kpi-val" id="dash-evt-MEDICO"><span class="spinner-border spinner-border-sm"></span></span>
+                            <span class="fp-dash-kpi-lbl">Médico</span>
+                        </a>
+                        <a href="/carregar-dashboard-eventos?grupo=PANICO&dias=7" class="fp-dash-kpi fp-dash-kpi-sm fp-dash-kpi-alerta" data-grupo="PANICO">
+                            <span class="fp-dash-kpi-val" id="dash-evt-PANICO"><span class="spinner-border spinner-border-sm"></span></span>
+                            <span class="fp-dash-kpi-lbl">Pânico</span>
+                        </a>
+                        <a href="/carregar-dashboard-eventos?grupo=RESTAURE&dias=7" class="fp-dash-kpi fp-dash-kpi-sm" data-grupo="RESTAURE">
+                            <span class="fp-dash-kpi-val" id="dash-evt-RESTAURE"><span class="spinner-border spinner-border-sm"></span></span>
+                            <span class="fp-dash-kpi-lbl">Restaure</span>
+                        </a>
+                        <a href="/carregar-dashboard-eventos?grupo=SETUP&dias=7" class="fp-dash-kpi fp-dash-kpi-sm" data-grupo="SETUP">
+                            <span class="fp-dash-kpi-val" id="dash-evt-SETUP"><span class="spinner-border spinner-border-sm"></span></span>
+                            <span class="fp-dash-kpi-lbl">Setup</span>
+                        </a>
+                        <a href="/carregar-dashboard-eventos?grupo=TESTE&dias=7" class="fp-dash-kpi fp-dash-kpi-sm" data-grupo="TESTE">
+                            <span class="fp-dash-kpi-val" id="dash-evt-TESTE"><span class="spinner-border spinner-border-sm"></span></span>
+                            <span class="fp-dash-kpi-lbl">Teste</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <hr class="mt-3">
+
+        <!-- Produtos complementares (abaixo do dashboard) -->
+        <div id="fp-produtos-hub" class="mb-2"></div>
+
+    </div><!-- container -->
+
+        {{ template "link-js" . }}
+        <script src="/recursos/js/auxiliares/produtos-hub.js"></script>
+        <script src="/recursos/js/auxiliares/sem-comunicacao.js"></script>
+        <script src="/recursos/js/auxiliares/eventos-dashboard.js"></script>
+        <script src="/recursos/modulos/menu-principal/menu-principal.js"></script>
+</body>
+
+</html>

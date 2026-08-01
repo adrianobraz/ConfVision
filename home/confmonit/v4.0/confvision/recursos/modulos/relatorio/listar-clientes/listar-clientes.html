@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-br">
+
+<head>
+    {{ template "head" . }}
+</head>
+
+<body>
+    {{ template "variaveis-controle" . }}
+    {{ template "nav-bar" . }}
+    {{ template "sub-menu" }}
+    <div class="container container-principal pt-2">
+
+        <div class="row text-center">
+            <div class="col-lg-12 d-grid gap-2 mb-1">
+                <button id="btn-imprimir" class="btn btn-primary">IMPRIMIR RELATÓRIO</button>
+            </div>
+            <div class="col-lg-12 table-responsive">
+                <table class="table table-bordered table-sm" id="tabListaCliente">
+                    <thead class="table-dark">
+                        <!-- preenchido via JS -->
+                    </thead>
+                    <tbody>
+                        <!-- preenchido via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!--div class="col-lg-2 mb-2">
+                    <button class="btn btn-primary btn-lg">IMPRIMIR</button>
+                </div-->
+        </div>
+    </div>
+    {{ template "link-js" . }}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+    <script src="/recursos/js/auxiliares/geraTabelaPdf.js"></script>
+    <script src="/recursos/modulos/relatorio/listar-clientes/listar-clientes.js"></script>
+</body>
+
+</html>

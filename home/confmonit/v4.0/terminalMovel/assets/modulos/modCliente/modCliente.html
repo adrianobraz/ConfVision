@@ -1,0 +1,102 @@
+<link rel="stylesheet" href="/assets/modulos/modCliente/modCliente.css">
+
+<div id="modCliente">
+    <div id="modCliente_titulo">
+        <h5 class="py-1">Dados do cliente</h5>
+    </div>
+
+    <div id="modCliente_responsivo" class="table-responsive">
+        <div class="col-4 mb-2 px-1 ">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-success text-bg-success">Conta:</span>
+                <input id="cliDados_cpConta" type="text" class="form-control form-control-sm bg-dark text-bg-dark">
+            </div>
+        </div>
+
+        <div class="col-8 mb-2 px-1">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-success text-bg-success">Nome:</span>
+                <input id="cliDados_cpNome" type="text" class="form-control form-control-sm bg-dark text-bg-dark">
+            </div>
+        </div>
+
+        <div class="col-6 mb-2 px-1">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-success text-bg-success">Telefone:</span>
+                <input id="cliDados_cpTelefone" type="text" class="form-control form-control-sm bg-dark text-bg-dark">
+            </div>
+        </div>
+
+        <div class="col-6 mb-2 px-1">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-success text-bg-success">Celular:</span>
+                <input id="cliDados_cpCelular" type="text" class="form-control form-control-sm bg-dark text-bg-dark">
+            </div>
+        </div>
+
+        <div class="col-12 mb-2 px-1">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-success text-bg-success">Endereço:</span>
+                <input id="cliDados_cpEndereco" type="text" class="form-control form-control-sm bg-dark text-bg-dark">
+            </div>
+        </div>
+
+        <div class="col-6 mb-2 px-1">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-success text-bg-success">Bairro:</span>
+                <input id="cliDados_cpBairoo" type="text" class="form-control form-control-sm bg-dark text-bg-dark">
+            </div>
+        </div>
+
+        <div class="col-6 mb-2 px-1">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-success text-bg-success">Cidade:</span>
+                <input id="cliDados_cpCidade" type="text" class="form-control form-control-sm bg-dark text-bg-dark">
+            </div>
+        </div>
+
+        <div class="col-12 mb-2 px-1">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-success text-bg-success">Dispositivo:</span>
+
+                <input id="cliDados_cpDispositivo" type="text" class="form-control form-control-sm bg-dark text-bg-dark"
+                    disabled>
+
+                <span class="input-group-text bg-success text-bg-success" id="cliDados_cpArmado"></span>
+
+                <button id="cliDados_btnArmar" class="btn" type="button" id="">Armar:</button>
+
+            </div>
+        </div>
+
+        <div class="col-6 px-1 d-flex align-items-start">
+            <table id="cliDados_tabUsuario" class="table table-sm table-dark table-bordered table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Nome</th>
+                    </tr>
+                </thead>
+                <tbody> </tbody>
+            </table>
+        </div>
+
+        <div class="col-6 px-1 ">
+            <table id="cliDados_tabSetores" class="table table-sm table-dark table-bordered table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>Numero</th>
+                        <th>Nome</th>
+                    </tr>
+                </thead>
+                <tbody> </tbody>
+            </table>
+        </div>
+    </div>
+    <div id="modCliente_boxBtn">
+        <button id="modCliente_btnFechar" class="btn btn-primary text-bg-primary fs-3">
+            <i class="bi bi-x-circle"></i>
+            &nbsp; Fechar
+        </button>
+    </div>
+</div>

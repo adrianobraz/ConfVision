@@ -1,0 +1,216 @@
+function cliDados_start(idCliente) {
+    $('#boxDir').empty()
+    const uri = '/assets/modulos/cliDados/cliDados.html'
+    $('#boxDir').load(uri, () => {
+        $('.btn-dispositivo').hide()
+        $('#cliDados_btnVoltar').on('click', ctrClienteBuscar_start)
+
+        $('#cliDados_btnFechar').on('click', proFranqFiltro_start)
+
+        $('#cliDados_btnArmar').on('click', cliDados_btnArmar)
+
+        $('#cliDados_cpDispositivo').on('change', cliDados_ConfiguraDispositivo)
+
+        cliDados_carregarDados(idCliente)
+        cliDados_btnArmarCinza()
+    })
+}
+
+function cliDados_carregarDados(idCliente) {
+
+    $.ajax({
+        url: 'cliDados/buscarDados',
+        method: 'Post',
+        headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": "Bearer " + sessionStorage.getItem('token')
+        },
+        data: JSON.stringify({ idCliente: idCliente })
+    }).fail(function (e) {
+        console.log(e)
+    }).done(function (r) {
+        cliDados_montarLinha(r.dados)
+
+    })
+}
+
+function cliDados_montarLinha(item) {
+    $('#cliDados_cpConta').val(item.conta)
+    $('#cliDados_cpNome').val(item.nome)
+    $('#cliDados_cpCelular').val(item.telefone1)
+    $('#cliDados_cpTelefone').val(item.telefone2)
+    $('#cliDados_cpEndereco').val(item.endereco)
+    $('#cliDados_cpComplemento').val(item.complemento)
+    $('#cliDados_cpBairo').val(item.bairro)
+    $('#cliDados_cpCidade').val(item.cidade)
+    $('#cliDados_cpDispositivo').val(item.nomeDisp)
+
+    cliDados_BuscarDispositivos(item.idCliente)
+}
+
+function cliDados_btnArmar() {
+    if ($('#cliDados_cpDispositivo').val() != '0') {
+        const idDisp = $('#cliDados_btnArmar').attr('idDisp')
+        const senha = $('#cliDados_btnArmar').attr('senha')
+        const numero = $('#cliDados_btnArmar').attr('numero')
+        const armado = $('#cliDados_btnArmar').attr('armado')
+
+        if (armado == 'N') {
+            armarCentral(idDisp, senha, numero, () => {
+                cliDados_ConfiguraDispositivo()
+            })
+        } else {
+            msgSucesso('A central já se encontra armada')
+            // desarmarCentral(idDisp, senha, numero, () => {
+            //     cliDados_ConfiguraDispositivo()
+            // })
+
+        }
+    }
+}
+
+function cliDados_BuscarDispositivos(idCliente) {
+    $.ajax({
+        url: 'cliDados/buscarDispositivoByCliente',
+        method: 'Post',
+        headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": "Bearer " + sessionStorage.getItem('token')
+        },
+        data: JSON.stringify({ idCliente: idCliente })
+    }).fail(function (e) {
+        console.log(e)
+    }).done(function (r) {
+        $('#cliDados_cpDispositivo').empty().append('<option value="0">SELECIOME </option>')
+
+        if (r.status != 'Vazio') {
+            r.dados.forEach(i => {
+                $('#cliDados_cpDispositivo').append(`
+                    <option value="${i.idDispositivo}">${i.nome}</option>
+                `)
+            })
+        }
+
+
+    })
+}
+
+function cliDados_ConfiguraDispositivo() {
+
+    if ($('#cliDados_cpDispositivo').val() != '0') {
+        $.ajax({
+            url: 'cliDados/buscarDispositivosById',
+            method: 'Post',
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Authorization": "Bearer " + sessionStorage.getItem('token')
+            },
+            data: JSON.stringify({ idDispositivo: $("#cliDados_cpDispositivo option:selected").val() })
+        }).fail(function (e) {
+            console.log(e)
+        }).done(function (r) {
+            if (r.status != 'Vazio') {
+
+                $('#cliDados_cpConta').val(r.dados.conta)
+                $('.btn-dispositivo').show()
+                cliDados_ConfigurarBotaoArmar(r.dados)
+
+                $('#cliDados_tabUsuario tbody').empty()
+                if (r.dados.usuarios != null) {
+                    r.dados.usuarios.forEach(i => {
+                        $('#cliDados_tabUsuario tbody').append(`
+                            <tr>                    
+                                <td>${i.codigo}</td>
+                                <td>${i.nome}</td>
+                            </tr>
+                        `)
+                    });
+                }
+
+                $('#cliDados_tabSetores tbody').empty()
+                if (r.dados.setores != null) {
+                    r.dados.setores.forEach(i => {
+                        const corCam = (i.camera == "S") ? 'bg-success' : 'bg-secondary'
+
+                        const click = (i.camera == "S") ? 'click' : ''
+
+                        const imgCam = (i.camera == "S") ?
+                            '<i class="bi bi-camera-video-fill"></i> ' :
+                            '<i class="bi bi-camera-video-off-fill"></i>'
+
+                        const linkCam = (i.camera == "S") ? 'tipo="cliDados_btnCamera"' : ''
+
+                        $('#cliDados_tabSetores tbody').append(`
+                            <tr>
+                                 <td 
+                                    style="width: 25px;"
+                                    codFranq="${r.dados.codFranq}" 
+                                    particao="${i.particao}" 
+                                    conta="${r.dados.conta}" 
+                                    setor="${i.setor}" 
+                                    ${linkCam} 
+                                    class="${click} ${corCam} txt-tbody"
+                                >${imgCam}</td>
+                                <td style="width: 35px;">${i.setor}</td>
+                                <td>${i.nome}</td>
+                            </tr>
+                        `)
+                    });
+
+                    $(`td[tipo=cliDados_btnCamera]`).on('click', function () {
+                        const codFranq = $(this).attr('codFranq')
+                        const particao = $(this).attr('particao')
+                        const conta = $(this).attr('conta')
+                        const setor = $(this).attr('setor')
+                        benuvem_visualizar(codFranq, particao, conta, setor)
+
+                    })
+                }
+
+            }
+        })
+    } else {
+        $('.btn-dispositivo').hide()
+        $('#cliDados_cpConta').val("")
+        cliDados_btnArmarCinza()
+    }
+}
+
+function cliDados_ConfigurarBotaoArmar(dados) {
+    $('#cliDados_btnArmar').attr('idDisp', dados.idDispositivo)
+    $('#cliDados_btnArmar').attr('senha', dados.senha)
+    $('#cliDados_btnArmar').attr('numero', dados.particao)
+    $('#cliDados_btnArmar').attr('armado', dados.armado)
+
+    if (dados.armado == 'S') {
+        cliDados_btnArmarVerde()
+
+    } else {
+        cliDados_btnArmarVermelho()
+
+    }
+}
+
+function cliDados_btnArmarCinza() {
+    $('#cliDados_btnArmar').html('SELECIONE')
+    $('#cliDados_btnArmar').removeClass('btn-success')
+    $('#cliDados_btnArmar').removeClass('btn-danger')
+    $('#cliDados_btnArmar').addClass('btn-secondary')
+}
+
+function cliDados_btnArmarVerde() {
+    $('#cliDados_btnArmar').html('ARMADO')
+    $('#cliDados_btnArmar').removeClass('btn-danger')
+    $('#cliDados_btnArmar').removeClass('btn-secondary')
+    $('#cliDados_btnArmar').addClass('btn-success')
+}
+
+function cliDados_btnArmarVermelho() {
+    $('#cliDados_btnArmar').html('ARMAR')
+    $('#cliDados_btnArmar').removeClass('btn-success')
+    $('#cliDados_btnArmar').removeClass('btn-secondary')
+    $('#cliDados_btnArmar').addClass('btn-danger')
+}

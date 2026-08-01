@@ -1,0 +1,114 @@
+.fp-ia-panel {
+    height: 100%;
+    padding: 1.1rem 1.15rem;
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(30, 34, 41, 0.95), rgba(22, 25, 31, 0.98));
+    border: 1px solid rgba(var(--fp-primary-rgb), 0.28);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.04),
+        0 12px 28px rgba(0, 0, 0, 0.35);
+}
+
+.fp-ia-panel-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 0.65rem;
+}
+
+.fp-ia-panel-head > i {
+    font-size: 1.5rem;
+    color: var(--fp-accent-text);
+    margin-top: 0.15rem;
+}
+
+.fp-ia-titulo-principal {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--fp-accent-text);
+    margin: 0 0 0.15rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.fp-ia-titulo-secao {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--fp-text);
+    margin: 0;
+}
+
+.fp-ia-descricao {
+    font-size: 0.88rem;
+    color: var(--fp-text-muted);
+    margin-bottom: 1rem;
+    line-height: 1.45;
+}
+
+.fp-ia-hint {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--fp-text-muted);
+    font-size: 0.78rem;
+}
+
+.fp-ia-viatura-box {
+    padding: 0.85rem;
+    border-radius: 10px;
+    border: 1px solid rgba(var(--fp-primary-rgb), 0.2);
+    background: rgba(var(--fp-primary-rgb), 0.06);
+}
+
+.fp-ia-lista-clientes {
+    max-height: 180px;
+    overflow-y: auto;
+    margin-top: 0.35rem;
+    border: 1px solid var(--fp-border);
+    border-radius: 8px;
+    background: var(--fp-input-bg);
+}
+
+.fp-ia-lista-clientes .fp-ia-cliente-item {
+    padding: 0.45rem 0.65rem;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 0.88rem;
+    color: var(--fp-text);
+}
+
+.fp-ia-lista-clientes .fp-ia-cliente-item:hover,
+.fp-ia-lista-clientes .fp-ia-cliente-item.fp-row-ativo {
+    background: rgba(var(--fp-primary-rgb), 0.18);
+    color: var(--fp-accent-text);
+}
+
+.fp-ia-tabela-wrap {
+    max-height: 320px;
+    border-radius: 10px;
+    border: 1px solid rgba(var(--fp-primary-rgb), 0.22);
+    overflow: hidden;
+}
+
+.fp-ia-form .fp-btn-form-action,
+.fp-ia-add-row .fp-btn-form-action {
+    min-height: 56px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-weight: 600;
+}
+
+.fp-ia-form .fp-btn-form-action i,
+.fp-ia-add-row .fp-btn-form-action i {
+    font-size: 1.1rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#lista-bloqueios .btn-remover-bloqueio {
+    min-width: 36px;
+    padding: 0.2rem 0.45rem;
+}

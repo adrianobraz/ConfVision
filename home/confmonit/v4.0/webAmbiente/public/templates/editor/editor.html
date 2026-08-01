@@ -1,0 +1,50 @@
+{{ template "pagina" . }} {{ define "body" }}
+<link rel="stylesheet" href="/public/css/mapa.css">
+<div class="app-shell-full">
+    {{ template "navbar" . }}
+
+    <div class="editor-layout">
+        <aside id="painelSetores" class="editor-sidebar">
+            <h3>Disponíveis</h3>
+            <select id="dispositivo" class="form-select form-group"></select>
+            <div id="listaSetores" class="editor-setores-grid"></div>
+            <p id="listaSetoresVazia" class="editor-setores-vazio hidden">Todos os setores deste dispositivo já estão no mapa.</p>
+            <button id="btnSalvar" type="button" class="btn btn-primary btn-block" style="margin-top:1rem;">
+                Salvar posições
+            </button>
+        </aside>
+
+        <main class="editor-main">
+            <div class="toolbar">
+                <span class="toolbar-muted">Mapa:</span>
+                <span id="nomeMapa" class="page-title" style="font-size:1rem;margin:0;">—</span>
+                <a id="linkVoltar" href="/home" class="btn btn-ghost btn-sm toolbar-spacer js-voltar">← Voltar</a>
+            </div>
+            <div id="mapaContainer" class="mapa-container flex-1 relative">
+                <img id="mapaImagem" class="mapa-imagem" alt="Planta" />
+                <div id="mapaCamada" class="mapa-camada"></div>
+                <div id="setorPopup" class="editor-popup hidden">
+                    <button type="button" id="btnFecharPopup" class="editor-popup-fechar" title="Fechar">&times;</button>
+                    <h4 id="popupTitulo" class="editor-popup-titulo"></h4>
+                    <dl class="editor-popup-dados">
+                        <dt>Setor</dt><dd id="popupSetor"></dd>
+                        <dt>Número</dt><dd id="popupNumero"></dd>
+                        <dt>Dispositivo</dt><dd id="popupDispositivo"></dd>
+                        <dt>Posição</dt><dd id="popupPosicao"></dd>
+                        <dt>Ícone</dt>
+                        <dd><div id="popupIconeGrid" class="editor-icone-grid"></div></dd>
+                    </dl>
+                    <button type="button" id="btnExcluirSetorMapa" class="btn btn-danger btn-block btn-sm">
+                        <i class="bi bi-trash"></i> Remover do mapa
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/public/js/mapaUtil.js"></script>
+    <script src="/public/js/mapaIcones.js"></script>
+    <script src="/public/js/mapaLayout.js"></script>
+    <script src="/public/templates/editor/editor.js"></script>
+</div>
+{{ end }}

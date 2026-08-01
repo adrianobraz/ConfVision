@@ -1,0 +1,350 @@
+// Cache para não recarregar ao voltar da Grade/Contatos/Procedimentos etc.
+var ateEventosDetalhe_cache = {
+    idProcesso: '',
+    html: '',
+    idDispositivo: '',
+    dadosEventos: [],
+    dadosUltimos25: []
+}
+// Evita aplicar resultado de requisição antiga ao trocar de processo rápido
+var ateEventosDetalhe_reqIdProcesso = ''
+
+function ateEventosDetalhe_start() {
+    var idProcessoAtual = sessionStorage.getItem('ateProDado_proc_idProcesso')
+    var box = document.getElementById('boxDir')
+
+    if (ateEventosDetalhe_cache.idProcesso === idProcessoAtual && ateEventosDetalhe_cache.html) {
+        box.innerHTML = ateEventosDetalhe_cache.html
+        idProcesso = idProcessoAtual
+        ateEventosDetalhe_reqIdProcesso = idProcessoAtual
+        ateEventosDetalhe_renderFromCache()
+        return
+    }
+
+    fetch(`/assets/modulos/ateEventosDetalhe/ateEventosDetalhe.html`, { cache: 'no-store' }).then((res) => res.text()).then((html) => {
+        box.innerHTML = html
+        ateEventosDetalhe_cache.html = html
+        ateEventosDetalhe_cache.idProcesso = idProcessoAtual
+        idProcesso = idProcessoAtual
+        ateEventosDetalhe_reqIdProcesso = idProcessoAtual
+
+        ateEventosDetalhe_buscarEventos(idProcesso, (idDispositivo) => {
+            if (sessionStorage.getItem('ateProDado_proc_idProcesso') !== ateEventosDetalhe_reqIdProcesso) return
+            ateEventosDetalhe_buscarUltimos25(idDispositivo)
+        })
+    })
+}
+
+
+function ateEventosDetalhe_renderFromCache() {
+    var cache = ateEventosDetalhe_cache
+    // Sempre renderiza o que tiver no cache; se eventos vazios, ainda mostra últimos 25
+    $('#ateEventosDetalhe_tabEventos tbody').empty()
+    if (cache.dadosEventos && cache.dadosEventos.length > 0) {
+        cache.dadosEventos.forEach(function (item) {
+            ateEventosDetalhe_buscarEventos_montarLinha(item)
+        })
+    }
+
+    if (cache.dadosEventos && cache.dadosEventos.length > 0) {
+        $('td[tipo=btnEvento]').on('click', function () {
+            modEvtDesagrupado_start(
+                $(this).attr('idProcesso'),
+                $(this).attr('codigoFull'),
+                $(this).attr('zonaUser'),
+                ateEventosDetalhe_start
+            )
+        })
+        $('td[tipo=btnVisualizarCamera]').on('click', function () {
+            var particao = $(this).attr('particao')
+            var setor = $(this).attr('setor')
+            var conta = $(this).attr('conta')
+            var codBenuvem = $(this).attr('codBenuvem')
+            benuvem_visualizar(codBenuvem, particao, conta, setor)
+        })
+        $('td[tipo=btnSetorManutecao]').on('click', function () {
+            var idSetor = $(this).attr('idSetor')
+            ateEventosDetalhe_setorManutencao(idSetor)
+        })
+    }
+
+    $('#ateEventosDetalhe_tabUltimos25 tbody').empty()
+    if (cache.dadosUltimos25 && cache.dadosUltimos25.length > 0) {
+        var qtd = 1
+        cache.dadosUltimos25.forEach(function (item) {
+            ateEventosDetalhe_buscarUltimos25_montarLinha(item, qtd)
+            qtd++
+        })
+        $('tr[tipo=btnUltimos25]').on('click', function () {
+            var modal = new bootstrap.Modal(document.getElementById('descricaoAtendimento'), { keyboard: false })
+            $('#descricaoAtendimentoMsg').val($(this).attr('descAtendimento'))
+            modal.show()
+        })
+    }
+}
+
+
+function ateEventosDetalhe_buscarEventos(idProcesso, next) {
+    $.ajax({
+        url: 'ateEventosDetalhe/buscarEventos',
+        method: 'Post',
+        cache: false,
+        headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": "Bearer " + sessionStorage.getItem('token')
+        },
+        data: JSON.stringify({ idProcesso: idProcesso })
+    }).fail(function (e) {
+        console.log(e)
+    }).done(function (r) {
+        if (sessionStorage.getItem('ateProDado_proc_idProcesso') !== ateEventosDetalhe_reqIdProcesso) return
+        if (!r.dados) r.dados = []
+        ateEventosDetalhe_cache.dadosEventos = r.dados
+        ateEventosDetalhe_cache.idDispositivo = (r.dados[0] && r.dados[0].idDispositivo) ? r.dados[0].idDispositivo : ''
+        $('#ateEventosDetalhe_tabEventos tbody').empty()
+
+        r.dados.forEach(item => {
+            ateEventosDetalhe_buscarEventos_montarLinha(item)
+        })
+
+        $('td[tipo=btnEvento]').on('click', function () {
+
+            modEvtDesagrupado_start(
+                $(this).attr('idProcesso'),
+                $(this).attr('codigoFull'),
+                $(this).attr('zonaUser'),
+
+                ateEventosDetalhe_start
+            )
+        })
+
+
+        $('td[tipo=btnVisualizarCamera]').on('click', function () {
+            const particao = $(this).attr('particao')
+            const setor = $(this).attr('setor')
+            const conta = $(this).attr('conta')
+            const codBenuvem = $(this).attr('codBenuvem')
+            benuvem_visualizar(codBenuvem, particao, conta, setor);
+        })
+
+        $('td[tipo=btnSetorManutecao]').on('click', function () {
+            const idSetor = $(this).attr('idSetor')
+            ateEventosDetalhe_setorManutencao(idSetor)
+        })
+
+
+        var idDisp = (r.dados.length > 0 && r.dados[0].idDispositivo) ? r.dados[0].idDispositivo : (sessionStorage.getItem('ateProDado_proc_idDispositivo') || '')
+        if (idDisp) {
+            next(idDisp)
+        } else {
+            ateEventosDetalhe_cache.dadosUltimos25 = []
+            $('#ateEventosDetalhe_tabUltimos25 tbody').empty()
+        }
+    })
+}
+
+function ateEventosDetalhe_buscarEventos_montarLinha(item) {
+    let cameraCor
+    let cameraLink
+    if (item.cameraOn == "S") {
+        cameraCor = 'bg-success'
+        cameraLink = 'btnVisualizarCamera'
+    } else {
+        cameraCor = 'bg-secondary'
+        cameraLink = ''
+    }
+
+    let setorCor
+    let setorTipo
+    if (item.idSetor != 'USER' && item.setorManu == "S") {
+        setorCor = 'bg-warning'
+        setorTipo = 'btnSetorManutecao'
+    } else {
+        setorCor = 'bg-secondary'
+        setorTipo = ''
+    }
+
+
+
+    $('#ateEventosDetalhe_tabEventos tbody').append(`
+        <tr class="table-line">
+            <td 
+                codigofull="${item.codigoFull}"
+                tipo="btnEvento" 
+                class="click fmt-tbody"
+                idProcesso="${item.idProcesso}"
+                zonaUser="${item.zonaUser}"
+                style="width: 8%;"
+            >${item.quantidade}</td>
+             
+            
+            <td 
+                tipo="${setorTipo}" 
+                class="${setorCor} click" 
+                idSetor="${item.idSetor}"        
+                title="Coloca setor em manutenção"
+                style="width: 6%;"
+            ><i class="bi bi-tools txt-tbody"></i></td>
+
+            <td 
+                tipo="${cameraLink}" 
+                class="${cameraCor} click" 
+                particao="${item.particao}"           
+                setor="${item.zonaUser}"   
+                conta="${item.conta}"        
+                codBenuvem="${item.codBenuvem}"        
+                title="Exibição em tempo real"
+                style="width: 6%;"
+            ><i class="bi bi-eye-fill txt-tbody"></i></td>
+            
+            <td 
+                codigofull="${item.codigoFull}"
+                tipo="btnEvento" 
+                class='click fmt-tbody' 
+                idProcesso="${item.idProcesso}"
+                zonaUser="${item.zonaUser}"
+                style="width: 7%;"
+            >${item.tipo + item.codigo}</td>
+            
+            <td 
+                codigofull="${item.codigoFull}"
+                tipo="btnEvento" 
+                class='click fmt-tbody' 
+                idProcesso="${item.idProcesso}"
+                zonaUser="${item.zonaUser}"
+                style="width: 39%;"
+            >${item.descricao}</td>
+                        
+            <td 
+                codigofull="${item.codigoFull}"
+                tipo="btnEvento" 
+                class='click fmt-tbody' 
+                idProcesso="${item.idProcesso}"
+                zonaUser="${item.zonaUser}"
+                style="width: 7%;"
+            >${item.zonaUser}</td>
+            
+            <td 
+                codigofull="${item.codigoFull}"
+                tipo="btnEvento" 
+                class='click fmt-tbody' 
+                idProcesso="${item.idProcesso}"
+                zonaUser="${item.zonaUser}"
+                style="width: 39%;"
+            >${item.descZonUse}</td>
+
+                        <td 
+                style="width: 8%;"
+                class="fmt-tbody"
+            >${item.hora || ''}</td>
+
+        </tr>
+    `)
+}
+
+function ateEventosDetalhe_buscarUltimos25(idDispositivo) {
+
+    $.ajax({
+        url: 'ateEventosDetalhe/buscarUltimos25',
+        method: 'Post',
+        cache: false,
+        headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": "Bearer " + sessionStorage.getItem('token')
+        },
+        data: JSON.stringify({ idDispositivo: idDispositivo })
+    }).fail(function (e) {
+        console.log(e)
+    }).done(function (r) {
+        if (sessionStorage.getItem('ateProDado_proc_idProcesso') !== ateEventosDetalhe_reqIdProcesso) return
+
+        $('#ateEventosDetalhe_tabUltimos25 tbody').empty()
+        ateEventosDetalhe_cache.dadosUltimos25 = (r.status != 'Vazio' && r.dados) ? r.dados : []
+
+        if (r.status != 'Vazio') {
+            // let qtd = r.dados.length
+            qtd = 1
+            r.dados.forEach(item => {
+                ateEventosDetalhe_buscarUltimos25_montarLinha(item, qtd)
+                qtd++
+            });
+
+            $('tr[tipo=btnUltimos25]').on('click', function () {
+                var modal = new bootstrap.Modal(document.getElementById('descricaoAtendimento'), {
+                    keyboard: false
+                })
+                $('#descricaoAtendimentoMsg').val($(this).attr('descAtendimento'))
+                modal.show()
+            })
+
+        }
+    })
+
+}
+
+function ateEventosDetalhe_buscarUltimos25_montarLinha(item, numero) {
+    $('#ateEventosDetalhe_tabUltimos25 tbody').append(`
+        <tr tipo="btnUltimos25" class="click" descAtendimento="${item.descrAtendimento}">
+            <td 
+                style="width: 7%;"
+                class="fmt-tbody"            
+            >${numero}</td>
+
+            <td 
+                style="width: 7%;"
+                class="fmt-tbody"            
+            >${item.codigo}</td>
+
+            <td 
+                style="width: 36%;"
+                class="fmt-tbody"
+            >${item.descricao}</td>
+
+            <td 
+                style="width: 31%;"
+                class="fmt-tbody"
+            >${item.descZonUse}</td>
+
+            <td 
+                style="width: 19%;"
+                class="fmt-tbody"
+            >${item.entrada}</td>
+        </tr>   
+    `)
+}
+
+function ateEventosDetalhe_visualizarCamera() {
+    particao = "${item.particao}"
+    setor = "${item.zonaUser}"
+    conta = "${item.conta}"
+    codBenuvem = "${item.codBenuvem}"
+}
+
+function ateEventosDetalhe_setorManutencao(idSetor) {
+    const nick = sessionStorage.getItem('login_userNick')
+
+    if (idSetor != 'USER') {
+        $.ajax({
+            url: 'ateEventosDetalhe/colocaSetorManutecao',
+            method: 'Post',
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Authorization": "Bearer " + sessionStorage.getItem('token')
+            },
+            data: JSON.stringify({
+                idSetor: idSetor,
+                operador: nick
+            })
+        }).fail(function (e) {
+            console.log(e)
+        }).done(function (r) {
+            msgSucesso()
+            ateEventosDetalhe_buscarEventos(idProcesso, (idDispositivo) => {
+                ateEventosDetalhe_buscarUltimos25(idDispositivo)
+            })
+        })
+    }
+}

@@ -1,0 +1,53 @@
+#ateControles {
+    height: 100%;
+    width: 100%;
+    box-sizing: border-box;
+
+    display: flex;
+    flex-wrap: wrap;
+}
+
+#colEsq,
+#colDir {
+    height: 100%;
+    padding: 5px;
+}
+
+/*********** COLUNA ESQUERDA ***********/
+#ateControles_cpTimer {
+    display: flex;
+    height: 100%;
+    border: 2px solid white;
+    text-align: center;
+    border-radius: 10px;
+    justify-content: center;
+    align-items: center;
+    font-weight: 700;
+    font-size: 30px;
+}
+
+
+/*********** COLUNA CENTRAL ************/
+#ateControles_boxBotoes {
+    height: 100%;
+    padding: 5px;
+
+    border: 2px solid white;
+    border-radius: 10px;
+    display: flex;
+
+    flex: 1;
+
+    justify-content: space-between;
+    align-items: center;
+
+    --bs-bg-opacity: 1;
+    background-color: rgba(var(--bs-success-rgb), var(--bs-bg-opacity)) !important;
+}
+
+#ateControles_boxBotoes .click {
+    flex-basis: 12%;
+    font-size: 25px;
+    text-align: center;
+
+}

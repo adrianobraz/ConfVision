@@ -1,0 +1,159 @@
+{{ template "pagina" . }}
+
+{{ define "body" }}
+<div class="tech-page">
+    {{ template "navbar" . }}
+
+    <div class="tech-workspace">
+        <!-- Listagem (esquerda) -->
+        <section class="tech-col-list">
+            <div class="tech-panel">
+                <div class="tech-panel-head">
+                    <i class="bi bi-receipt"></i> Fechamento · Faturas
+                </div>
+                <div class="tech-panel-body">
+                    <div class="tech-form-block mb-3">
+                        <div class="flex flex-col md:flex-row gap-2">
+                            <div class="w-full md:w-3/12">
+                                <label for="filtroAno" class="ps-1">Ano</label>
+                                <select id="filtroAno" class="w-full px-3 py-2 text-center"></select>
+                            </div>
+                            <div class="w-full md:w-3/12">
+                                <label for="filtroMes" class="ps-1">Mês</label>
+                                <select id="filtroMes" class="w-full px-3 py-2 text-center">
+                                    <option value="1">Janeiro</option>
+                                    <option value="2">Fevereiro</option>
+                                    <option value="3">Março</option>
+                                    <option value="4">Abril</option>
+                                    <option value="5">Maio</option>
+                                    <option value="6">Junho</option>
+                                    <option value="7">Julho</option>
+                                    <option value="8">Agosto</option>
+                                    <option value="9">Setembro</option>
+                                    <option value="10">Outubro</option>
+                                    <option value="11">Novembro</option>
+                                    <option value="12">Dezembro</option>
+                                </select>
+                            </div>
+                            <div class="w-full md:w-6/12">
+                                <label for="filtroCliente" class="ps-1">Cliente / Representante</label>
+                                <select id="filtroCliente" class="w-full px-3 py-2 text-center">
+                                    <option value="">Todos</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex flex-col md:flex-row gap-2 mt-2">
+                            <div class="w-full md:w-4/12">
+                                <label for="filtroStatus" class="ps-1">Status</label>
+                                <select id="filtroStatus" class="w-full px-3 py-2 text-center">
+                                    <option value="">Abertas (não pagas)</option>
+                                    <option value="ABERTO">Aberto</option>
+                                    <option value="PAGO">Pago</option>
+                                </select>
+                            </div>
+                            <div class="w-full md:w-4/12 flex items-end">
+                                <label class="inline-flex items-center gap-2 px-2 py-2 w-full">
+                                    <input id="filtroVencidas" type="checkbox" class="scale-125">
+                                    <span>Somente vencidas</span>
+                                </label>
+                            </div>
+                            <div class="w-full md:w-4/12 flex items-end">
+                                <button id="btnFiltrar" class="py-2 w-full rounded-md text-white font-black text-xl bg-green-700">
+                                    <i class="bi bi-funnel-fill"></i> &nbsp; Filtrar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{ template "tabela" }}
+                </div>
+            </div>
+        </section>
+
+        <!-- Ações (direita) -->
+        <section class="tech-col-form">
+            <div class="tech-panel">
+                <div class="tech-panel-head">
+                    <i class="bi bi-cash-coin"></i> Receber Fatura
+                </div>
+                <div class="tech-panel-body">
+                    <div class="tech-form-block flex flex-col gap-2">
+                        <div>
+                            <label for="nomeFranqueado" class="ps-1">Destino</label>
+                            <input id="nomeFranqueado" type="text" class="w-full px-3 py-2 text-center" readonly>
+                        </div>
+                        <div class="flex flex-col md:flex-row gap-2">
+                            <div class="w-full md:w-1/2">
+                                <label for="vencimento" class="ps-1">Vencimento</label>
+                                <input id="vencimento" type="text" class="w-full px-3 py-2 text-center" readonly>
+                            </div>
+                            <div class="w-full md:w-1/2">
+                                <label for="valorFat" class="ps-1">Valor da fatura</label>
+                                <input id="valorFat" type="text" class="w-full px-3 py-2 text-center" readonly placeholder="R$ 0,00">
+                            </div>
+                        </div>
+                        <div class="flex flex-col md:flex-row gap-2">
+                            <div class="w-full md:w-1/2">
+                                <label for="tipoPagamento" class="ps-1">Meio de pagamento</label>
+                                <select id="tipoPagamento" class="w-full px-3 py-2 text-center">
+                                    <option value="PIX">Pix</option>
+                                    <option value="DEBITO">Débito</option>
+                                    <option value="CREDITO">Crédito</option>
+                                    <option value="TRANSFERENCIA">Transferência</option>
+                                </select>
+                            </div>
+                            <div class="w-full md:w-1/2">
+                                <label for="valorPagamento" class="ps-1">Valor pago</label>
+                                <input id="valorPagamento" type="text" class="w-full px-3 py-2 text-center mskReal"
+                                    placeholder="0,00" maxlength="14">
+                            </div>
+                        </div>
+                        <div class="w-full flex flex-col md:flex-row gap-2 mt-2">
+                            <button id="btnLimparReceber" class="py-2 w-full rounded-md text-white font-black text-xl bg-red-700">
+                                <i class="bi bi-eraser-fill"></i> &nbsp; Limpar
+                            </button>
+                            <button id="btnReceber" class="py-2 w-full rounded-md text-white font-black text-xl bg-green-700">
+                                <i class="bi bi-cash-coin"></i> &nbsp; Receber
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <div class="tech-panel-head" style="border-radius:0;">
+                            <i class="bi bi-list-ul"></i> Itens da fatura
+                        </div>
+                        <div class="tech-table-wrap mt-2">
+                            <div class="min-w-[480px]">
+                                <table id="tabelaItens" class="w-full text-center tech-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="py-2 w-1/12 text-sm">Qtd.</th>
+                                            <th class="py-2 w-7/12 text-sm">Descrição</th>
+                                            <th class="py-2 w-2/12 text-sm">Crédito</th>
+                                            <th class="py-2 w-2/12 text-sm">Débito</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+<script src="/public/templates/financeiroFechamento/financeiroFechamento.js"></script>
+{{ end }}
+
+
+{{ define "thead" }}
+<th class="py-2 w-5/12 text-sm">Cliente / Representante</th>
+<th class="py-2 w-2/12 text-sm">Vencimento</th>
+<th class="py-2 w-2/12 text-sm">Valor</th>
+<th class="py-2 w-2/12 text-sm">Status</th>
+<th class="py-2 w-1/12 text-sm">Ação</th>
+{{ end }}
+
+{{ define "tbody" }}
+{{ end }}

@@ -1,0 +1,422 @@
+package receptorV4
+
+import (
+	connV4 "api/src/V4/conexao"
+	benuvemV4 "api/src/V4/modulos/benuvem"
+	contactidV4 "api/src/V4/modulos/contactid"
+	dispositivoV4 "api/src/V4/modulos/dispositivo"
+	eventoV4 "api/src/V4/modulos/evento"
+	gradeV4 "api/src/V4/modulos/grade"
+	processoV4 "api/src/V4/modulos/processo"
+	setorV4 "api/src/V4/modulos/setor"
+	"database/sql"
+	"time"
+)
+
+type Receptor struct {
+	IdDispositivo string `json:"idDispositivo"`
+	Evento        string `json:"evento"`
+}
+
+func (r *Receptor) RecebeEvento() error {
+	var objEvt eventoV4.Evento
+	/*
+			ID_Evento   - Gerado automaticamente quando salvar
+			ID_Processo - getIdProcesso
+		    Codigo      - decodeEvento
+		    Particao    - decodeEvento
+		    ZonaUser    - decodeEvento
+			Nivel       - decodeEvento
+		    Img         - gerarEventoBenuvem
+		    DataEntrada - carrega no inicio do processo
+
+			Conta       - decodeEvento
+			Grupo       - decodeEvento
+			Descricao   - decodeEvento
+	*/
+
+	objEvt.DataEntrada = time.Now().Format("2006-01-02 15:04:05")
+
+	// Verifica se é teste periodico ==========================================
+	var periodico bool
+	if err := testePeriodico(r.IdDispositivo, r.Evento, &periodico, &objEvt); err != nil {
+		return err
+	}
+
+	if periodico {
+		return nil
+	}
+
+	// Decondifica o evento recebido ==========================================
+	if err := decodeEvento(r.IdDispositivo, r.Evento, &objEvt); err != nil {
+		return nil
+	}
+
+	// Se houver setor em manutencao para a zona/particao do evento, ignora.
+	bloqueado, err := eventoBloqueadoPorSetorEmManutencao(r.IdDispositivo, &objEvt)
+	if err != nil {
+		return err
+	}
+	if bloqueado {
+		return nil
+	}
+
+	// Pego id processo ====================================================
+	if err := getIdProcesso(r.IdDispositivo, &objEvt); err != nil {
+		return err
+	}
+
+	// Arma ou desarma o alarme se for do grupo ARME ou DESARME ===============
+	if err := armarAlarme(r.IdDispositivo, &objEvt); err != nil {
+		return err
+	}
+
+	// Verifica Grade Horario se for do grupo DESARME =========================
+	if err := verificaGrade(r.IdDispositivo, r.Evento, &objEvt); err != nil {
+		return err
+	}
+
+	// Verifica nivel Panico  =================================================
+	var nivel string
+	if objEvt.Grupo == "PANICO" {
+		nivel = "6"
+	} else {
+		nivel = objEvt.Nivel
+	}
+
+	// Atualiza o nivel do processo ===================================
+	var proc processoV4.Processo
+	proc.ID_Processo = objEvt.ID_Processo
+	proc.Nivel = nivel
+	if err := proc.AtualizaNivelById(); err != nil {
+		return err
+	}
+	// Gera ou finaliza evento benuvem ========================================
+	if err := gerarEventoBenuvem(r.IdDispositivo, &objEvt); err != nil {
+		return err
+	}
+
+	if err := objEvt.Insere(); err != nil {
+		return err
+	}
+
+	// Grava ultimo evento no dispositivo =====================================
+	if err := gravaUltimoEvento(r.IdDispositivo, objEvt.Codigo, objEvt.DataEntrada); err != nil {
+		return err
+	}
+
+	// Envia Email ============================================================
+	// if err := enviaEmail(r.IdDispositivo, &objEvt); err != nil {
+	// 	return err
+	// }
+	return nil
+}
+
+// funcoes internas ===========================================================
+
+func getIdProcesso(idDisp string, objEvento *eventoV4.Evento) error {
+
+	// Carrega menssagem atendente ============================================
+	var disp dispositivoV4.Dispositivo
+	disp.ID_Dispositivo = idDisp
+	if err := disp.GetMsgAtendenteById(); err != nil {
+		return err
+	}
+
+	var proc processoV4.Processo
+	proc.ID_Dispositivo = idDisp
+	proc.MsgAtendente = disp.MsgAtendente
+	if err := proc.GetIdProcessoByIdDispositivo(); err != nil {
+		return err
+	}
+
+	objEvento.ID_Processo = proc.ID_Processo
+
+	return nil
+}
+
+func decodeEvento(idDisp, evento string, objEvt *eventoV4.Evento) error {
+
+	conta := evento[0:4]
+	codigo := formataCodigo(evento[4:8])
+	particao := evento[8:10]
+	zonaUser := evento[10:]
+
+	// Busca dados do contactid ===============================================
+	var cti contactidV4.ContactId
+	cti.Codigo = codigo
+	cti.ID_Viculo = idDisp
+	if err := cti.GetDadosByCodigo(); err != nil {
+		cti.ID_Viculo = "1"
+		if err := cti.GetDadosByCodigo(); err != nil {
+			return err
+		}
+	}
+
+	// Carrega os dados no objeto =============================================
+
+	objEvt.Nivel = cti.Nivel
+	objEvt.Conta = conta
+	objEvt.Codigo = codigo
+	objEvt.Particao = particao
+	objEvt.ZonaUser = zonaUser
+	objEvt.Grupo = cti.Grupo
+	objEvt.Descricao = cti.Descricao
+	return nil
+}
+
+func formataCodigo(codIn string) (codOut string) {
+
+	switch string(codIn[0]) {
+
+	case "E", "e":
+		// Converte E ou e para 1 para compatibilidade
+		// pois o metodo evento so pode receber numero
+		codOut = "1" + codIn[1:4]
+	case "R", "r":
+		// Convewrte R ou r para 3 para compatibilidade
+		// pois o metodo evento so pode receber numero
+		codOut = "3" + codIn[1:4]
+	default:
+		// Caso o codigo full vier no formato compativel ele c
+		// arrega o valor no objeto Receptor representado por r
+		codOut = codIn
+	}
+	return
+}
+
+func eventoBloqueadoPorSetorEmManutencao(idDisp string, objEvt *eventoV4.Evento) (bool, error) {
+	db, err := connV4.Conectar()
+	if err != nil {
+		return false, err
+	}
+	defer db.Close()
+
+	tab, err := db.Query(`
+		SELECT listaManutencao.ID_Alvo
+		FROM setorAlarme
+		LEFT JOIN listaManutencao
+		ON setorAlarme.ID_Setor = listaManutencao.ID_Alvo
+		WHERE setorAlarme.ID_Dispositivo = ?
+		AND setorAlarme.Numero = ?
+		AND setorAlarme.Particao = ?
+		LIMIT 1
+	`, idDisp, objEvt.ZonaUser, objEvt.Particao)
+	if err != nil {
+		return false, err
+	}
+	defer tab.Close()
+
+	if tab.Next() {
+		var idAlvo sql.NullString
+		if err := tab.Scan(&idAlvo); err != nil {
+			return false, err
+		}
+		if idAlvo.Valid {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// Grava arme ou desarme na tabela dispositivo
+func armarAlarme(idDisp string, objEvento *eventoV4.Evento) error {
+	if objEvento.Grupo == "ARME" {
+		var disp dispositivoV4.Dispositivo
+		disp.ID_Dispositivo = idDisp
+		if err := disp.SetArmadoById(); err != nil {
+			return err
+		}
+
+	} else if objEvento.Grupo == "DESARME" {
+		var disp dispositivoV4.Dispositivo
+		disp.ID_Dispositivo = idDisp
+		if err := disp.SetArmadoById(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Verefica se o evento é um teste periodico e caso seja ele grava
+// ultimo evento no dispositivo e retorna seta periodico para true
+func testePeriodico(idDisp, evento string, periodico *bool, objEvt *eventoV4.Evento) error {
+	if string(evento[4]) == "@" {
+		*periodico = true
+	} else if evento[5:8] == "602" {
+		*periodico = true
+	} else {
+		*periodico = false
+	}
+
+	if *periodico {
+		if err := gravaUltimoEvento(idDisp, evento, objEvt.DataEntrada); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// gerarEventoBenuvem Gera ou finaliza um evento benuvem baseado no grupo do evento
+// ALARME  ou PANICO - Gera um evento benuvem
+// RESTAURE - Finaliza um evento benuvem
+func gerarEventoBenuvem(idDisp string, objEvento *eventoV4.Evento) error {
+
+	if objEvento.Grupo == "ALARME" || objEvento.Grupo == "PANICO" {
+		var s setorV4.Setor
+		s.ID_Dispositivo = idDisp
+		if err := s.GetCameraAtivaById(); err != nil {
+			return err
+		}
+
+		if s.Camera == "S" {
+			var be benuvemV4.BeNuvem
+			var codBenuvem string
+			if err := be.GetCodBenuvemByIdDispositivo(idDisp, &codBenuvem); err != nil {
+				return nil
+			}
+
+			var evt benuvemV4.BenuvemEvento
+			evt.CodFranqueado = codBenuvem
+			evt.CodCliente = objEvento.Conta
+			evt.Particao = objEvento.Particao
+			evt.Canais = []string{objEvento.ZonaUser}
+
+			if err := be.GerarEvento(evt); err != nil {
+				objEvento.Img = "SEM IMAGEM"
+			} else {
+				var url string
+				var expira int
+				if err := be.GetUrlCamera(evt, &url, &expira); err != nil {
+					objEvento.Img = "SEM IMAGEM"
+				} else {
+					objEvento.Img = url
+				}
+			}
+		}
+	} else if objEvento.Grupo == "RESTAURE" {
+		var s setorV4.Setor
+		s.ID_Dispositivo = idDisp
+		if err := s.GetCameraAtivaById(); err != nil {
+			return err
+		}
+
+		if s.Camera == "S" {
+			var be benuvemV4.BeNuvem
+			var codBenuvem string
+			if err := be.GetCodBenuvemByIdDispositivo(idDisp, &codBenuvem); err != nil {
+				return nil
+			}
+
+			var evt benuvemV4.BenuvemEvento
+			evt.CodFranqueado = codBenuvem
+			evt.CodCliente = objEvento.Conta
+			evt.Particao = objEvento.Particao
+			evt.Canais = []string{objEvento.ZonaUser}
+
+			be.FinalizarEvento(evt)
+		}
+	}
+
+	return nil
+}
+
+// Verifica se tem desarme fora do horario
+func verificaGrade(idDisp, evento string, objEvento *eventoV4.Evento) error {
+	// Verifica fora do horario ===============================================
+	if objEvento.Grupo == "DESARME" {
+		var gra gradeV4.Grade
+		if err := gra.DesarmeForaHorarioByIdCliente(&objEvento.Codigo); err != nil {
+			return err
+		}
+
+		// Busca os dados do codigo 1M01 ======================================
+		if objEvento.Codigo == "1M01" {
+			if err := decodeEvento(idDisp, evento, objEvento); err != nil {
+				return err
+			}
+		}
+
+	}
+	return nil
+}
+
+// Grava ultimo evento recebido na tabela dispositivo
+func gravaUltimoEvento(idDisp, evento, data string) error {
+	var disp dispositivoV4.Dispositivo
+	disp.ID_Dispositivo = idDisp
+	disp.DataUltimoEvento = data
+	disp.CodgioUltimoEvento = formataCodigo(evento)
+	if err := disp.GravarUltimoEventoById(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// // envia email para franqueado e cliente conforme cofiguraracao
+// func enviaEmail(idDisp string, objEvento *eventoV4.Evento) error {
+// 	var send sendEmailV4.Email
+// 	var autorizado bool
+// 	send.ID = idDisp
+// 	if err := send.GrupoAltorizadoById(objEvento.Grupo, &autorizado); err != nil {
+// 		return err
+// 	}
+
+// 	if autorizado {
+
+// 		var disp dispositivoV4.Dispositivo
+// 		var nome string
+// 		disp.ID_Dispositivo = idDisp
+// 		if err := disp.GetNomeClienteById(&nome); err != nil {
+// 			return err
+// 		}
+
+// 		// msgFranqueado := fmt.Sprintf(`
+// 		// 	<h1><b><i>Sistema monitoramento informa</i></b><h1>
+// 		// 	<br><br>
+// 		// 	<p>Evento <b>%s</b> com codigo %s recebido pelo sistma para o cliente <b>%s</b> em %s <p>`,
+// 		// 	objEvento.Descricao,
+// 		// 	objEvento.Codigo,
+// 		// 	strings.ToUpper(nome),
+// 		// 	agora,
+// 		// )
+
+// 		// msgCliente := fmt.Sprintf(`
+// 		// 	<h1><b><i>
+// 		// 		Sistema monitoramento informa
+// 		// 	</i></b><h1>
+// 		// 	<br><br>
+// 		// 	<h2>Sr.(a) <b>%s</b></h2>
+// 		// 	<p>Um evento %s com codigo %s foi recebido pelo sistma em %s <p>`,
+// 		// 	strings.ToUpper(nome),
+// 		// 	objEvento.Descricao,
+// 		// 	objEvento.Codigo,
+// 		// 	agora,
+// 		// )
+
+// 		// // Envia Franqueado =======================================================
+// 		// var idFranqueado string
+// 		// disp.ID_Dispositivo = idDisp
+// 		// if err := disp.GetIdClienteById(&idFranqueado); err != nil {
+// 		// 	return err
+// 		// }
+// 		// send.ID = idFranqueado
+// 		// send.Menssangem = msgFranqueado
+// 		// send.FranqueadoEnviar()
+
+// 		// Envia Cliente ==========================================================
+// 		// var idCliente string
+// 		// disp.ID_Dispositivo = idDisp
+// 		// if err := disp.GetIdClienteById(&idCliente); err != nil {
+// 		// 	return err
+// 		// }
+// 		// send.ID = idCliente
+// 		// send.Menssangem = msgCliente
+// 		// send.FranqueadoEnviar()
+// 	}
+
+// 	return nil
+// }

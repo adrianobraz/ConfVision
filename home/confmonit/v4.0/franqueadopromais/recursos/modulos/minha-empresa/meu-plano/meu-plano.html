@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="pt-br">
+    <head>
+        {{ template "head" . }}
+        <link rel="stylesheet" href="/recursos/modulos/minha-empresa/meu-plano/meu-plano.css">
+    </head>
+    <body>
+        {{ template "variaveis-controle" . }}
+        {{ template "nav-bar" . }}
+
+        <div class="container-fluid container-principal">
+            <div class="row justify-content-center py-4">
+                <div class="col-12 col-lg-9">
+                    <div id="fp-plano-alerta-suspensao" class="fp-plano-alerta-suspensao d-none" role="alert"></div>
+
+                    <ul class="nav nav-tabs fp-plano-tabs mb-3" id="plano-tabs">
+                        <li class="nav-item"><button class="nav-link active" data-tab="plano" type="button">Meu Plano</button></li>
+                        <li class="nav-item"><button class="nav-link" data-tab="faturas" type="button">Faturas e Cobrança</button></li>
+                    </ul>
+
+                    <div id="tab-plano">
+                        <div class="fp-plano-card" id="plano-status">
+                            <div class="fp-plano-loading">Carregando plano...</div>
+                        </div>
+                        <div class="fp-plano-card mt-3" id="fp-plano-cupom-box">
+                            <h6 class="mb-2"><i class="bi bi-ticket-perforated"></i> Cupom de desconto</h6>
+                            <p class="text-muted small mb-2">Aplicável na contratação do plano FranqueadoPro. Não altera o desconto Pro+ do Vision.</p>
+                            <div class="input-group input-group-sm" style="max-width: 420px;">
+                                <input type="text" class="form-control text-uppercase" id="fp-plano-cupom-codigo" placeholder="Código do cupom" autocomplete="off">
+                                <button type="button" class="btn btn-outline-secondary" id="fp-plano-cupom-validar">Validar</button>
+                            </div>
+                            <div id="fp-plano-cupom-msg" class="small mt-2 text-muted"></div>
+                        </div>
+                        <p class="text-muted small mt-2">
+                            Quer escolher módulos individualmente?
+                            <a href="/carregar-montar-plano">Montar Meu Plano (à la carte)</a>
+                        </p>
+                        <div class="fp-plano-card mt-3" id="fp-ecossistema-box">
+                            <h6 class="mb-2"><i class="bi bi-grid-3x3-gap-fill"></i> Produtos do ecossistema</h6>
+                            <p class="text-muted small mb-2">Incluídos no seu plano FranqueadoPro não precisam ser comprados. Os demais podem ser contratados à parte.</p>
+                            <div id="fp-ecossistema-lista" class="fp-plano-loading">Carregando produtos…</div>
+                        </div>
+                        <div class="fp-plano-card mt-3" id="plano-comparacao"></div>
+                    </div>
+
+                    <div id="tab-faturas" class="d-none">
+                        <div class="fp-plano-card">
+                            <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+                                <h5 class="mb-0 me-auto">Faturas</h5>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="fatura-aplicar-cupom">
+                                    <i class="bi bi-ticket-perforated"></i> Aplicar Cupom
+                                </button>
+                                <select class="form-select form-select-sm w-auto" id="fatura-filtro">
+                                    <option value="">Todas</option>
+                                    <option value="aberta" selected>Em aberto</option>
+                                    <option value="paga">Pagas</option>
+                                </select>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="fatura-atualizar">Atualizar</button>
+                            </div>
+                            <div id="plano-faturas" class="table-responsive">
+                                <p class="text-muted">Carregando...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="fp-plano-modulos-modal" tabindex="-1" aria-labelledby="fp-plano-modulos-titulo" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="fp-plano-modulos-titulo">Seu plano — módulos e acesso</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body" id="fp-plano-modulos-corpo"></div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="bi bi-x-lg"></i> Fechar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="fp-fatura-pagar-modal" tabindex="-1" aria-labelledby="fp-fatura-pagar-titulo" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
+            <div class="modal-dialog modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="fp-fatura-pagar-titulo">Regularizar fatura</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body" id="fp-fatura-pagar-corpo"></div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="bi bi-x-lg"></i> Fechar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="fp-fatura-cupom-modal" tabindex="-1" aria-labelledby="fp-fatura-cupom-titulo" aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="fp-fatura-cupom-titulo">Aplicar cupom na fatura</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <label class="form-label" for="fp-fatura-cupom-fatura">Fatura</label>
+                        <select class="form-select mb-3" id="fp-fatura-cupom-fatura"></select>
+                        <p class="small text-muted" id="fp-fatura-cupom-info"></p>
+                        <label class="form-label" for="fp-fatura-cupom-codigo">Código do cupom</label>
+                        <input type="text" class="form-control text-uppercase mb-2" id="fp-fatura-cupom-codigo" placeholder="Código do cupom" autocomplete="off">
+                        <div id="fp-fatura-cupom-msg" class="small text-muted"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-primary" id="fp-fatura-cupom-aplicar">Aplicar cupom</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{ template "link-js" . }}
+        <script src="/recursos/js/auxiliares/fp-planos-dados.js"></script>
+        <script src="/recursos/js/auxiliares/plano-comparacao.js"></script>
+        <script src="/recursos/js/auxiliares/licenca-menu.js"></script>
+        <script src="/recursos/modulos/minha-empresa/meu-plano/meu-plano.js"></script>
+    </body>
+</html>

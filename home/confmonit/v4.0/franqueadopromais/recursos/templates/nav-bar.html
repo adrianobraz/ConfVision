@@ -1,0 +1,66 @@
+{{ define "nav-bar"}}
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark fp-navbar">
+    <div class="container-fluid">
+
+        <a class="navbar-brand fp-navbar-brand" href="/carregar-menu-principal" title="FranqueadoPro">
+            <img class="fp-logo fp-logo-auto" data-logo-on="navbar"
+                src="/recursos/img/logo/franqueado_black.png" alt="FranqueadoPro">
+        </a>
+
+        <a href="/carregar-menu-principal"
+            class="btn fp-icon-btn fp-home-btn me-2"
+            title="Início"
+            aria-label="Início">
+            <i class="bi bi-house-door-fill"></i>
+        </a>
+
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+            data-bs-target="#nav-bar" aria-controls="nav-bar"
+            aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="nav-bar">
+
+            <div class="fp-nav-combo dropdown mx-lg-3 mt-3 mt-lg-0">
+                <button class="btn fp-nav-toggle dropdown-toggle" type="button"
+                    id="fp-nav-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span id="fp-nav-current" data-fallback="{{ .NomeTela }}">{{ .NomeTela }}</span>
+                </button>
+                <ul class="dropdown-menu fp-nav-menu" id="fp-nav-items" aria-labelledby="fp-nav-toggle"></ul>
+            </div>
+
+            <div class="fp-screen-info flex-grow-1 text-center px-lg-3 mt-2 mt-lg-0">
+                <div class="fp-screen-title" id="fp-screen-title" data-fallback="{{ .NomeTela }}">{{ .NomeTela }}</div>
+                <div class="fp-screen-sub" id="fp-screen-sub"></div>
+            </div>
+
+            <div class="fp-navbar-actions ms-lg-auto mt-3 mt-lg-0">
+                <div class="fp-user-chip" id="fp-user-chip" title="Conta logada" aria-label="Conta logada">
+                    <div class="fp-user-franqueado" id="fp-nav-nome-franqueado"></div>
+                    <div class="fp-user-email" id="fp-nav-email"></div>
+                </div>
+                <span id="cmNotifMount"></span>
+                <button type="button"
+                    id="fp-theme-toggle"
+                    class="btn fp-icon-btn"
+                    title="Personalizar tema"
+                    aria-label="Personalizar tema">
+                    <i class="bi bi-palette"></i>
+                </button>
+                <a href="/logout"
+                    id="logout"
+                    class="btn btn-outline-light fw-bold">
+                    <i class="bi bi-door-open-fill"></i>
+                    &nbsp; Sair
+                </a>
+            </div>
+
+        </div>
+    </div>
+</nav>
+{{ template "menu-atalhos" . }}
+{{ template "page-header" . }}
+{{ template "theme-panel" . }}
+{{end}}

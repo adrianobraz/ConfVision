@@ -1,0 +1,32 @@
+{{ template "pagina" . }}
+
+{{ define "body" }}
+<div class="h-full w-full">
+    {{ template "navbar" . }}
+    <div class="flex flex-col md:flex-row md:h-[calc(100%-4rem)]">
+
+        <div class="md:w-6/12 hidden gap-2 bg-zinc-400 md:flex md:flex-col overflow-auto">
+            <img class="h-full" src="/public/img/financeiro.jpg" alt="foto">
+        </div>
+
+        <!-- Tabela -->
+        <div class="md:w-6/12 bg-zinc-600 overflow-auto">
+            <h1 class="border-s-2 border-e-2 border-t-2 bg-blue-950 p-1 text-center text-white font-black">Cancelar Franqueado</h1>
+            {{ template "tabela" }}
+        </div>
+    </div>
+</div>
+<script src="/public/templates/financeiro/financeiro.js"></script>
+{{ end }}
+
+
+
+
+
+{{ define "thead" }}
+
+<th class="py-2 w-3/12 text-sm">Cnpj</th>
+<th class="py-2 w-8/12 text-sm">Razão Social</th>
+<th class="py-2 w-1/12 text-sm" colspan="1">Ação</th>
+
+{{end}}

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    {{ template "head" . }}
+    {{ template "confvision-head-extra" . }}
+</head>
+<body class="cv-app">
+    {{ template "variaveis-controle" . }}
+    {{ template "confvision-config" . }}
+    {{ template "confvision-nav" . }}
+
+    <main class="cv-main">
+        <div class="cv-panel">
+            <div class="cv-panel-toolbar">
+                <h1 class="cv-page-title mb-0">Eventos</h1>
+                <button type="button" id="btn-atualizar-eventos" class="cv-btn-ghost" title="Atualizar lista">
+                    <i class="bi bi-arrow-clockwise" id="icon-atualizar-eventos"></i> Atualizar
+                </button>
+            </div>
+            <div class="cv-cameras-filtros cv-eventos-filtros">
+                <div class="cv-cameras-filtro-status cv-eventos-filtro-cliente" id="wrap-filtro-cliente-eventos">
+                    <label class="cv-label" for="sel-evento-cliente">Cliente</label>
+                    <select id="sel-evento-cliente" class="form-select form-select-sm">
+                        <option value="">Todos os clientes</option>
+                    </select>
+                </div>
+                <div class="cv-cameras-filtro-status">
+                    <label class="cv-label" for="filtro-evento-de">De</label>
+                    <input type="datetime-local" id="filtro-evento-de" class="form-control form-control-sm">
+                </div>
+                <div class="cv-cameras-filtro-status">
+                    <label class="cv-label" for="filtro-evento-ate">Até</label>
+                    <input type="datetime-local" id="filtro-evento-ate" class="form-control form-control-sm">
+                </div>
+                <div class="cv-eventos-filtro-acoes">
+                    <button type="button" id="btn-buscar-eventos" class="cv-btn-primary cv-btn-sm">
+                        <i class="bi bi-search"></i> Buscar
+                    </button>
+                    <button type="button" id="btn-limpar-eventos" class="cv-btn-ghost cv-btn-sm" title="Limpar filtros">
+                        Limpar
+                    </button>
+                </div>
+                <p id="lbl-eventos-filtro" class="cv-cameras-filtro-total mb-0"></p>
+            </div>
+            <div class="cv-panel-body table-responsive">
+                <table class="cv-table cv-table-cards">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Cliente</th>
+                            <th>Câmera</th>
+                            <th>Tipo</th>
+                            <th>Confiança</th>
+                            <th>Status</th>
+                            <th>Mídia</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tab-eventos"></tbody>
+                </table>
+                <div id="eventos-load-more" class="cv-eventos-load-more d-none">
+                    <i class="bi bi-hourglass-split cv-icon-spin"></i> Carregando mais eventos...
+                </div>
+                <div id="eventos-fim-lista" class="cv-eventos-fim-lista d-none">Fim da lista</div>
+                <div id="eventos-btn-mais-wrap" class="cv-eventos-load-more d-none">
+                    <button type="button" id="btn-carregar-mais-eventos" class="cv-btn-ghost">Carregar mais eventos</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal fade cv-modal-midia" id="modal-evento-midia" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content cv-modal-content">
+                <div class="modal-header cv-modal-header">
+                    <h5 class="modal-title" id="modal-evento-midia-titulo">Mídia do evento</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body cv-modal-body">
+                    <div id="modal-evento-loading" class="cv-empty py-4">Carregando mídia...</div>
+                    <div id="modal-evento-conteudo" class="d-none">
+                        <div id="box-modal-snapshot" class="cv-evento-snapshot-wrap d-none">
+                            <h6 class="cv-evento-section-title">Snapshot</h6>
+                            <img id="modal-evento-snapshot" alt="Snapshot do evento" class="cv-evento-snapshot-img">
+                        </div>
+                        <div id="box-modal-clips" class="cv-evento-clips-wrap">
+                            <h6 class="cv-evento-section-title">Vídeos capturados</h6>
+                            <div id="modal-evento-clips"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{ template "link-js" . }}
+    <script src="/recursos/modulos/confvision/urls.js?v=20260727mob4"></script>
+    <script src="/recursos/modulos/confvision/eventos.js?v=20260730evt1"></script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    height: 100vh;
+    width: 100vw;
+    /* background-color: #212529; */
+    opacity: 1;
+
+}
+
+#boxTop,
+#boxEsq,
+#boxDir {
+    justify-content: center;
+
+}
+
+
+@media screen and (width >=992px) {
+
+    #boxTop {
+        height: 100px;
+    }
+
+    #boxEsq,
+    #boxDir {
+        height: calc(100% - 100px);
+    }
+
+}

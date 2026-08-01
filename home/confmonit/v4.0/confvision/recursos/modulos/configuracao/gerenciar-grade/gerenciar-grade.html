@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="pt-br">
+
+<head>
+    {{ template "head" . }}
+</head>
+
+<body>
+    {{ template "variaveis-controle" . }}
+    {{ template "nav-bar" . }}
+    <input id="id-grade" type="hidden" value="">
+    {{ template "sub-menu-fluid" }}
+
+    <!-- CONTAINER PRINCIPAL -->
+    <div class="container-fluid container-principal">
+
+        <!-- ROW PRINCIPAL -->
+        <div class="row text-center">
+
+            <!-- COLUNA ESQUERDA -->
+            <div id="coluna-esquerda" class="col-lg-6 mt-2 ">
+
+                <div class="table-responsive  tab-height">
+                    <table class="table table-bordered table-sm">
+                        <thead class="table-dark">
+                            <th style="width: 60%;">Nome</th>
+                            <th style="width: 18%;">Tolerancia</th>
+                            <th colspan="3">Ações</th>
+                        </thead>
+                        <tbody>
+                            <!-- preenchido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+            </div><!-- COLUNA ESQUERDA -->
+
+
+            <!-- COLUNA DIREITA -->
+            <div id="coluna-direita" class="col-lg-6 mt-2 bg-form page-height">
+                <form id="formulario" class="px-4 pt-4">
+                    <!-- FORMULARIO -->
+                    <div class="table-responsive form-height">
+                        <div class="row mx-0">
+
+                            <div class="col-lg-6 mb-1 text-start">
+                                <label for="id-cliente" class="form-label mb-0">
+                                    Cliente:
+                                </label>
+                                <select class="form-control form-control-sm text-uppercase"
+                                    form="formulario" id="id-cliente"></select>
+
+                            </div>
+
+                            <div class="col-lg-6 mb-1 text-start">
+                                <label for="idDispositivo" class="form-label mb-0">
+                                    Dispositivo:
+                                </label>
+                                <select class="form-control form-control-sm text-uppercase"
+                                    form="formulario" id="idDispositivo"></select>
+
+                            </div>
+
+                            <div class="col-lg-3 mb-1 text-start">
+                                <label for="id-cliente" class="form-label mb-0">
+                                    Tolerancia:
+                                </label>
+                                <select type="text" class="form-control form-control-sm text-uppercase"
+                                    form="formulario" id="tolerancia-grade" disabled>
+                                    <option value="5">05 MINUTOS</option>
+                                    <option value="10">10 MINUTOS</option>
+                                    <option value="15">15 MINUTOS</option>
+                                    <option value="20">20 MINUTOS</option>
+                                    <option value="25">25 MINUTOS</option>
+                                    <option value="30">30 MINUTOS</option>
+                                </select>
+                            </div>
+
+                            <div class="col-lg-9 mb-1 text-start">
+                                <label for="nome-grade" class="form-label mb-0">
+                                    Nome da Grade:
+                                </label>
+                                <input type="text" disabled
+                                    class="form-control form-control-sm text-uppercase text-center" id="nome-grade">
+                            </div>
+
+                            <!-- Cabecario-->
+                            <div class="col-lg-2 mb-1 text-center">
+                                <label class="form-label">
+                                    DIA
+                                </label>
+                            </div>                            
+                            <div class="col-lg-10 mb-1 text-center">
+                                <div class="row">
+                                    <div class="col-3">
+                                        <label class="form-label">
+                                            DESARMAR
+                                        </label>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label text-center">
+                                          INICIO&nbsp;&nbsp;|&nbsp;&nbsp;INTERVALO&nbsp;&nbsp;|&nbsp;FIM
+                                        </label>
+                                    </div>
+                                    <!--div class="col-3">
+                                        <label class="form-label">
+                                            FIM INTERVA.
+                                        </label>
+                                    </div-->
+                                    <div class="col-3">
+                                        <label class="form-label">
+                                            ARMAR
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- DOMINGO -->
+                            <div class="col-lg-2 mb-1 text-end">
+                                <label class="form-label mb-0">
+                                    DOMINGO:
+                                </label>
+                            </div>
+                            <div class="col-lg-10 mb-1 text-center">
+                                <div class="row">
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                        msk-hora text-center" id="dom-eam-grade" placeholder="00:00">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="dom-sam-grade" placeholder="00:00">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="dom-epm-grade" placeholder="00:00">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="dom-spm-grade" placeholder="00:00">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- SEGUNDA -->
+                            <div class="col-lg-2 mb-1 text-end">
+                                <label class="form-label mb-0">
+                                    SEGUNDA:
+                                </label>
+                            </div>
+                            <div class="col-lg-10 mb-1 text-center">
+                                <div class="row">
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="seg-eam-grade" placeholder="00:00">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="seg-sam-grade" placeholder="00:00">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="seg-epm-grade" placeholder="00:00">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="seg-spm-grade" placeholder="00:00">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- TERCA -->
+                            <div class="col-lg-2 mb-1 text-end">
+                                <label class="form-label mb-0">
+                                    TERÇA:
+                                </label>
+                            </div>
+                            <div class="col-lg-10 mb-1 text-center">
+                                <div class="row">
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="ter-eam-grade" placeholder="00:00">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="ter-sam-grade" placeholder="00:00">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="ter-epm-grade" placeholder="00:00">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="ter-spm-grade" placeholder="00:00">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- QUARTA -->
+                            <div class="col-lg-2 mb-1 text-end">
+                                <label class="form-label mb-0">
+                                    QUARTA:
+                                </label>
+                            </div>
+                            <div class="col-lg-10 mb-1 text-center">
+                                <div class="row">
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="qua-eam-grade" placeholder="00:00">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="qua-sam-grade" placeholder="00:00">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="qua-epm-grade" placeholder="00:00">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="qua-spm-grade" placeholder="00:00">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- QUINTA -->
+                            <div class="col-lg-2 mb-1 text-end">
+                                <label class="form-label mb-0">
+                                    QUINTA:
+                                </label>
+                            </div>
+                            <div class="col-lg-10 mb-1 text-center">
+                                <div class="row">
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="qui-eam-grade" placeholder="00:00">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="qui-sam-grade" placeholder="00:00">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="qui-epm-grade" placeholder="00:00">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="qui-spm-grade" placeholder="00:00">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- SEXTA -->
+                            <div class="col-lg-2 mb-1 text-end">
+                                <label class="form-label mb-0">
+                                    SEXTA:
+                                </label>
+                            </div>
+                            <div class="col-lg-10 mb-1 text-center">
+                                <div class="row">
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="sex-eam-grade" placeholder="00:00">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="sex-sam-grade" placeholder="00:00">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="sex-epm-grade" placeholder="00:00">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="sex-spm-grade" placeholder="00:00">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- SABADO -->
+                            <div class="col-lg-2 mb-1 text-end">
+                                <label class="form-label mb-0">
+                                    SABADO:
+                                </label>
+                            </div>
+                            <div class="col-lg-10 mb-1 text-center">
+                                <div class="row">
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="sab-eam-grade" placeholder="00:00">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="sab-sam-grade" placeholder="00:00">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="sab-epm-grade" placeholder="00:00">
+                                    </div>
+                                    <div class="col-3">
+                                        <input type="text" disabled class="form-control form-control-sm
+                                    msk-hora text-center" id="sab-spm-grade" placeholder="00:00">
+                                    </div>
+                                </div>
+                            </div>
+
+
+
+                        </div>
+                    </div>
+                    <!-- /FORMULARIO -->
+
+                    <!-- CONTROLES -->
+                    <div class="row">
+
+                        <div class="col-lg-12">
+                            <hr>
+                        </div>
+                        <div class="col-6 d-grid gap-2">
+                            <button id="btn-limpar" class="btn btn-lg btn-block btn-danger
+                                    fs-2 py-4 py-lg-0" type="button">
+                                <i class="bi bi-eraser-fill fs-2"></i>
+                                &nbsp; Limpar
+                            </button>
+                        </div>
+                        <div class="col-6 d-grid gap-2">
+                            <button id="btn-gravar" class="btn btn-lg btn-success fs-2 py-4
+                                    py-lg-0" type="button">
+                                <i class="bi bi-save-fill fs-2"></i>
+                                &nbsp; Gravar
+                            </button>
+                        </div>
+
+                    </div>
+                </form>
+            </div> <!-- COLUNA DIREITA -->
+
+
+        </div>
+        <!-- ROW PRINCIPAL -->
+
+    </div>
+    <!-- /CONTAINER PRINCIPAL -->
+
+    {{ template "link-js" . }}
+    <script src="/recursos/modulos/configuracao/gerenciar-grade/gerenciar-grade.js"></script>
+</body>
+
+</html>

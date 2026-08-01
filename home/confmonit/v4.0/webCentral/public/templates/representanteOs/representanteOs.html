@@ -1,0 +1,69 @@
+{{ template "pagina" . }}
+
+{{ define "body" }}
+<div class="tech-page">
+    {{ template "navbar" . }}
+
+    <div class="tech-workspace">
+        <!-- Listagem (esquerda) -->
+        <section class="tech-col-list">
+            <div class="tech-panel">
+                <div class="tech-panel-head">
+                    <i class="bi bi-table"></i> Listagem · Ordens de Serviço
+                </div>
+                <div class="tech-panel-body">
+                    {{ template "tabela" }}
+                </div>
+            </div>
+        </section>
+
+        <!-- Cadastro (direita) -->
+        <section class="tech-col-form">
+            <div class="tech-panel">
+                <div class="tech-panel-head">
+                    <i class="bi bi-pencil-square"></i> Cadastro · Ordem de Serviço
+                </div>
+                <div class="tech-panel-body">
+                    <div class="tech-form-block">
+                        <label for="representante" class="ps-1">Representante</label>
+                        <select id="representante" class="w-full px-3 py-2 text-center"></select>
+
+                        <label for="assunto" class="ps-1 mt-2 block">Assunto</label>
+                        <input id="assunto" type="text"
+                            class="w-full px-3 py-2 uppercase text-center">
+
+                        <label for="historico" class="ps-1 mt-2 block">Historico</label>
+                        <textarea id="historico" rows="7" readonly
+                            class="text-sm w-full px-3 py-2 uppercase"></textarea>
+
+                        <label for="descricao" class="ps-1 mt-2 block">Descrição</label>
+                        <textarea id="descricao" rows="5"
+                            class="text-sm w-full px-3 py-2 uppercase text-center"></textarea>
+                    </div>
+
+                    <div class="w-full flex flex-col md:flex-row gap-2">
+                        <button id="btnLimpar" class="py-2 w-full rounded-md text-white font-black text-xl bg-red-700">
+                            <i class="bi bi-eraser-fill"></i> &nbsp; Limpar
+                        </button>
+                        <button id="btnGravar" class="py-2 w-full rounded-md text-white font-black text-xl bg-green-700">
+                            <i class="bi bi-floppy-fill"></i> &nbsp; Gravar
+                        </button>
+                        <button id="btnFechar" class="py-2 w-full rounded-md text-white font-black text-xl bg-blue-700">
+                            Fechar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+<script src="/public/templates/representanteOs/representanteOs.js"></script>
+{{ end }}
+
+
+{{ define "thead" }}
+<th class="py-2 w-5/12 text-xs">Nome</th>
+<th class="py-2 w-4/12 text-xs">Assunto</th>
+<th class="py-2 w-2/12 text-xs">Status</th>
+<th class="py-2 w-1/12 text-xs" colspan="2">Ação</th>
+{{end}}

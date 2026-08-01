@@ -1,0 +1,6 @@
+# ConfService — fechamento quinzenal de faturas (parceiro / franqueado / comissao)
+# Dias 1 e 16, 00:05 — fecha a quinzena corrente via API local
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+5 0 1,16 * * root /home/confmonit/start/confservice-fatura-fechar.sh

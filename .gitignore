@@ -1,0 +1,10 @@
+.cursor/
+.xano/
+.tmp_benuvem_pdf/
+*.pyc
+__pycache__/
+.env
+.env.local
+node_modules/
+.DS_Store
+Thumbs.db

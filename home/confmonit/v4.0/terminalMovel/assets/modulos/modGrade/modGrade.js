@@ -1,0 +1,71 @@
+function modGrade_start(retorno) {
+    $('#boxDir').empty()
+    const uri = '/assets/modulos/modGrade/modGrade.html'
+    $('#boxDir').load(uri, () => {
+        modGrade_buscarDados()
+        $('#modGrade_btnFechar').on('click', function () {
+            if (typeof retorno === 'function') retorno()
+        })
+    })
+}
+
+function modGrade_buscarDados() {
+    
+    const idDispositivo = sessionStorage.getItem('ateProDado_proc_idDispositivo')
+    $.ajax({
+        url: '/modGrade/buscarDados',
+        method: 'Post',
+        headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": "Bearer " + sessionStorage.getItem('token')
+        },
+        data: JSON.stringify({ idDispositivo: idDispositivo })                
+    }).fail(function (e) {
+        console.log(e)
+    }).done(function (r) {
+        if (r.status == "OK") {
+            const d = r.dados
+            const nomeDisp = `Dispositivo: ${d.nomeDisp}`
+            const nomeGrade = `Grade: ${d.nome}`
+            $('#modGrade_nomeDisp').html(nomeDisp)
+            $('#modGrade_nome').html(nomeGrade)
+            $('#modGrade_tolerancia').html(d.tolerancia + ' MINUTOS')
+
+            $('#modGrade_domEam').html(d.domEam)
+            $('#modGrade_domSam').html(d.domSam)
+            $('#modGrade_domEpm').html(d.domEpm)
+            $('#modGrade_domSpm').html(d.domSpm)
+
+            $('#modGrade_segEam').html(d.segEam)
+            $('#modGrade_segSam').html(d.segSam)
+            $('#modGrade_segEpm').html(d.segEpm)
+            $('#modGrade_segSpm').html(d.segSpm)
+
+            $('#modGrade_terEam').html(d.terEam)
+            $('#modGrade_terSam').html(d.terSam)
+            $('#modGrade_terEpm').html(d.terEpm)
+            $('#modGrade_terSpm').html(d.terSpm)
+
+            $('#modGrade_quaEam').html(d.quaEam)
+            $('#modGrade_quaSam').html(d.quaSam)
+            $('#modGrade_quaEpm').html(d.quaEpm)
+            $('#modGrade_quaSpm').html(d.quaSpm)
+
+            $('#modGrade_quiEam').html(d.quiEam)
+            $('#modGrade_quiSam').html(d.quiSam)
+            $('#modGrade_quiEpm').html(d.quiEpm)
+            $('#modGrade_quiSpm').html(d.quiSpm)
+
+            $('#modGrade_sexEam').html(d.sexEam)
+            $('#modGrade_sexSam').html(d.sexSam)
+            $('#modGrade_sexEpm').html(d.sexEpm)
+            $('#modGrade_sexSpm').html(d.sexSpm)
+
+            $('#modGrade_sabEam').html(d.sabEam)
+            $('#modGrade_sabSam').html(d.sabSam)
+            $('#modGrade_sabEpm').html(d.sabEpm)
+            $('#modGrade_sabSpm').html(d.sabSpm)
+        }
+    })
+}

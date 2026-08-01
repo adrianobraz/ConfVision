@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="pt-br">
+
+<head>
+    {{ template "head" . }}
+    {{ template "confvision-cadastro-head" . }}
+    <link rel="stylesheet" href="/recursos/modulos/configuracao/gerenciar-dispositivo/gerenciar-dispositivo.css?v=20260714cli2">
+</head>
+
+<body class="cv-cadastro">
+    <div class="cv-cadastro-root">
+    {{ template "variaveis-controle" . }}
+    {{ template "nav-bar" . }}
+    {{ template "sub-menu-fluid" }}
+
+    <!-- CONTAINER PRINCIPAL -->
+    <div class="container-principal">
+        <!-- ROW PRINCIPAL -->
+        <div class="row text-center mx-0">
+
+            <!-- COLUNA ESQUERDA -->
+            <div id="coluna-esquerda" class="col-lg-7 mt-2 ">
+
+                <div class="table-responsive tab-height">
+                    <table id="tab-dispositivo" class="table table-sm table-bordered table-striped">
+                        <thead class="table-dark">
+                            <th style="width: 6%;">Conta</th>
+                            <th style="width: 4%;">Part.</th>
+                            <th style="width: 20%;">Serial/Mac</th>
+                            <th style="width: 30%;">Cliente</th>
+                            <th style="width: 30%;">Dispositivo</th>
+                            <th colspan="3">Ações</th>
+                        </thead>
+                        <tbody>
+                            <!-- preenchido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+            <!-- /COLUNA ESQUERDA -->
+
+
+            <!-- COLUNA DIREITA -->
+            <div id="coluna-direita" class="col-lg-5 mt-2 bg-form page-height">
+                <form id="formulario" class="px-4 pt-4">
+                    <!-- FORMULARIO -->
+                    <div class="table-responsive form-height">
+                        <div class="row mx-0">
+
+                            <div class="col-lg-9 mb-1 text-start grupo-cliente">
+                                <label for="busca-cliente" class="form-label mb-0">
+                                    Cliente:
+                                </label>
+                                <div class="position-relative">
+                                    <input type="text" autocomplete="off"
+                                        class="form-control form-control-sm text-uppercase grupo-cliente"
+                                        id="busca-cliente"
+                                        placeholder="Pesquisar por nome, CPF, CNPJ ou nick...">
+                                    <input type="hidden" form="formulario" id="id-cliente" value="0">
+                                    <ul id="lista-clientes" class="cv-combo-list d-none"></ul>
+                                </div>
+                            </div>
+
+
+
+
+                            <!-- DADOS DA CENTRAL-->
+                            <div class="col-lg-3 mb-1 text-start">
+                                <label for="dispositivo-id-fabricante" class="form-label mb-0">
+                                    Fabricante:
+                                </label>
+                                <select type="text" class="form-control form-control-sm text-uppercase"
+                                    form="formulario" id="dispositivo-id-fabricante">
+                                    <option value="0">Selecione.</option>
+                                </select>
+                            </div>
+
+                            <div class="col-lg-6 mb-1 text-start">
+                                <label for="dispositivo-modelo-central" class="form-label mb-0">
+                                    Modelo:
+                                </label>
+                                <select type="text" class="form-control form-control-sm text-uppercase"
+                                    form="formulario" id="dispositivo-modelo-central">
+                                    <option value="0">Selecione</option>
+                                </select>
+                            </div>
+
+                            <div id="grupo-cv-campos-alarme" class="row mx-0 p-0">
+                            <div class="col-lg-6 mb-1 text-start">
+                                <label for="dispositivo-particao-alarme" class="form-label mb-0">
+                                    Partição:
+                                </label>
+                                <select type="text" maxlength="15" class="form-control form-control-sm
+                                        text-uppercase  text-center" id="dispositivo-particao-alarme">
+
+                                </select>
+                            </div>
+
+                            <div class="col-lg-6 mb-1 text-start">
+                                <label for="senha" class="form-label mb-0">
+                                    Senha:
+                                </label>
+                                <input type="text" maxlength="15" class="form-control form-control-sm
+                                        text-uppercase  text-center" id="senha">
+                            </div>
+
+                            <div class="col-lg-6 mb-1 text-start">
+                                <label for="dispositivo-conta-alarme" class="form-label mb-0">
+                                    Conta Alarme:
+                                </label>
+                                <div class="col-lg-12 input-group ">
+                                    <input type="text" id="dispositivo-conta-alarme" placeholder="0000"
+                                        class="form-control form-control-sm msk-conta-alarme">
+                                    <span id="btn-gerar-conta-alarme" class="input-group-text btn                                        
+                                            btn-primary py-0 px-1">
+                                        <!--i class="bi bi-gear-fill"></i-->
+                                        Gerar
+                                    </span>
+                                </div>
+                            </div>
+
+
+                            <div class="col-lg-6 mb-1 text-start">
+                                <div id="grupo-tipo">
+                                    <label for="DispositivoTipo" class="form-label mb-0">
+                                        Tipo:
+                                    </label>
+                                    <select type="text" class="form-control form-control-sm text-uppercase"
+                                        form="formulario" id="DispositivoTipo">
+                                        <option value="MASTER">MASTER</option>
+                                    </select>
+                                </div>
+                            </div>
+
+
+
+                            <div class="col-lg-6 mb-1 text-start">
+                                <div id="grupo-mac">
+                                    <label for="dispositivo-mac-alarme" class="form-label mb-0">
+                                        Serial ou Mac:
+                                    </label>
+                                    <input type="text" maxlength="17" class="form-control form-control-sm
+                                        text-uppercase  text-center" id="dispositivo-mac-alarme">
+                                </div>
+                            </div>
+
+                            <div class="col-lg-6 mb-1 text-start">
+                                <div id="grupo-imei">
+                                    <label for="DispositivoImeiAlarme" class="form-label mb-0">
+                                        Imei:
+                                    </label>
+                                    <input type="text" maxlength="17" class="form-control form-control-sm
+                                            text-uppercase  text-center" id="DispositivoImeiAlarme">
+                                </div>
+                            </div>
+
+
+
+                            <div class="col-lg-6 mb-1 text-start">
+                                <div id="grupo-keep">
+                                    <label for="dispositivo-keep-alive-alarme" class="form-label mb-0">
+                                        Keepalive:
+                                    </label>
+                                    <input type="text" maxlength="2" class="form-control form-control-sm
+                                            text-uppercase text-center" id="dispositivo-keep-alive-alarme">
+                                </div>
+
+                            </div>
+                            </div>
+
+                            <!-- Nome de identificação da central no sistema -->
+                            <div class="col-lg-12 mb-1 text-start">
+                                <label for="dispositivo-nome" class="form-label mb-0">
+                                    Nome Dispositivo:
+                                </label>
+                                <input type="text" maxlength="50" minlength="3"
+                                    class="form-control form-control-sm text-uppercase" id="dispositivo-nome">
+                            </div>
+
+                            <input type="hidden" id="provedorVideo" value="confvision">
+
+                            <div class="col-lg-12 mb-1 text-start cv-campo-confvision-oculto">
+                                <label for="senhaVerbal" class="form-label mb-0">
+                                    Senha Verbal:
+                                </label>
+                                <input type="text" maxlength="50" minlength="3"
+                                    class="form-control form-control-sm text-uppercase" id="senhaVerbal">
+                            </div>
+
+                            <div class="col-lg-12 mb-1 text-start cv-campo-confvision-oculto">
+                                <label for="contraSenhaVerbal" class="form-label mb-0">
+                                    Contra Senha Verbal:
+                                </label>
+                                <input type="text" maxlength="50" minlength="3"
+                                    class="form-control form-control-sm text-uppercase" id="contraSenhaVerbal">
+                            </div>
+
+                            <div class="col-lg-12 mb-1 text-start cv-campo-confvision-oculto">
+                                <label for="msgAtendente" class="form-label mb-0">
+                                    Mensagem Atendente:
+                                </label>
+                                <textarea type="text" rows="4" class="form-control form-control-sm text-uppercase"
+                                    id="msgAtendente"></textarea>
+                            </div>
+
+                        </div>
+                    </div>
+                    <!-- /FORMULARIO -->
+
+                    <!-- CONTROLES -->
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <hr>
+                        </div>
+
+                        <div class="col-6 d-grid gap-2">
+                            <button id="btn-limpar" class="btn btn-lg btn-block btn-danger
+                                     fs-2 py-4 py-lg-0" type="button">
+                                <i class="bi bi-eraser-fill fs-2"></i>
+                                &nbsp; Limpar
+                            </button>
+                        </div>
+
+                        <div class="col-6 d-grid gap-2">
+                            <button id="btn-gravar" class="btn btn-lg btn-success fs-2 py-4
+                                     py-lg-0" type="button">
+                                <i class="bi bi-save-fill fs-2"></i>
+                                &nbsp; Gravar
+                            </button>
+                        </div>
+                    </div>
+                    <!-- /CONTROLES -->
+
+                </form>
+            </div>
+            <!-- /COLUNA DIREITA -->
+
+        </div>
+        <!-- ROW PRINCIPAL -->
+
+    </div>
+    <!-- CONTAINER PRINCIPAL -->
+
+    {{ template "link-js" . }}
+    <script src="/recursos/modulos/configuracao/gerenciar-dispositivo/gerenciar-dispositivo.js?v=20260714cli2"></script>
+    </div>
+</body>
+
+</html>

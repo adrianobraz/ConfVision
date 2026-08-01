@@ -1,0 +1,52 @@
+#proEventoDetalhe .table-responsive{
+    height: calc(100% - 110px);
+    
+}
+
+#proEventoDetalhe .proEventoDetalhe_dataRow td {
+    vertical-align: top;
+}
+
+#proEventoDetalhe .proEventoDetalhe_qtdCell {
+    width: 12%;
+    text-align: center;
+    vertical-align: middle !important;
+    font-weight: 700;
+}
+
+#proEventoDetalhe .proEventoDetalhe_contentCell {
+    width: 88%;
+}
+
+#proEventoDetalhe .proEventoDetalhe_infoLine {
+    text-align: left;
+    margin-bottom: 6px;
+    word-break: break-word;
+}
+
+#proEventoDetalhe .proEventoDetalhe_actionCell {
+    text-align: left;
+}
+
+#proEventoDetalhe .proEventoDetalhe_eyeBtn {
+    min-height: 40px;
+    padding: 6px 12px;
+    font-size: 0.95rem;
+}
+
+#proEventoDetalhe .proEventoDetalhe_tipoBadge {
+    display: inline-block;
+    min-width: 20px;
+    text-align: center;
+    border-radius: 4px;
+    color: #fff;
+    font-weight: 700;
+}
+
+#proEventoDetalhe .proEventoDetalhe_tipoE {
+    background: #dc3545;
+}
+
+#proEventoDetalhe .proEventoDetalhe_tipoR {
+    background: #198754;
+}

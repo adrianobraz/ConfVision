@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="pt-br">
+    <head>
+        {{ template "head" . }}
+        <link rel="stylesheet" href="/recursos/modulos/minha-empresa/gerenciar-tecnico/gerenciar-tecnico.css">
+    </head>
+    <body>
+        {{ template "variaveis-controle" . }}
+        <input id="id-tecnico" type="hidden" value="">
+        {{ template "nav-bar" . }}
+        {{ template "sub-menu-fluid" }}
+        <div class="container-fluid container-principal">
+            <div class="row text-center">
+                <!-- COLUNA ESQUERDA -->
+                <div class="col-lg-6 mt-2">
+                    <div class="px-1 mb-2">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" id="pesquisar-tecnico" class="form-control"
+                                placeholder="Pesquisar por nome ou celular...">
+                        </div>
+                    </div>
+                    <div id="coluna-direita" class="table-responsive altura-fixa">
+                        <table class="table table-bordered table-sm">
+                            <thead class="table-dark">
+                                <th style="width: 45%;">Nome</th>
+                                <th style="width: 25%;">Celular</th>
+                                <th colspan="4">Ações</th>
+                            </thead>
+                            <tbody><!-- Preenchido via js --></tbody>
+                        </table>
+                    </div>
+                </div><!-- COLUNA ESQUERDA --> 
+
+               
+
+                <!-- COLUNA DIREITA -->
+                <div id="coluna-esquerda" class="col-lg-6 mt-2 bg-form page-height">
+                    <form id="formulario" class="px-4 pt-4">
+                        <div class="table-responsive form-height">
+                        <div class="row mx-0">
+                            <div class="col-lg-8 mb-1 text-start">
+                                <label for="nome"
+                                    class="form-label mb-0">
+                                    Nome*:
+                                </label>
+                                <input type="text" autofocus maxlength="50"
+                                    class="form-control form-control-sm text-uppercase"
+                                    id="nome">
+                            </div>
+
+                            <div class="col-lg-4 mb-1 text-start">
+                                <label for="nick"
+                                    class="form-label mb-0">
+                                    Nick*:
+                                </label>
+                                <input type="text" maxlength="20"
+                                    class="form-control form-control-sm text-uppercase"
+                                    id="nick">
+                            </div>
+
+                            <div class="col-lg-3 mb-1 text-start">
+                                <label for="cpf"
+                                    class="form-label mb-0">
+                                    CPF:
+                                </label>
+                                <input type="text" 
+                                    class="form-control form-control-sm msk-cpf"
+                                    id="cpf">
+                            </div>
+
+                            <div class="col-lg-3 mb-1 text-start">
+                                <label for="rg"
+                                    class="form-label mb-0">
+                                    RG:
+                                </label>
+                                <input type="text" maxlength="15"
+                                    class="form-control form-control-sm"
+                                    id="rg">
+                            </div>
+
+                            <div class="col-lg-3 mb-1 text-start">
+                                <label for="cep"
+                                    class="form-label mb-0">
+                                    CEP:
+                                </label>
+                                <input type="text"
+                                    class="form-control form-control-sm msk-cep"
+                                    id="cep">
+                            </div>
+
+                            <div class="col-lg-3 mb-1 text-start">
+                                <label for="uf"
+                                    class="form-label mb-0">
+                                    UF:
+                                </label>
+                                <select class="form-control form-control-sm
+                                carregarUf text-uppercase"
+                                id="uf"></select>
+                            </div>
+
+                            <div class="col-lg-12 mb-1 text-start">
+                                <label for="endereco"
+                                    class="form-label mb-0">
+                                    Endereço:
+                                </label>
+                                <input type="text" maxlength="50"
+                                    class="form-control form-control-sm text-uppercase"
+                                    id="endereco">
+                            </div>
+
+                            <div class="col-lg-9 mb-1 text-start">
+                                <label for="complemento"
+                                    class="form-label mb-0 ">
+                                    Complemento:
+                                </label>
+                                <input type="text"
+                                    class="form-control form-control-sm text-uppercase"
+                                    id="complemento">
+                            </div>
+
+                            <div class="col-lg-3 mb-1 text-start">
+                                <label for="telefone1"
+                                    class="form-label mb-0">
+                                    Telefone1:
+                                </label>
+                                <input type="text"
+                                    class="form-control form-control-sm msk-telefone"
+                                    id="telefone1">
+                            </div>
+
+                            <div class="col-lg-9 mb-1 text-start">
+                                <label for="bairro"
+                                    class="form-label mb-0">
+                                    Bairro:
+                                </label>
+                                <input type="text" maxlength="50"
+                                    class="form-control form-control-sm text-uppercase"
+                                    id="bairro">
+                            </div>
+
+                            <div class="col-lg-3 mb-1 text-start">
+                                <label for="telefone2"
+                                    class="form-label mb-0">
+                                    Telefone2:
+                                </label>
+                                <input type="text"
+                                    class="form-control form-control-sm msk-celular"
+                                    id="telefone2">
+                            </div>
+
+                            <div class="col-lg-6 mb-1 text-start">
+                                <label for="cidade"
+                                    class="form-label mb-0">
+                                    Cidade:
+                                </label>
+                                <input type="text" maxlength="50"
+                                    class="form-control form-control-sm text-uppercase"
+                                    id="cidade">
+                            </div>
+
+                            <div class="col-lg-6 mb-1 text-start">
+                                <label for="email"
+                                    class="form-label mb-0">
+                                    Email*:
+                                </label>
+                                <input type="email"
+                                    class="form-control form-control-sm text-lowercase"
+                                    id="email">
+                            </div>
+
+                        </div>
+                        </div>
+
+                        <div class="row g-3 fp-form-actions mx-0 pb-3">
+                            <div class="col-12">
+                                <hr class="my-2">
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <button id="btn-limpar"
+                                    class="btn btn-danger w-100 fp-btn-form-action"
+                                    type="button">
+                                    <i class="bi bi-eraser-fill"></i>
+                                    &nbsp; Limpar
+                                </button>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <button id="btn-gravar"
+                                    class="btn btn-success w-100 fp-btn-form-action"
+                                    type="button">
+                                    <i class="bi bi-save-fill"></i>
+                                    &nbsp; Gravar
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div><!-- COLUNA DIREITA -->
+                
+
+            </div>
+        </div>
+
+        {{ template "link-js" . }}
+        <script
+            src="/recursos/modulos/minha-empresa/gerenciar-tecnico/gerenciar-tecnico.js"></script>
+    </body>
+</html>

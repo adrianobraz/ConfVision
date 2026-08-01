@@ -1,0 +1,279 @@
+{{ template "pagina" . }}
+
+{{ define "body" }}
+{{ template "navbar" . }}
+<div class="w-full flex flex-col md:flex-row">
+    {{ template "colEsq" }}
+    {{ template "colDir" }}
+</div>
+<script src="/public/templates/grade/grade.js"></script>
+{{ end }}
+
+{{ define "colEsq" }}
+<div class="w-full md:w-1/2 md:border-r px-2">
+    <div class="w-full py-2">
+        <label for="dispositivo" class="ps-2 font-black">
+            Dispositivo:
+        </label>
+        <select id="dispositivo"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase">
+            
+        </select>
+    </div>
+    
+    {{ template "tabela" }}
+</div>
+{{ end }}
+
+{{ define "colDir" }}
+<div class="w-full md:w-1/2 ">
+    <div class="p-1 min-h-full w-full flex md:flex-row font-bold flex-wrap items-center">
+
+        <div class="w-full md:w-8/12 p-1">
+            <label for="nome" class="ps-2 font-black">
+                Nome:
+            </label>
+            <input id="nome" type="text"
+                class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+        </div>
+
+        <div class="w-full md:w-4/12 p-1">
+            <label for="tolerancia" class="ps-2 font-black">
+                Tolerancia:
+            </label>
+            <input id="tolerancia" type="text"
+                class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+        </div>
+
+        
+        <hr class="h-px w-full my-5 bg-white border-0">
+
+        <label class="w-2/12 p-1 font-black text-center text-sm md:text-lg">Dia</label>
+        <div class="w-10/12 flex items-center">
+            <div class="w-1/4 text-center text-sm md:text-lg">Entrada</div>
+            <div class="w-1/4 text-center text-sm md:text-lg">Sai. Inter.</div>
+            <div class="w-1/4 text-center text-sm md:text-lg">Ent. Inter.</div>
+            <div class="w-1/4 text-center text-sm md:text-lg">Saida</div>
+        </div>
+
+        {{ template "domingo"}}
+        {{ template "segunda"}}
+        {{ template "terca"}}
+        {{ template "quarta"}}
+        {{ template "quinta"}}
+        {{ template "sexta"}}
+        {{ template "sabado"}}
+
+
+
+    </div>
+</div>
+{{ end }}
+
+{{ define "thead" }}
+<th>NOME GRADE</th>
+<th style="width: 25%;" colspan="2">AÇÃO</th>
+{{ end }}
+
+{{ define "domingo"}}
+<label class="w-2/12 p-1 md:font-black text-[12px] md:text-lg">Domingo:</label>
+
+<div class="w-10/12 md:text-xl flex">
+    <div class="w-1/4 p-1">
+        <input id="domEam" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+
+    <div class="w-1/4 p-1">
+
+        <input id="domSam" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+
+    <div class="w-1/4 p-1">
+
+        <input id="domEpm" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+
+    <div class="w-1/4 p-1">
+
+        <input id="domSpm" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+</div>
+{{ end }}
+
+{{ define "segunda"}}
+<label class="w-2/12 p-1 md:font-black text-[12px] md:text-lg">Segunda:</label>
+
+<div class="w-10/12 md:text-xl flex">
+    <div class="w-1/4 p-1">
+        <input id="segEam" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+
+    <div class="w-1/4 p-1">
+
+        <input id="segSam" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+
+    <div class="w-1/4 p-1">
+
+        <input id="segEpm" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+
+    <div class="w-1/4 p-1">
+
+        <input id="segSpm" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+</div>
+{{ end }}
+
+{{ define "terca"}}
+<label class="w-2/12 p-1 md:font-black text-[12px] md:text-lg">Terça:</label>
+
+<div class="w-10/12 md:text-xl flex">
+    <div class="w-1/4 p-1">
+        <input id="terEam" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+
+    <div class="w-1/4 p-1">
+
+        <input id="terSam" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+
+    <div class="w-1/4 p-1">
+
+        <input id="terEpm" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+
+    <div class="w-1/4 p-1">
+
+        <input id="terSpm" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+</div>
+{{ end }}
+
+{{ define "quarta"}}
+<label class="w-2/12 p-1 md:font-black text-[12px] md:text-lg">Quarta:</label>
+
+<div class="w-10/12 md:text-xl flex">
+    <div class="w-1/4 p-1">
+        <input id="quaEam" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+
+    <div class="w-1/4 p-1">
+
+        <input id="quaSam" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+
+    <div class="w-1/4 p-1">
+
+        <input id="quaEpm" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+
+    <div class="w-1/4 p-1">
+
+        <input id="quaSpm" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+</div>
+{{ end }}
+
+{{ define "quinta"}}
+<label class="w-2/12 p-1 md:font-black text-[12px] md:text-lg">Quinta:</label>
+
+<div class="w-10/12 md:text-xl flex">
+    <div class="w-1/4 p-1">
+        <input id="quiEam" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+
+    <div class="w-1/4 p-1">
+
+        <input id="quiSam" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+
+    <div class="w-1/4 p-1">
+
+        <input id="quiEpm" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+
+    <div class="w-1/4 p-1">
+
+        <input id="quiSpm" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+</div>
+{{ end }}
+
+{{ define "sexta"}}
+<label class="w-2/12 p-1 md:font-black text-[12px] md:text-lg">Sexta:</label>
+
+<div class="w-10/12 md:text-xl flex">
+    <div class="w-1/4 p-1">
+        <input id="sexEam" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+
+    <div class="w-1/4 p-1">
+
+        <input id="sexSam" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+
+    <div class="w-1/4 p-1">
+
+        <input id="sexEpm" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+
+    <div class="w-1/4 p-1">
+
+        <input id="sexSpm" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+</div>
+{{ end }}
+
+{{ define "sabado"}}
+<label class="w-2/12 p-1 md:font-black text-[12px] md:text-lg">Sabado:</label>
+
+<div class="w-10/12 md:text-xl flex">
+    <div class="w-1/4 p-1">
+        <input id="sabEam" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+
+    <div class="w-1/4 p-1">
+
+        <input id="sabSam" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+
+    <div class="w-1/4 p-1">
+
+        <input id="sabEpm" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+
+    <div class="w-1/4 p-1">
+
+        <input id="sabSpm" type="text"
+            class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" readonly>
+    </div>
+</div>
+{{ end }}

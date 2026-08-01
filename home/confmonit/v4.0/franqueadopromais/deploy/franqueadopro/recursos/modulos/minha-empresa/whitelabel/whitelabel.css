@@ -1,0 +1,51 @@
+.fp-wl-card {
+    background: var(--fp-surface);
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+.fp-wl-logo-preview {
+    max-width: 150px;
+    max-height: 48px;
+    object-fit: contain;
+    background: var(--fp-navbar);
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+.fp-wl-dominio-card {
+    background: rgba(0, 0, 0, .15);
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+}
+
+.fp-wl-dns-box {
+    background: rgba(0, 0, 0, .2);
+    border-radius: 8px;
+    padding: .75rem 1rem;
+}
+
+.fp-wl-dns-table {
+    margin-bottom: 0;
+    color: inherit;
+}
+
+.fp-wl-dns-table th,
+.fp-wl-dns-table td {
+    vertical-align: middle;
+}
+
+.fp-wl-readonly {
+    background-color: rgba(0, 0, 0, .12) !important;
+    cursor: not-allowed;
+}
+
+#wl-dominio-remover {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    line-height: 1;
+    border-radius: 50%;
+}

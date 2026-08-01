@@ -1,0 +1,19 @@
+{{ define "tabela" }}
+<div class="tech-table-wrap">
+    <div class="min-w-[560px]">
+        <table class="w-full text-center tech-table">
+            <thead>
+                <tr>
+                    {{ block "thead" . }}
+                    {{end}}
+                </tr>
+            </thead>
+            <tbody>
+                {{ block "tbody" . }}
+               
+                {{ end }}
+            </tbody>
+        </table>
+    </div>
+</div>
+{{ end }}

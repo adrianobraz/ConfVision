@@ -1,0 +1,17 @@
+{{ define "theme-init" }}
+<link rel="stylesheet" href="/recursos/css/franqueadopro-theme.css">
+<script>
+    (function () {
+        try {
+            var t = JSON.parse(localStorage.getItem('fp_theme') || 'null');
+            if (!t) { return; }
+            var r = document.documentElement.style;
+            if (t.primary) { r.setProperty('--fp-primary', t.primary); }
+            if (t.primaryHover) { r.setProperty('--fp-primary-hover', t.primaryHover); }
+            if (t.navbar) { r.setProperty('--fp-navbar', t.navbar); }
+            if (t.bg) { r.setProperty('--fp-bg', t.bg); }
+            if (t.surface) { r.setProperty('--fp-surface', t.surface); }
+        } catch (e) { }
+    })();
+</script>
+{{ end }}

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    {{ template "head" . }}
+    {{ template "confvision-head-extra" . }}
+</head>
+<body class="cv-app">
+    {{ template "variaveis-controle" . }}
+    {{ template "confvision-config" . }}
+    {{ template "confvision-nav" . }}
+
+    <main class="cv-main">
+        <div class="cv-live-layout">
+            <aside class="cv-live-sidebar">
+                <div class="cv-live-badge">Ao vivo</div>
+                <label class="cv-label" for="sel-camera-live">Câmera</label>
+                <select id="sel-camera-live" class="cv-select form-select"></select>
+                <p id="cv-live-status" class="cv-live-status"></p>
+                <p class="cv-latency-hint">Aguarde alguns segundos após iniciar o stream. O player reconecta automaticamente.</p>
+            </aside>
+            <div class="cv-player-wrap">
+                <video id="player-hls" controls autoplay muted playsinline></video>
+            </div>
+        </div>
+    </main>
+
+    {{ template "link-js" . }}
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7"></script>
+    <script src="/recursos/modulos/confvision/urls.js?v=20260727mob4"></script>
+    <script src="/recursos/modulos/confvision/live-player.js?v=20260729live1"></script>
+    <script src="/recursos/modulos/confvision/ao-vivo.js"></script>
+</body>
+</html>

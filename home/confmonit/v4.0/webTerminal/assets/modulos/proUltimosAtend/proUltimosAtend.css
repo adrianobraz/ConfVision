@@ -1,0 +1,19 @@
+.proUltimosAtend-item {
+    padding: 6px 10px;
+    margin: 2px 0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.proUltimosAtend-item:not(:last-child) {
+    margin-bottom: 6px;
+}
+
+.proUltimosAtend-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.proUltimosAtend-item.click {
+    cursor: pointer;
+}

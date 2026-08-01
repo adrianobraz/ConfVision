@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Bootstrap -->
+    <link rel="stylesheet" href="/assets/bootstrap/bootstrap.min.css">
+    <script src="/assets/bootstrap/bootstrap.bundle.min.js" defer></script>
+    <!-- /Bootstrap -->
+
+     
+    <!-- Jquery -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js" defer></script>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.3/jquery-ui.min.js" defer></script> -->
+    <!-- /Jquery -->
+
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/assets/modulos/confvision/confvision-terminal.css">
+    <link rel="stylesheet" href="/assets/pagina/home/home.css">
+
+    <!-- Bibliotecas JS -->
+    <script src="//cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+
+    <script src="/assets/js/global.js" defer></script>   
+    <script src="/assets/js/benuvem.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js" defer></script>
+    <script src="/assets/js/confvision.js" defer></script>
+    <script src="/assets/js/msgPadrao.js" defer></script>
+    <script src="/assets/js/injetor.js" defer></script>
+    <script src="/assets/pagina/home/home.js" defer></script>
+    <script src="/assets/js/vono.js" defer></script>
+
+    <script id="scriptJs" defer></script>
+
+    <audio src="/assets/audio/alarme2.wav"></audio>
+
+    <title>Terminal 4</title>
+</head>
+
+<body class="fmt-color">
+    <script>
+        if (sessionStorage.getItem('login_userIdOperador') === null) window.location.href = '/'
+    </script>
+
+
+    <div class="box-flex ">
+
+        <div id="boxTop" class="col-12 border"></div>
+
+        <div id="boxEsq" class="col-12 col-lg-6 border mt-1 mt-lg-0"></div>
+
+        <div id="boxDir" class="col-12 col-lg-6 border mt-1 mt-lg-0"></div>
+
+
+    </div>
+
+    <div id="confvisionModalsHost"></div>
+    <script>
+        (function () {
+            fetch('/assets/modulos/confvision/confvision-modals.html', { cache: 'no-store' })
+                .then(function (r) { return r.text() })
+                .then(function (html) {
+                    var host = document.getElementById('confvisionModalsHost')
+                    if (host) host.innerHTML = html
+                })
+                .catch(function (e) { console.warn('ConfVision modals', e) })
+        })()
+    </script>
+</body>
+
+</html>

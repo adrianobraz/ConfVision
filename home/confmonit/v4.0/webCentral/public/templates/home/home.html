@@ -1,0 +1,118 @@
+{{ template "pagina" . }}
+
+{{ define "body" }}
+<div class="tech-page">
+
+    {{ template "navbar" . }}
+
+    <div class="tech-home">
+        <div class="tech-home-hero">
+            <div class="tech-subtitle">Confmonit · Core Ops</div>
+            <h1 class="tech-title">Painel Central</h1>
+        </div>
+
+        {{ template "card1" }}
+        {{ template "card2" }}
+    </div>
+
+    <script src="/public/templates/home/home.js"></script>
+</div>
+{{ end }}
+
+{{ define "card1" }}
+<div class="tech-grid">
+    <div class="tech-row">
+        <div id="informativo" class="tech-panel md:w-7/12 w-full text-center">
+            <div class="tech-panel-head">
+                <i class="bi bi-broadcast"></i> Informativo
+            </div>
+            <div class="tech-panel-body tech-scroll">
+                <div class="w-full flex flex-col gap-2 items-center text-[var(--text-dim)]">
+                    {{ template "informativo" }}
+                </div>
+            </div>
+        </div>
+
+        <div class="tech-panel md:w-5/12 w-full text-center">
+            <div class="tech-panel-head">
+                <i class="bi bi-shield-exclamation"></i> Representante Bloqueado
+            </div>
+            <div class="tech-panel-body tech-scroll">
+                <table id="tabFranqBloqueado" class="w-full text-center">
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{{ end }}
+
+{{ define "card2" }}
+<div class="tech-grid" style="margin-top: 0.85rem;">
+    <div class="tech-row">
+        <div class="tech-panel md:w-3/12 w-full text-center flex flex-col">
+            <div class="tech-panel-head">
+                <i class="bi bi-key"></i> Segurança
+            </div>
+            <div class="tech-panel-body flex flex-col gap-2 md:justify-between flex-1">
+                <p class="text-[var(--text-dim)] text-sm">Use uma senha forte e proteja o acesso ao sistema.</p>
+
+                <input
+                    id="novaSenha"
+                    type="password"
+                    placeholder="Digite a nova senha"
+                    class="w-full px-3 py-2 text-center">
+
+                <input
+                    id="confirmaNovaSenha"
+                    type="password"
+                    placeholder="Confirme a nova senha"
+                    class="w-full px-3 py-2 text-center">
+
+                <button onclick="gravarSenha()" class="btn tech-btn-primary py-2 w-full">
+                    <i class="bi bi-key"></i> &nbsp; Gravar
+                </button>
+            </div>
+        </div>
+
+        <div class="tech-panel md:w-4/5 w-full text-center">
+            <div class="tech-panel-head">
+                <i class="bi bi-receipt"></i> Faturas Vencidas
+            </div>
+            <div class="tech-panel-body tech-scroll">
+                <table id="tabFaturasVencidas" class="w-full text-center">
+                    <thead>
+                        <tr>
+                            <th class="w-7/12">Franqueado</th>
+                            <th class="w-2/12">Vencimento</th>
+                            <th class="w-2/12">Valor</th>
+                            <th class="w-1/12">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="tech-panel md:w-1/5 w-full text-center">
+            <div class="tech-panel-head">
+                <i class="bi bi-journal-code"></i> Manuais
+            </div>
+            <div class="tech-panel-body flex flex-col gap-2">
+                <button class="p-2 tech-btn-ghost">Manual Central</button>
+                <button class="p-2 tech-btn-ghost">Manual Terminal</button>
+                <button class="p-2 tech-btn-ghost">Manual Franqueado</button>
+                <button class="p-2 tech-btn-ghost">Manual Cliente</button>
+            </div>
+        </div>
+    </div>
+</div>
+{{ end }}
+
+{{ define "informativo" }}
+<img class="w-20 h-20 opacity-90" src="/public/img/atencao.png" alt="">
+<p>
+    Estamos atualizando a Central para melhorar a operação.
+    Relate qualquer bug encontrado ao suporte.
+</p>
+{{ end }}

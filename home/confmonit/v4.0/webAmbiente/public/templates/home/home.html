@@ -1,0 +1,122 @@
+{{ template "pagina" . }} {{ define "body" }}
+<link rel="stylesheet" href="/public/css/mapa.css">
+<div class="app-shell home-shell" id="homeShell">
+    <nav id="navbar" class="amb-navbar amb-navbar-home">
+        <div class="amb-navbar-inner">
+            <div class="amb-navbar-left">
+                <a href="/home" class="amb-navbar-brand">
+                    <i class="bi bi-geo-alt-fill"></i>
+                    <span>ConfMonit</span>
+                </a>
+                <nav id="homeNavAbas" class="home-nav-abas">
+                    <button type="button" class="home-nav-aba home-nav-aba-ativa" data-view="mapas">
+                        <i class="bi bi-map"></i> Mapas
+                    </button>
+                    <button type="button" class="home-nav-aba" data-view="clientes">
+                        <i class="bi bi-people"></i> Clientes
+                    </button>
+                    <a href="/centroOperacional/global/page" class="home-nav-aba home-nav-co-link" title="Monitorar todos os clientes">
+                        <i class="bi bi-radar"></i> Centro operacional
+                    </a>
+                </nav>
+            </div>
+            <div class="amb-navbar-actions">
+                <span id="cmNotifMount"></span>
+                <div class="home-user-info">
+                    <span id="navUserNome" class="home-user-nome"></span>
+                    <span id="navUserVinculo" class="home-user-vinculo"></span>
+                </div>
+                <a href="/logout" class="btn btn-outline btn-sm">Sair</a>
+            </div>
+        </div>
+    </nav>
+
+    <div id="homeContexto" class="hidden"
+        data-tipo="{{.UserTipo}}"
+        data-master="{{.UserMaster}}"
+        data-nome="{{.UserNome}}"
+        data-vinculo="{{.NomeVinculo}}"
+        data-id-vinculo="{{.IdVinculo}}"></div>
+
+    <div id="homePanels" class="home-panels layout-franqueado">
+        <!-- Coluna franqueados (só CEN/REP) -->
+        <aside id="painelFranqueados" class="home-panel hidden">
+            <div class="home-panel-head">
+                <h3 class="home-panel-title"><i class="bi bi-building"></i> Franqueados</h3>
+            </div>
+            <div class="home-busca">
+                <input id="buscaFranqueado" type="search" class="home-busca-input" placeholder="Pesquisar franqueado..." autocomplete="off" />
+            </div>
+            <div id="gridFranqueados" class="home-grid"></div>
+        </aside>
+
+        <!-- Coluna clientes -->
+        <section id="painelClientes" class="home-panel">
+            <div class="home-panel-head">
+                <h3 id="tituloClientes" class="home-panel-title"><i class="bi bi-people"></i> Clientes</h3>
+                <span id="franqueadoSelecionado" class="home-panel-badge hidden"></span>
+            </div>
+            <div class="home-busca">
+                <input id="buscaCliente" type="search" class="home-busca-input" placeholder="Pesquisar cliente..." autocomplete="off" />
+            </div>
+            <div id="gridClientes" class="home-grid"></div>
+        </section>
+
+        <!-- Coluna lista de mapas -->
+        <section id="painelMapas" class="home-panel hidden">
+            <div class="home-panel-head">
+                <h3 class="home-panel-title"><i class="bi bi-map"></i> Mapas</h3>
+            </div>
+            <div class="home-busca">
+                <input id="buscaMapa" type="search" class="home-busca-input" placeholder="Pesquisar mapa ou cliente..." autocomplete="off" />
+            </div>
+            <div id="gridMapas" class="home-grid"></div>
+        </section>
+
+        <!-- Coluna mapa -->
+        <section id="painelMapa" class="home-panel home-panel-mapa hidden">
+            <div class="home-panel-head">
+                <div class="home-mapa-titulos">
+                    <h3 id="nomeClienteMapa" class="home-panel-title"></h3>
+                    <p id="nomeMapaAtivo" class="home-panel-sub"></p>
+                </div>
+                <div class="home-mapa-acoes">
+                    <a id="linkCentroOperacional" href="#" class="btn btn-warning btn-sm hidden">
+                        <i class="bi bi-radar"></i> Centro Operacional
+                    </a>
+                    <a id="linkCadastroMapa" href="#" class="btn btn-primary btn-sm hidden">Mapa</a>
+                    <div id="tabsMapas" class="home-tabs hidden"></div>
+                    <a id="linkSetores" href="#" class="btn btn-info btn-sm hidden">Setores</a>
+                    <a id="linkEditar" href="#" class="btn btn-ghost btn-sm hidden">Editar</a>
+                    <a id="linkMonitorar" href="#" class="btn btn-danger btn-sm hidden">Monitorar</a>
+                    <button type="button" id="btnTelaCheia" class="btn btn-ghost btn-sm hidden">Tela Cheia</button>
+                    <button type="button" id="btnFecharMapa" class="btn btn-ghost btn-sm" title="Fechar mapa">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="mapaVazio" class="home-mapa-vazio hidden">
+                <p>Nenhum mapa cadastrado para este cliente.</p>
+                <a id="linkCadastroVazio" href="#" class="btn btn-primary btn-sm">Cadastrar mapa</a>
+            </div>
+            <div id="mapaContainer" class="mapa-container home-mapa-box monitor-page">
+                <img id="mapaImagem" class="mapa-imagem" alt="Planta" />
+                <div id="mapaCamada" class="mapa-camada"></div>
+            </div>
+            <div class="home-legenda legend">
+                <span><span class="legend-dot mapa-ponto-normal"></span>Normal</span>
+                <span><span class="legend-dot mapa-ponto-alarme"></span>Disparo</span>
+                <span><span class="legend-dot mapa-ponto-falha"></span>Sem comunicação</span>
+            </div>
+        </section>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js"></script>
+    <script src="/public/js/mapaUtil.js"></script>
+    <script src="/public/js/mapaLayout.js"></script>
+    <script src="/public/js/mapaCameraLive.js"></script>
+    <script src="/public/js/mapaSetorPopup.js"></script>
+    <script src="/public/js/mapaMonitor.js"></script>
+    <script src="/public/templates/home/home.js"></script>
+</div>
+{{ end }}

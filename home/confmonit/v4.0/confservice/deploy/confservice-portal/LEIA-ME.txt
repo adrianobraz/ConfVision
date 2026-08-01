@@ -1,0 +1,23 @@
+﻿Portal parceiro ConfService - pacote pronto
+==========================================
+
+SUBA TODO o conteudo desta pasta (exceto este LEIA-ME e o .conf do Apache)
+para a pasta publica da hospedagem (public_html) OU para o Proxmox:
+  /home/confmonit/v4.0/confservice/web-dist/
+
+Onde pode hospedar?
+-------------------
+A) Hospedagem normal (Apache/cPanel / KingHost) - SIM
+   - Site estatico + cs-proxy.php + .htaccess (ja no pacote)
+   - /parceiro/*, /marketplace/*, /health sao encaminhados para a API no Proxmox
+   - Ajuste CS_API_BACKEND em cs-proxy.env se o IP mudar
+   - VITE_API_URL=https://confservice.com.br (mesmo dominio; sem mixed content)
+   - Sem o proxy, o SPA engole /parceiro/registrar e NAO grava no banco
+
+B) Proxmox (recomendado se o dominio aponta para o core-4)
+   - Suba web-dist + use apache-confservice.com.br.conf
+   - Apache serve o portal e faz proxy /parceiro /marketplace /internal /health -> :2020
+   - VITE_API_URL=https://confservice.com.br (mesmo dominio)
+
+API (sempre no Proxmox):
+  binario confservice + systemctl confmonit4confservice

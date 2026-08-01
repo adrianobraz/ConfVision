@@ -1,0 +1,70 @@
+<div class="modal fade" id="confvisionModalSetor" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen-sm-down modal-xl">
+        <div class="modal-content">
+            <div class="modal-header fmt-painel py-2">
+                <h5 class="modal-title fs-6" id="confvisionModalSetorTitulo">ConfVision</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body fmt-color py-2">
+                <div id="confvisionModalSetorInfo" class="txt-tbody small mb-2"></div>
+                <div class="d-flex flex-wrap gap-2 justify-content-end mb-2 cv-painel-toolbar">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="confvisionModalSetorBtnMais">
+                        <i class="bi bi-plus-lg"></i> Mais 25
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="confvisionModalSetorBtnRefresh">
+                        <i class="bi bi-arrow-clockwise"></i> Atualizar
+                    </button>
+                    <button type="button" class="btn btn-sm btn-success" id="confvisionModalSetorBtnLiveTop">
+                        <i class="bi bi-broadcast"></i> Ao vivo
+                    </button>
+                </div>
+                <div class="cv-painel-grid-wrap">
+                    <table class="table table-sm table-striped table-bordered align-middle mb-0" id="confvisionModalSetorTabela">
+                        <thead>
+                            <tr>
+                                <th class="fmt-thead">#</th>
+                                <th class="fmt-thead">Data</th>
+                                <th class="fmt-thead cv-col-setor">Setor</th>
+                                <th class="fmt-thead cv-col-part">Part.</th>
+                                <th class="fmt-thead">Status</th>
+                                <th class="fmt-thead text-center">Foto</th>
+                                <th class="fmt-thead text-center cv-col-video">Vídeo</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="confvisionModalMidia" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen-sm-down modal-lg">
+        <div class="modal-content">
+            <div class="modal-header fmt-painel py-2">
+                <h5 class="modal-title fs-6" id="confvisionModalMidiaTitulo">ConfVision</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body fmt-color py-2">
+                <img id="confvisionModalSnapshot" class="img-fluid mb-2 d-none cv-ev-modal-img" alt="Snapshot" referrerpolicy="no-referrer">
+                <div id="confvisionModalClips"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="confvisionModalLive" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-fullscreen-sm-down modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header fmt-painel py-2">
+                <h5 class="modal-title fs-6" id="confvisionModalLiveTitulo">Ao vivo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body fmt-color p-0">
+                <div id="confvisionModalLiveErro" class="alert alert-warning m-2 d-none small"></div>
+                <video id="confvisionModalLiveVideo" class="w-100 bg-dark" controls playsinline autoplay muted></video>
+            </div>
+        </div>
+    </div>
+</div>

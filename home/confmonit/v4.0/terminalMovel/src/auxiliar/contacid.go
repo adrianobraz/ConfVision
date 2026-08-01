@@ -1,0 +1,239 @@
+package aux
+
+import (
+	"database/sql"
+)
+
+
+//Funcao Adicionada Por Adriano
+// Usa uma conexão já aberta (evita abrir/fechar a cada chamada)
+func GetCtiGrupoAndDescricaoDB(db *sql.DB, vinculo, codigo string, grupo, descricao *string) error {
+    var sqlGrupo sql.NullString
+    var sqlDescricao sql.NullString
+
+    // Consulta personalizada
+    tabPer, err := db.Query(`
+        SELECT 
+            contactId.Grupo,
+            contactId.Descricao
+        FROM contactId 
+        WHERE contactId.Codigo = ?
+          AND contactId.ID_Vinculo = ?
+    `, codigo, vinculo)
+    if err != nil {
+        return err
+    }
+    defer tabPer.Close()
+
+    if tabPer.Next() {
+        if err := tabPer.Scan(&sqlGrupo, &sqlDescricao); err != nil {
+            return err
+        }
+        *grupo = sqlGrupo.String
+        *descricao = sqlDescricao.String
+        return nil
+    }
+
+    // Consulta geral
+    tabPad, err := db.Query(`
+        SELECT 
+            contactId.Grupo,
+            contactId.Descricao
+        FROM contactId 
+        WHERE contactId.Codigo = ?
+          AND contactId.ID_Vinculo = 'CENTRAL'
+    `, codigo)
+    if err != nil {
+        return err
+    }
+    defer tabPad.Close()
+
+    if tabPad.Next() {
+        if err := tabPad.Scan(&sqlGrupo, &sqlDescricao); err != nil {
+            return err
+        }
+        *grupo = sqlGrupo.String
+        *descricao = sqlDescricao.String
+        return nil
+    }
+
+    *grupo = "NÃO CADASTRADO"
+    *descricao = "NÃO CADASTRADO"
+    return nil
+}
+
+
+
+
+
+func GetCtiDecricao(vinculo, codigo string, descricao *string) error {
+	var sqlDescricao sql.NullString
+	db, err := Conectar()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	// Consulta personalizada
+	tab, err := db.Query(`
+		SELECT contactId.Descricao
+		FROM contactId 
+		WHERE contactId.Codigo = ?
+		AND contactId. ID_Vinculo = ?
+	`, codigo, vinculo)
+	if err != nil {
+		return err
+	}
+	defer tab.Close()
+
+	if tab.Next() {
+		if err := tab.Scan(&sqlDescricao); err != nil {
+			return err
+		}
+
+		*descricao = sqlDescricao.String
+		return nil
+	}
+
+	// Consulta geral
+	tab, err = db.Query(`
+		SELECT contactId.Descricao
+		FROM contactId 
+		WHERE contactId.Codigo = ?
+		AND contactId. ID_Vinculo = 'CENTRAL'
+	`, codigo)
+	if err != nil {
+		return err
+	}
+
+	if tab.Next() {
+		if err := tab.Scan(&sqlDescricao); err != nil {
+			return err
+		}
+
+		*descricao = sqlDescricao.String
+		return nil
+	}
+
+	*descricao = "NÃO CADASTRADO"
+	return nil
+}
+
+func GetCtiGrupo(vinculo, codigo string, grupo *string) error {
+	var sqlGrupo sql.NullString
+	db, err := Conectar()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	// Consulta personalizada
+	tab, err := db.Query(`
+		SELECT contactId.Grupo
+		FROM contactId 
+		WHERE contactId.Codigo = ?
+		AND contactId. ID_Vinculo = ?
+	`, codigo, vinculo)
+	if err != nil {
+		return err
+	}
+	defer tab.Close()
+
+	if tab.Next() {
+		if err := tab.Scan(&sqlGrupo); err != nil {
+			return err
+		}
+
+		*grupo = sqlGrupo.String
+		return nil
+	}
+
+	// Consulta geral
+	tab, err = db.Query(`
+		SELECT contactId.Grupo
+		FROM contactId 
+		WHERE contactId.Codigo = ?
+		AND contactId. ID_Vinculo = '1'
+	`, codigo)
+	if err != nil {
+		return err
+	}
+
+	if tab.Next() {
+		if err := tab.Scan(&sqlGrupo); err != nil {
+			return err
+		}
+
+		*grupo = sqlGrupo.String
+		return nil
+	}
+
+	*grupo = "NÃO CADASTRADO"
+	return nil
+}
+
+func GetCtiGrupoAndDescricao(vinculo, codigo string, grupo, descricao *string) error {
+
+	var sqlGrupo sql.NullString
+	var sqlDescricao sql.NullString
+	db, err := Conectar()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	// Consulta personalizada
+	tabPer, err := db.Query(`
+		SELECT 
+			contactId.Grupo,
+			contactId.Descricao
+			
+		FROM contactId 
+		WHERE contactId.Codigo = ?
+		AND contactId. ID_Vinculo = ?
+	`, codigo, vinculo)
+	if err != nil {
+		return err
+	}
+	defer tabPer.Close()
+
+	if tabPer.Next() {
+		if err := tabPer.Scan(&sqlGrupo, &sqlDescricao); err != nil {
+			return err
+		}
+
+		*grupo = sqlGrupo.String
+		*descricao = sqlDescricao.String
+		return nil
+	}
+
+	// Consulta geral
+	tabPad, err := db.Query(`
+		SELECT 
+			contactId.Grupo,
+			contactId.Descricao
+
+		FROM contactId 
+		WHERE contactId.Codigo = ?
+		AND contactId. ID_Vinculo = 'CENTRAL'
+	`, codigo)
+	if err != nil {
+		return err
+	}
+	defer tabPad.Close()
+
+	if tabPad.Next() {
+
+		if err := tabPad.Scan(&sqlGrupo, &sqlDescricao); err != nil {
+			return err
+		}
+
+		*grupo = sqlGrupo.String
+		*descricao = sqlDescricao.String
+		return nil
+	}
+
+	*grupo = "NÃO CADASTRADO"
+	*descricao = "NÃO CADASTRADO"
+	return nil
+}

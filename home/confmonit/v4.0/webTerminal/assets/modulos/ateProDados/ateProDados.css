@@ -1,0 +1,111 @@
+#atenProDados textarea {
+    resize: none;
+}
+
+#atenProDados_titulo {
+    height: 40px; 
+    background-color: blue;
+    font-weight: bold;
+    font-size: 23px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+}
+
+/************* DADOS FIXO *************/ 
+
+#atenProDados_dadosFixo {
+    /* height: 100%;
+    width: 100%; */
+    padding: 5px;
+    /* flex: 1; */
+    display: flex;
+    justify-content: space-between;
+    gap: 5px;
+}
+
+#atenProDados_boxDados {
+    flex-basis: 85%;
+}
+
+
+#atenProDados_boxDados .input-group {
+    padding-bottom: 5px;
+
+}
+
+#atenProDados_armado {
+    flex-basis: 15%;
+    color: white;
+    font-size: 25px;
+    
+    /* padding: 0 5px; */
+    
+    
+}
+
+#atenProDados_armado i {
+    padding: 1px;
+    background-color: blue;
+    
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+
+
+#atenProDados_responsivo {
+    height: 150px;
+    display: flex;
+    flex-wrap: wrap;
+    padding: 3px 5px;
+    flex: 1 1 100%;
+    align-items: start; 
+}
+
+@media (width >=992px) {
+    #atenProDados_responsivo {
+        height: 100%;
+    }
+}
+
+
+#atenProDados_boxBtn {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 5px;
+    gap: 5px;
+}
+
+.atenProDados_bntControle{
+    flex-grow: 1;
+
+    display: flex;
+}
+
+#atenProDados_boxBtn button {
+   flex-grow: 1;
+}
+
+
+@media (width >=576px) {
+    #atenProDados {
+        height: 100%;
+    }
+
+    /* #atenProDados_dadosFixo {
+        height: 73px;
+        flex-wrap: nowrap;
+    } */
+
+    #atenProDados_armado {
+        font-size: 30px;
+    }
+
+    #atenProDados_responsivo {
+        height: calc(100% - 180px);
+    }
+
+}

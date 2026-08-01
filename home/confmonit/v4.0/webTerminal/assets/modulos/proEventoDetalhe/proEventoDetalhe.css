@@ -1,0 +1,4 @@
+#proEventoDetalhe .table-responsive{
+    height: calc(100% - 110px);
+    
+}

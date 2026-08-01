@@ -1,0 +1,98 @@
+<link rel="stylesheet" href="/assets/modulos/ateProDados/ateProDados.css">
+
+<div id="atenProDados" class="fmt.color">
+    <div id="atenProDados_titulo">
+        <div id="atenProDados_cpFranqNome"></div>
+    </div>
+
+    <div id="atenProDados_dadosFixo">
+
+        <div id="atenProDados_boxDados">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-success text-bg-success">Cliente:</span>
+                <input id="atenProDados_cpCliNome" type="text"
+                    class="form-control form-control-sm fmt-campo">
+            </div>
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-success text-bg-success">Alarme:</span>
+                <input id="atenProDados_cpDispNome" type="text"
+                    class="form-control form-control-sm fmt-campo">
+            </div>
+        </div>
+
+        <div id="atenProDados_armado" onclick="ateProDado_armarCentral()"></div>
+
+
+    </div>
+
+    <div id="atenProDados_responsivo" class="table-responsive">
+        <textarea 
+            id="atenProDados_cpAtendimentoAnterior" 
+            class="form-control form-control-sm fmt-campo mb-1"
+            rows="6" placeholder="Sem atendimento anterior" readonly
+        ></textarea>
+
+        <select id="atenProDados_cpMenssagemPreFormatada" class="form-control form-control-sm fmt-campo mb-1" type="text">
+            <option>Atendimento Padrão</option>
+            <option>Aguardando Restauração</option>
+            <option>Enviado Supervisor/Viatura</option>
+            <option>Falha Restaurada</option>
+            <option>Contato local com</option>
+            <option>Gerado Ordem de Serviço</option>
+            <option>Outros</option>
+            <option>Sistema armado pelo usuário</option>
+            <option>Supervisor ciente do evento</option>
+            <option>Técnico no local</option>
+            <option>Disparo ocasionado pelo usuário ao armar</option>
+            <option>Disparo ocasionado pelo usuário ao desarmar</option>
+            <option>Restaure de intrusão</option>
+            <option>Acionando a Viatura</option>
+            <option>Viatura acionada</option>
+            <option>Viatura está no local até onde pode visualizar não há
+                movimentação</option>
+            <option>Entrou em contato e está tudo bem no local</option>
+            <option>Fechamento supervisionado e esta ciente que o local esta
+                desarmado</option>
+            <option>Abertura fora de horário seguindo instrução para
+                desconsiderar</option>
+
+        </select>
+
+        <textarea 
+            id="atenProDados_cpDescricaoAtendimento"
+            class="form-control form-control-sm fmt-campo mb-1 text-uppercase" 
+            rows="3" placeholder="Descreva em poucas palavra o atendimento"
+        ></textarea>
+
+        <textarea 
+            id="atenProDados_cpMensagemAtendente" 
+            class="form-control form-control-sm fmt-campo"
+            rows="3" readonly 
+            placeholder="MENSAGEM DO CLIENTE AO ATENDENTE"
+        ></textarea>
+    </div><!-- atenProDados_responsivo -->
+
+    <div id="atenProDados_boxBtn">
+        <div class="atenProDados_bntControle">
+            <button 
+                id="atenProDados_btnAguardar" 
+                class="flex-fill btn btn-warning text-bg-warning fs-3"
+            >
+                <i class="bi bi-alarm-fill"></i>
+                &nbsp; Aguardar
+            </button>
+        </div>
+
+        <div class="atenProDados_bntControle">
+
+            <button 
+                id="atenProDados_btnFinalizar" 
+                class="flex-fill btn btn-success text-bg-success fs-3"
+            >
+                <i class="bi bi-archive-fill"></i>
+                &nbsp; Finalizar
+            </button>
+
+        </div>
+    </div>
+</div>

@@ -1,0 +1,172 @@
+#atenProDados {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+#atenProDados textarea {
+    resize: none;
+}
+
+#atenProDados_cpDescricaoAtendimento {
+    min-height: 120px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+#atenProDados_titulo {
+    height: 40px; 
+    background-color: blue;
+    font-weight: bold;
+    font-size: 17px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+}
+
+/************* DADOS FIXO *************/ 
+
+#atenProDados_dadosFixo {
+    /* height: 100%;
+    width: 100%; */
+    padding: 5px;
+    /* flex: 1; */
+    display: flex;
+    justify-content: space-between;
+    gap: 5px;
+}
+
+#atenProDados_boxDados {
+    flex-basis: 85%;
+}
+
+
+#atenProDados_boxDados .input-group {
+    padding-bottom: 5px;
+
+}
+
+#atenProDados_armado {
+    flex-basis: 15%;
+    color: white;
+    font-size: 25px;
+    
+    /* padding: 0 5px; */
+    
+    
+}
+
+#atenProDados_armado i {
+    padding: 1px;
+    background-color: blue;
+    
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+
+
+#atenProDados_responsivo {
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 3px 5px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+#atenProDados_cpMensagemAtendente {
+    display: none;
+    width: auto;
+    max-width: 100%;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: transparent;
+    color: #fff !important;
+    overflow: hidden;
+}
+
+@media (width >=992px) {
+    #atenProDados_responsivo {
+        flex: 1 1 0;
+        overflow-y: auto;
+    }
+}
+
+
+#atenProDados_boxBtn {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 5px;
+    gap: 5px;
+}
+
+.atenProDados_bntControle{
+    flex-grow: 1;
+
+    display: flex;
+}
+
+#atenProDados_boxBtn button {
+   flex-grow: 1;
+}
+
+#atenProDados_boxHistoricoVisual {
+    width: 100%;
+    min-height: 120px;
+    background: #2f3237;
+    border: 1px solid #6c757d;
+    border-radius: 6px;
+    padding: 8px;
+}
+
+#atenProDados_historicoTitulo {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 6px;
+}
+
+#atenProDados_cpHistoricoVisual {
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #f8f9fa;
+    font-size: 0.9rem;
+    line-height: 1.3;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+#atenProDados.modo-visualizacao #atenProDados_responsivo {
+    display: none;
+}
+
+#atenProDados.modo-visualizacao #atenProDados_boxBtn {
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: stretch;
+}
+
+#atenProDados.modo-visualizacao #atenProDados_boxHistoricoVisual {
+    display: flex !important;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+#atenProDados.modo-visualizacao #atenProDados_cpHistoricoVisual {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+}
+
+
+@media (width >=576px) {
+    #atenProDados_armado {
+        font-size: 30px;
+    }
+}

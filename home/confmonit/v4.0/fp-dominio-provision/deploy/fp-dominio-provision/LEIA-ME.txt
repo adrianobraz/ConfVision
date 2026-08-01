@@ -1,0 +1,21 @@
+﻿fp-dominio-provision - pacote pronto para subir
+================================================
+
+SUBA o conteudo principal para:
+  /home/confmonit/v4.0/fp-dominio-provision/
+
+Arquivos desta pasta (deploy\fp-dominio-provision\):
+  - fp-dominio-provision   (binario)
+  - .env                   (API_KEY = PROVISIONER_KEY do franqueadopro)
+
+Uma vez no servidor (se ainda nao fez):
+  start\fp-dominio-provision.sh  -> /home/confmonit/start/
+  systemd\confmonit4fp-dominio-provision.service -> /etc/systemd/system/
+
+Comandos SSH:
+  chmod +x /home/confmonit/v4.0/fp-dominio-provision/fp-dominio-provision
+  chmod +x /home/confmonit/start/fp-dominio-provision.sh
+  systemctl daemon-reload
+  systemctl enable confmonit4fp-dominio-provision
+  systemctl restart confmonit4fp-dominio-provision
+  curl http://127.0.0.1:2015/health

@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="pt-br">
+
+<head>
+    {{ template "head" . }}
+</head> 
+
+<body>
+    {{ template "variaveis-controle" . }}
+    {{ template "nav-bar" . }}
+    <input id="id-usuario-alarme" type="hidden" value="">
+    {{ template "sub-menu-fluid" }}
+    <div class="container-fluid container-principal">
+        <div class="row text-center">
+
+            <!-- COLUNA ESQUERDA -->
+            <div id="coluna-esquerda" class="col-lg-6 mt-2 ">
+
+                <div class="table-responsive tab-height">
+                    <table class="table table-sm table-bordered table-striped">
+                        <thead class="table-dark">
+                            <th style="width: 10%;">Código</th>
+                            <th style="width: 70%;">Nome</th>
+                            <th colspan="3">Ações</th>
+
+                        </thead>
+                        <tbody>
+                            <!-- preenchido via JS -->
+                        </tbody>
+
+                    </table>
+
+                </div>
+            </div><!-- COLUNA ESQUERDA -->
+
+
+            <!-- COLUNA DIREITA -->
+            <div id="coluna-direita" class="col-lg-6 mt-2 bg-form page-height">
+                <form id="formulario" class="px-4 pt-4">
+                    <!-- FORMULARIO -->
+                    <div class="table-responsive form-height">
+                        <div class="row mx-0">
+                            <div class="col-lg-12 mb-1 text-start">
+                                <label for="id-cliente" class="form-label mb-0">
+                                    Cliente:
+                                </label>
+                                <select type="text" class="form-control form-control-sm text-uppercase"
+                                    id="id-cliente" form="F2"></select>
+
+                            </div>
+
+                            <div class="col-lg-10 mb-1 text-start">
+                                <label for="id-dispositivo" class="form-label mb-0">
+                                    Dispositivo:
+                                </label>
+                                <select class="form-control form-control-sm text-uppercase"
+                                   id="id-dispositivo" form="F2">
+                                    <option value="0">Selecione</option>
+                                </select>
+                            </div>
+
+                            <!--div class="col-lg-3 mb-1 text-start">
+                                <label for="particao-usuario-alerme" class="form-label mb-0">
+                                    Particao:
+                                </label>
+                                <select class="form-control form-control-sm text-uppercase"
+                                    form="formulario" disabled id="particao-usuario-alerme">                                    
+                                </select>
+                            </div-->
+
+                            <div class="col-lg-2 mb-1 text-start">
+                                <label for="codigo-usuario-alarme" class="form-label mb-0">
+                                    Código:
+                                </label>
+                                <input type="text" disabled class="form-control form-control-sm
+                                    text-uppercase text-center msk-setor" id="codigo-usuario-alarme">
+                            </div>
+
+                            <div class="col-lg-9 mb-1 text-start">
+                                <label for="nome-usuario-alarme" class="form-label mb-0">
+                                    Nome:
+                                </label>
+                                <input type="text" maxlength="60" disabled class="form-control form-control-sm
+                                    text-uppercase text-center" id="nome-usuario-alarme">
+                            </div>
+
+                            <div class="col-lg-3 mb-1 text-start">
+                                <label for="celular-usuario-alarme" class="form-label mb-0">
+                                    Celular:
+                                </label>
+                                <input type="text" disabled class="form-control form-control-sm
+                                    text-uppercase text-center msk-celular" id="celular-usuario-alarme">
+                            </div>
+
+                            <div class="col-lg-12 mb-1 text-start">
+                                <label for="email-usuario-alarme" class="form-label mb-0">
+                                    Email:
+                                </label>
+                                <input type="text" maxlength="60" disabled class="form-control form-control-sm
+                                    text-lowercase text-center" id="email-usuario-alarme">
+                            </div>
+
+                           
+
+                            <div class="col-lg-12 mb-1 text-start">
+                                <label for="observacao-usuario-alarme" class="form-label mb-0">
+                                    observacao:
+                                </label>
+                                <textarea type="text" maxlength="100" rows="4" disabled class="form-control form-control-sm
+                                    text-uppercase" id="observacao-usuario-alarme"></textarea>
+                            </div>
+
+                        </div>
+                    </div>
+                    <!-- /FORMULARIO -->
+
+                    <!-- CONTROLES -->
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <hr>
+                        </div>
+
+                        <div class="col-6 d-grid gap-2">
+                            <button id="btn-limpar" class="btn btn-lg btn-block btn-danger
+                                    fs-2 py-4 py-lg-0" type="button">
+                                <i class="bi bi-eraser-fill fs-2"></i>
+                                &nbsp; Limpar
+                            </button>
+                        </div>
+
+                        <div class="col-6 d-grid gap-2">
+                            <button id="btn-gravar" class="btn btn-lg btn-success fs-2 py-4
+                                    py-lg-0" type="button">
+                                <i class="bi bi-save-fill fs-2"></i>
+                                &nbsp; Gravar
+                            </button>
+                        </div>
+
+                    </div>
+                    <!-- /CONTROLES -->
+                </form>
+            </div>
+            <!-- /COLUNA DIREITA -->
+
+
+        </div>
+    </div>
+
+    {{ template "link-js" . }}
+    <script src="/recursos/modulos/configuracao/gerenciar-usuarios-alarme/gerenciar-usuarios-alarme.js"></script>
+</body>
+
+</html>

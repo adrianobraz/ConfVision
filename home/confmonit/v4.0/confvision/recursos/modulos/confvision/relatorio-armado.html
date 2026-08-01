@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    {{ template "head" . }}
+    {{ template "confvision-head-extra" . }}
+</head>
+<body class="cv-app">
+    {{ template "variaveis-controle" . }}
+    {{ template "confvision-config" . }}
+    {{ template "confvision-nav" . }}
+
+    <main class="cv-main">
+        <div class="cv-panel">
+            <div class="cv-panel-toolbar">
+                <h1 class="cv-page-title mb-0">Armado</h1>
+                <button type="button" id="btn-atualizar-armado" class="cv-btn-ghost" title="Atualizar">
+                    <i class="bi bi-arrow-clockwise"></i> Atualizar
+                </button>
+            </div>
+
+            <div class="cv-armado-resumo" id="box-armado-resumo">
+                <div class="cv-armado-resumo-item">
+                    <span class="cv-armado-resumo-num" id="lbl-arm-total">0</span>
+                    <span class="cv-armado-resumo-label">Total</span>
+                </div>
+                <div class="cv-armado-resumo-item cv-armado-resumo-on">
+                    <span class="cv-armado-resumo-num" id="lbl-arm-armadas">0</span>
+                    <span class="cv-armado-resumo-label">Armadas</span>
+                </div>
+                <div class="cv-armado-resumo-item cv-armado-resumo-off">
+                    <span class="cv-armado-resumo-num" id="lbl-arm-desarmadas">0</span>
+                    <span class="cv-armado-resumo-label">Desarmadas</span>
+                </div>
+                <div class="cv-armado-resumo-item">
+                    <span class="cv-armado-resumo-num" id="lbl-arm-camera">0</span>
+                    <span class="cv-armado-resumo-label">CAMERA</span>
+                </div>
+                <div class="cv-armado-resumo-item">
+                    <span class="cv-armado-resumo-num" id="lbl-arm-central">0</span>
+                    <span class="cv-armado-resumo-label">Via central</span>
+                </div>
+            </div>
+
+            <div class="cv-armado-filtros">
+                <label class="cv-field">
+                    <span>Filtro</span>
+                    <select id="sel-filtro-armado" class="form-select">
+                        <option value="todos">Todas</option>
+                        <option value="armadas">Somente armadas</option>
+                        <option value="desarmadas">Somente desarmadas</option>
+                        <option value="pausadas">Detecção pausada</option>
+                        <option value="ativas">Detecção ativa</option>
+                        <option value="camera">CAMERA</option>
+                        <option value="central">Via central</option>
+                        <option value="analitico">Somente plano armado</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="cv-panel-body table-responsive">
+                <table class="cv-table cv-table-cards">
+                    <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>Câmera</th>
+                            <th>Plano</th>
+                            <th>Origem</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tab-armado"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    {{ template "link-js" . }}
+    <script src="/recursos/modulos/confvision/urls.js?v=20260727mob4"></script>
+    <script src="/recursos/modulos/confvision/armado.js?v=20260730pausa7"></script>
+    <script src="/recursos/modulos/confvision/relatorio-armado.js?v=20260730arm1"></script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+﻿confservice - pacote pronto para subir
+======================================
+
+SUBA o conteudo principal para:
+  /home/confmonit/v4.0/confservice/
+
+Arquivos desta pasta (deploy\confservice\):
+  - confservice            (binario Linux)
+  - .env                   (MYSQL_DSN com user confmonit + DB confservice)
+  - sql\schema-tables.sql  (colar no phpMyAdmin se tabelas ainda nao existem)
+
+Uma vez no servidor (se ainda nao fez):
+  start\confservice.sh  -> /home/confmonit/start/
+  systemd\confmonit4confservice.service -> /etc/systemd/system/
+
+Cron fatura (dias 1 e 16) - FileZilla NAO grava em /etc/cron.d:
+  Suba para /home/confmonit/v4.0/confservice/:
+    cron\confservice-fatura
+    start\confservice-fatura-fechar.sh
+    start\install-confservice-fatura-cron.sh
+  Depois no SSH:
+    chmod +x /home/confmonit/v4.0/confservice/start/install-confservice-fatura-cron.sh
+    sudo /home/confmonit/v4.0/confservice/start/install-confservice-fatura-cron.sh
+    /home/confmonit/start/confservice-fatura-fechar.sh
+
+MySQL (ja feito se voce criou o DB):
+  GRANT ALL ON confservice.* TO 'confmonit'@'%';
+  Importar sql/schema-tables.sql no banco confservice
+
+Comandos SSH:
+  chmod +x /home/confmonit/v4.0/confservice/confservice
+  chmod +x /home/confmonit/start/confservice.sh
+  systemctl daemon-reload
+  systemctl enable confmonit4confservice
+  systemctl restart confmonit4confservice
+  curl http://127.0.0.1:2020/health
+
+Franqueado Pro .env (mesma API_KEY):
+  CONFSERVICE_URL=http://127.0.0.1:2020
+  CONFSERVICE_API_KEY=<igual API_KEY do .env deste pacote>

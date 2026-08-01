@@ -1,0 +1,86 @@
+{{ template "pagina" . }}
+
+{{ define "body" }}
+<div class="tech-page">
+    {{ template "navbar" . }}
+
+    <div class="tech-workspace">
+        <section class="tech-col-list">
+            <div class="tech-panel">
+                <div class="tech-panel-head">
+                    <i class="bi bi-table"></i> Listagem · Modelos
+                </div>
+                <div class="tech-panel-body">
+                    <div class="mb-2 px-1">
+                        <label class="ps-1" for="modIdFabricante">Fabricante</label>
+                        <select id="modIdFabricante" class="w-full px-3 py-2 text-center uppercase"></select>
+                    </div>
+                    <div class="tech-table-wrap">
+                        <table id="tabModelo" class="tech-table w-full text-center">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th style="width: 12%;">Part.</th>
+                                    <th style="width: 12%;">Zonas</th>
+                                    <th style="width: 12%;">Pgm</th>
+                                    <th style="width: 12%;">Eletr.</th>
+                                    <th style="width: 18%;" colspan="3">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="tech-col-form">
+            <div class="tech-panel">
+                <div class="tech-panel-head">
+                    <i class="bi bi-cpu"></i> Cadastro · Modelo
+                </div>
+                <div class="tech-panel-body">
+                    <div class="tech-form-block flex flex-col gap-2">
+                        <div>
+                            <label class="ps-1" for="modNome">Nome</label>
+                            <input id="modNome" type="text" class="w-full px-3 py-2 text-center uppercase">
+                        </div>
+                        <div class="flex flex-col md:flex-row gap-2">
+                            <div class="w-full md:w-1/2">
+                                <label class="ps-1" for="modQtdParticoes">Qtd. Partições</label>
+                                <input id="modQtdParticoes" type="text" class="w-full px-3 py-2 text-center mskNum">
+                            </div>
+                            <div class="w-full md:w-1/2">
+                                <label class="ps-1" for="modQtdZonas">Qtd. Zonas</label>
+                                <input id="modQtdZonas" type="text" class="w-full px-3 py-2 text-center mskNum">
+                            </div>
+                        </div>
+                        <div class="flex flex-col md:flex-row gap-2">
+                            <div class="w-full md:w-1/2">
+                                <label class="ps-1" for="modQtdPgm">Qtd. Pgm</label>
+                                <input id="modQtdPgm" class="w-full px-3 py-2 text-center mskNum">
+                            </div>
+                            <div class="w-full md:w-1/2">
+                                <label class="ps-1" for="modEletrificador">Eletrificador</label>
+                                <select id="modEletrificador" class="w-full px-3 py-2 text-center uppercase">
+                                    <option value="N">NÃO</option>
+                                    <option value="S">SIM</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="w-full flex flex-col md:flex-row gap-2 mt-2">
+                            <button id="btnModLimpar" class="py-2 w-full rounded-md text-white font-black text-xl bg-red-700">
+                                <i class="bi bi-eraser-fill"></i> &nbsp; Limpar
+                            </button>
+                            <button id="btnModGravar" class="py-2 w-full rounded-md text-white font-black text-xl bg-green-700">
+                                <i class="bi bi-floppy-fill"></i> &nbsp; Gravar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+<script src="/public/templates/configuracaoCentralAlarme/modelo.js"></script>
+{{ end }}

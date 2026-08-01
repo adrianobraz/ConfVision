@@ -1,0 +1,866 @@
+package proAtendimento
+
+import (
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	aux "terminal/src/auxiliar"
+	"terminal/src/tipos"
+	"time"
+)
+
+var Rotas = []tipos.Rota{
+	{
+		Uri:    "/proAtendimento/carregarTabela",
+		Metodo: http.MethodPost,
+		Funcao: carregarTabela,
+	},
+	{
+		Uri:    "/proAtendimento/ultimosFinalizados",
+		Metodo: http.MethodPost,
+		Funcao: ultimosFinalizados,
+	},
+	{
+		Uri:    "/proAtendimento/gravarManutencao",
+		Metodo: http.MethodPost,
+		Funcao: gravarManutencao,
+	},
+	{
+		Uri:    "/proAtendimento/bloquearProcesso",
+		Metodo: http.MethodPost,
+		Funcao: bloquearProcesso,
+	},
+	{
+		Uri:    "/proAtendimento/dadosCliente",
+		Metodo: http.MethodPost,
+		Funcao: dadosCliente,
+	},
+	{
+		Uri:    "/proAtendimento/listarManutencoes",
+		Metodo: http.MethodPost,
+		Funcao: listarManutencoes,
+	},
+	{
+		Uri:    "/proAtendimento/removerManutencao",
+		Metodo: http.MethodPost,
+		Funcao: removerManutencao,
+	},
+}
+
+func carregarTabela(w http.ResponseWriter, r *http.Request) {
+	type pro struct {
+		IdProcesso    string `json:"idProcesso"`
+		IdFranqueado  string `json:"idFranqueado"`
+		IdCliente     string `json:"idCliente"`
+		IdDispositivo string `json:"idDispositivo"`
+		IdOperador    string `json:"idOperador"`
+		Panico        string `json:"panico"`
+		Iniciado      string `json:"iniciado"`
+		NomeOperador  string `json:"nomeOperador"`
+		Nome          string `json:"nomeCliente"`
+		Dispositivo   string `json:"nomeDispositivo"`
+		Nivel         string `json:"nivel"`
+	}
+
+	// Recupera o conteudo do corpo da requisição
+	body, erro := io.ReadAll(r.Body)
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+
+	// Cria um objeto para receber o conteudo recuperado
+	var obj pro
+
+	// Carrega o conteudo recuperado no objeto
+	if erro := json.Unmarshal(body, &obj); erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+
+	db, erro := aux.Conectar()
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	defer db.Close()
+
+	// Acerta o filtro
+	var filtro string
+
+	if obj.IdFranqueado == "TODOS" {
+		filtro = ""
+	} else {
+		filtro = fmt.Sprintf(`AND cliente.ID_Franqueado = '%s'`, obj.IdFranqueado)
+	}
+
+	txtSql := fmt.Sprintf(`
+		SELECT
+			processo.ID_Processo,
+			processo.ID_Dispositivo,
+			processo.Nivel,	
+			processo.DataAtenInicio,			
+			dispositivo.Nome,			
+			cliente.ID_Franqueado,
+			cliente.ID_Cliente,
+			cliente.Nome,			
+			usuarios.ID_Usuario,
+			usuarios.Nick
+			
+		FROM processo		
+
+		LEFT JOIN dispositivo
+		ON processo.ID_Dispositivo = dispositivo.ID_Dispositivo
+
+		LEFT JOIN cliente
+		ON dispositivo.ID_Cliente = cliente.ID_Cliente
+
+		LEFT JOIN usuarios
+		ON processo.ID_Atendente = usuarios.ID_Usuario
+			
+		WHERE processo.DataAtenFim IS NULL 
+		%s
+		AND processo.Nivel > 0
+		ORDER BY processo.Nivel DESC, 
+		processo.DataCriacao DESC,
+		processo.ID_Processo DESC
+	`, filtro)
+
+	tab, erro := db.Query(txtSql)
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	defer tab.Close()
+
+	var lista []pro
+	for tab.Next() {
+		var (
+			item pro
+			data sql.NullTime
+
+			cliNome    sql.NullString
+			idCliente  sql.NullString
+			dispNome   sql.NullString
+			idOperador sql.NullString
+			nomeOper   sql.NullString
+		)
+
+		if erro := tab.Scan(
+			&item.IdProcesso,
+			&item.IdDispositivo,
+			&item.Nivel,
+			&data,
+			&dispNome,
+			&item.IdFranqueado,
+			&idCliente,
+			&cliNome,
+			&idOperador,
+			&nomeOper,
+		); erro != nil {
+			fmt.Println(erro)
+			aux.RespostaErro(w, http.StatusBadRequest, erro)
+			return
+		}
+		if data.Valid {
+			item.Iniciado = data.Time.Format("2006-01-02 03:04:05")
+		} else {
+			item.Iniciado = "N"
+		}
+		item.NomeOperador = nomeOper.String
+		item.Nome = cliNome.String
+		item.Dispositivo = dispNome.String
+		item.IdCliente = idCliente.String
+		item.IdOperador = idOperador.String
+		lista = append(lista, item)
+	}
+
+	if len(lista) > 0 {
+		aux.RespostaJsonDados(w, http.StatusOK, lista)
+	} else {
+		aux.RespostaJsonVazio(w)
+	}
+}
+
+func ultimosFinalizados(w http.ResponseWriter, r *http.Request) {
+	type pro struct {
+		IdProcesso    string `json:"idProcesso"`
+		IdFranqueado  string `json:"idFranqueado"`
+		IdCliente     string `json:"idCliente"`
+		IdDispositivo string `json:"idDispositivo"`
+		IdOperador    string `json:"idOperador"`
+		NomeOperador  string `json:"nomeOperador"`
+		Nome          string `json:"nomeCliente"`
+		Dispositivo   string `json:"nomeDispositivo"`
+		Nivel         string `json:"nivel"`
+		DataAtenFim   string `json:"dataAtenFim"`
+	}
+
+	body, erro := io.ReadAll(r.Body)
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+
+	var obj pro
+	if erro := json.Unmarshal(body, &obj); erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+
+	db, erro := aux.Conectar()
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	defer db.Close()
+
+	var filtro string
+	if obj.IdFranqueado == "TODOS" {
+		filtro = ""
+	} else {
+		// Usa alias 'c0' no subselect otimizado
+		filtro = fmt.Sprintf(`AND c0.ID_Franqueado = '%s'`, obj.IdFranqueado)
+	}
+
+	// Otimização: para CENTRAL ("TODOS") aplicar o LIMIT dentro do subselect
+	// reduz drasticamente o custo do ORDER BY no banco.
+	var txtSql string
+	if obj.IdFranqueado == "TODOS" {
+		txtSql = `
+			SELECT
+				p.ID_Processo,
+				p.ID_Dispositivo,
+				p.Nivel,
+				p.DataAtenFim,
+				d.Nome,
+				c.ID_Franqueado,
+				c.ID_Cliente,
+				c.Nome,
+				u.ID_Usuario,
+				u.Nick
+			FROM (
+				SELECT
+					ID_Processo,
+					ID_Dispositivo,
+					ID_Atendente,
+					Nivel,
+					DataAtenFim
+				FROM processo
+				WHERE DataAtenFim IS NOT NULL
+				  AND Nivel > 0
+				ORDER BY DataAtenFim DESC, ID_Processo DESC
+				LIMIT 10
+			) p
+			LEFT JOIN dispositivo d
+				ON p.ID_Dispositivo = d.ID_Dispositivo
+			LEFT JOIN cliente c
+				ON d.ID_Cliente = c.ID_Cliente
+			LEFT JOIN usuarios u
+				ON p.ID_Atendente = u.ID_Usuario
+			ORDER BY p.DataAtenFim DESC, p.ID_Processo DESC
+		`
+	} else {
+		txtSql = fmt.Sprintf(`
+			SELECT
+				p.ID_Processo,
+				p.ID_Dispositivo,
+				p.Nivel,
+				p.DataAtenFim,
+				d.Nome AS NomeDispositivo,
+				c.ID_Franqueado,
+				c.ID_Cliente,
+				c.Nome AS NomeCliente,
+				u.ID_Usuario,
+				u.Nick
+			FROM (
+				SELECT
+					pr.ID_Processo,
+					pr.ID_Dispositivo,
+					pr.ID_Atendente,
+					pr.Nivel,
+					pr.DataAtenFim
+				FROM processo pr
+				JOIN dispositivo d0
+					ON pr.ID_Dispositivo = d0.ID_Dispositivo
+				JOIN cliente c0
+					ON d0.ID_Cliente = c0.ID_Cliente
+				WHERE pr.DataAtenFim IS NOT NULL
+				  AND pr.Nivel > 0
+				  %s
+				ORDER BY pr.DataAtenFim DESC, pr.ID_Processo DESC
+				LIMIT 10
+			) p
+			LEFT JOIN dispositivo d
+				ON p.ID_Dispositivo = d.ID_Dispositivo
+			LEFT JOIN cliente c
+				ON d.ID_Cliente = c.ID_Cliente
+			LEFT JOIN usuarios u
+				ON p.ID_Atendente = u.ID_Usuario
+			ORDER BY p.DataAtenFim DESC, p.ID_Processo DESC;
+		`, filtro)
+	}
+
+	tab, erro := db.Query(txtSql)
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	defer tab.Close()
+
+	var lista []pro
+	for tab.Next() {
+		var (
+			item pro
+			data sql.NullTime
+
+			cliNome    sql.NullString
+			idCliente  sql.NullString
+			dispNome   sql.NullString
+			idOperador sql.NullString
+			nomeOper   sql.NullString
+		)
+
+		if erro := tab.Scan(
+			&item.IdProcesso,
+			&item.IdDispositivo,
+			&item.Nivel,
+			&data,
+			&dispNome,
+			&item.IdFranqueado,
+			&idCliente,
+			&cliNome,
+			&idOperador,
+			&nomeOper,
+		); erro != nil {
+			aux.RespostaErro(w, http.StatusBadRequest, erro)
+			return
+		}
+
+		if data.Valid {
+			item.DataAtenFim = data.Time.Format("2006-01-02 15:04:05")
+		} else {
+			item.DataAtenFim = ""
+		}
+
+		item.NomeOperador = nomeOper.String
+		item.Nome = cliNome.String
+		item.Dispositivo = dispNome.String
+		item.IdCliente = idCliente.String
+		item.IdOperador = idOperador.String
+
+		lista = append(lista, item)
+	}
+
+	if len(lista) > 0 {
+		aux.RespostaJsonDados(w, http.StatusOK, lista)
+	} else {
+		aux.RespostaJsonVazio(w)
+	}
+}
+
+func gravarManutencao(w http.ResponseWriter, r *http.Request) {
+	type objeto struct {
+		IdDispositivo string `json:"idDispositivo"`
+		Tempo         string `json:"tempo"`
+
+		IdProcesso string `json:"idProcesso"`
+		IdOperador string `json:"idOperador"`
+		Nick       string `json:"nick"`
+	}
+
+	// Recupera o conteudo do corpo da requisição
+	body, erro := io.ReadAll(r.Body)
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+
+	// Cria um objeto para receber o conteudo recuperado
+	var obj objeto
+
+	// Carrega o conteudo recuperado no objeto
+	if erro := json.Unmarshal(body, &obj); erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+
+	// Verifica se ja esta na lista ===========================================
+	var bloqueado bool
+	if err := aux.VerificaBloqueado(obj.IdDispositivo, &bloqueado); err != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+
+	if !bloqueado {
+		addMinuto, erro := time.ParseDuration(fmt.Sprintf("%sm", obj.Tempo))
+		if erro != nil {
+			aux.RespostaErro(w, http.StatusBadRequest, erro)
+			return
+		}
+
+		entrada := time.Now().Format("2006-01-02 03:04:05")
+		saida := time.Now().Add(addMinuto).Format("2006-01-02 03:04:05")
+
+		db, erro := aux.Conectar()
+		if erro != nil {
+			aux.RespostaErro(w, http.StatusBadRequest, erro)
+			return
+		}
+		defer db.Close()
+
+		stm, erro := db.Prepare(`
+				INSERT INTO listaManutencao(
+					listaManutencao.ID_Alvo, 
+					listaManutencao.DataBloqueio, 
+					listaManutencao.DataRetirada, 
+					listaManutencao.Descricao
+				) VALUES (?,?,?,?)
+			`)
+		if erro != nil {
+			aux.RespostaErro(w, http.StatusBadRequest, erro)
+			return
+		}
+		defer stm.Close()
+
+		if _, erro := stm.Exec(
+			obj.IdDispositivo,
+			entrada,
+			saida,
+			fmt.Sprintf("Colocado em manutençao por %s", obj.Nick),
+		); erro != nil {
+			aux.RespostaErro(w, http.StatusBadRequest, erro)
+			return
+		}
+
+		// Finaliza o processo do dispositivo
+
+		descricao := fmt.Sprintf(
+			`[%s - %s] 
+	COLOCOU DISPOSITIVO EM MANUTENÇÃO`,
+
+			time.Now().Format("02/01/2006 15:04:05"),
+			strings.ToUpper(obj.Nick),
+		)
+
+		stm, erro = db.Prepare(`
+				UPDATE processo
+				SET 
+					processo.Descricao = ?,
+					processo.ID_Atendente = ?,
+					processo.DataAtenFim = ?
+		
+				WHERE processo.ID_Processo = ?
+			`)
+
+		if erro != nil {
+			aux.RespostaErro(w, http.StatusBadRequest, erro)
+			return
+		}
+		defer stm.Close()
+
+		if _, erro := stm.Exec(
+			strings.ToUpper(descricao),
+			obj.IdOperador,
+			time.Now().Format("2006-01-02 15:04:05"),
+			obj.IdProcesso,
+		); erro != nil {
+			aux.RespostaErro(w, http.StatusBadRequest, erro)
+			return
+		}
+
+	}
+
+	aux.RespostaJsonOK(w)
+}
+
+func bloquearProcesso(w http.ResponseWriter, r *http.Request) {
+
+	type objeto struct {
+		IdProcesso string `json:"idProcesso"`
+		IdOperador string `json:"idOperador"`
+	}
+
+	// Recupera o conteudo do corpo da requisição
+	body, erro := io.ReadAll(r.Body)
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+
+	// Cria um objeto para receber o conteudo recuperado
+	var obj objeto
+
+	// Carrega o conteudo recuperado no objeto
+	if erro := json.Unmarshal(body, &obj); erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+
+	db, erro := aux.Conectar()
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	defer db.Close()
+
+	tab, erro := db.Query(`
+		SELECT 
+			processo.ID_Atendente,
+			processo.DataAtenInicio
+		FROM processo 
+		WHERE  processo.ID_Processo = ?
+	`, obj.IdProcesso)
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	defer tab.Close()
+
+	if tab.Next() {
+		// Variavel auxiliar para receber os dados da consulta
+		var idOperador sql.NullString
+		var dataIncio sql.NullTime
+
+		// Recupera o id do operador do processo
+		if erro := tab.Scan(&idOperador, &dataIncio); erro != nil {
+			aux.RespostaErro(w, http.StatusBadRequest, erro)
+			return
+		}
+
+		// Verifica se tem um operador atendendo o processo (!= 0)
+		if idOperador.String != "0" { //Caso tenha operador atendendo ele retorna um erro
+
+			// Consulta o nick do operador que esta atendendo
+			tab, erro = db.Query(`
+				SELECT usuarios.Nick 
+				FROM usuarios 
+				WHERE usuarios.ID_Usuario = ? 
+			`, idOperador.String)
+			if erro != nil {
+				aux.RespostaErro(w, http.StatusBadRequest, erro)
+				return
+			}
+
+			var nick sql.NullString
+			if tab.Next() { // Caso encontre o nick cria um erro com o nick
+				if erro := tab.Scan(&nick); erro != nil {
+					aux.RespostaErro(w, http.StatusBadRequest, erro)
+					return
+				}
+
+			} else { // Caso nao encontre o nick cria um erro nao cadastrado
+				nick.String = "bloqueado"
+			}
+
+			// Retorna o erro
+			aux.RespostaJsonDados(w, http.StatusOK, nick.String)
+			return
+
+		} else { // Caso não ele grava o id do operador no processo
+
+			stm, erro := db.Prepare(`
+				UPDATE processo 
+				SET 
+					processo.ID_Atendente = ?,
+					processo.DataAtenInicio = ?
+				WHERE processo.ID_Processo = ?
+			`)
+			if erro != nil {
+				aux.RespostaErro(w, http.StatusBadRequest, erro)
+				return
+			}
+			defer stm.Close()
+
+			var data string
+			if dataIncio.Valid {
+				data = dataIncio.Time.Format("2006-01-02 15:04:05")
+
+			} else {
+				data = time.Now().Format("2006-01-02 15:04:05")
+			}
+
+			if _, erro := stm.Exec(obj.IdOperador, data, obj.IdProcesso); erro != nil {
+				aux.RespostaErro(w, http.StatusBadRequest, erro)
+				return
+			}
+		}
+	}
+
+	aux.RespostaJsonDados(w, http.StatusOK, "ok")
+}
+
+func dadosCliente(w http.ResponseWriter, r *http.Request) {
+	type req struct {
+		IdCliente string `json:"idCliente"`
+	}
+	type res struct {
+		FranqueadoNome    string `json:"franqueadoNome"`
+		MonitoramentoNome string `json:"monitoramentoNome"`
+		ClienteNome       string `json:"clienteNome"`
+		Telefone1         string `json:"telefone1"`
+		Telefone2         string `json:"telefone2"`
+	}
+
+	body, erro := io.ReadAll(r.Body)
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	var obj req
+	if erro := json.Unmarshal(body, &obj); erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	if obj.IdCliente == "" {
+		aux.RespostaJsonVazio(w)
+		return
+	}
+
+	db, erro := aux.Conectar()
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	defer db.Close()
+
+	var out res
+	tab, erro := db.Query(`
+		SELECT
+			franqueado.RazaoSocial,
+			franqueado.NomeFantasia,
+			cliente.Nome,
+			cliente.Telefone1,
+			cliente.Telefone2
+		FROM cliente
+		LEFT JOIN franqueado ON franqueado.ID_Franqueado = cliente.ID_Franqueado
+		WHERE cliente.ID_Cliente = ?
+	`, obj.IdCliente)
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	defer tab.Close()
+
+	if tab.Next() {
+		var razao, fantasia, nome, tel1, tel2 sql.NullString
+		if erro := tab.Scan(&razao, &fantasia, &nome, &tel1, &tel2); erro != nil {
+			fmt.Println(erro)
+			aux.RespostaErro(w, http.StatusBadRequest, erro)
+			return
+		}
+		out.FranqueadoNome = razao.String
+		if out.FranqueadoNome == "" {
+			out.FranqueadoNome = fantasia.String
+		}
+		out.MonitoramentoNome = out.FranqueadoNome
+		out.ClienteNome = nome.String
+		out.Telefone1 = tel1.String
+		out.Telefone2 = tel2.String
+		aux.RespostaJsonDados(w, http.StatusOK, out)
+		return
+	}
+	aux.RespostaJsonVazio(w)
+}
+
+func listarManutencoes(w http.ResponseWriter, r *http.Request) {
+	type req struct {
+		IdFranqueado string `json:"idFranqueado"`
+	}
+	type item struct {
+		Tipo            string `json:"tipo"`
+		IdAlvo          string `json:"idAlvo"`
+		IdFranqueado    string `json:"idFranqueado"`
+		NomeCliente     string `json:"nomeCliente"`
+		IdDispositivo   string `json:"idDispositivo"`
+		NomeDispositivo string `json:"nomeDispositivo"`
+		IdSetor         string `json:"idSetor"`
+		NomeSetor       string `json:"nomeSetor"`
+		DataBloqueio    string `json:"dataBloqueio"`
+		DataRetirada    string `json:"dataRetirada"`
+		Descricao       string `json:"descricao"`
+	}
+
+	body, erro := io.ReadAll(r.Body)
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	var obj req
+	if erro := json.Unmarshal(body, &obj); erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	if strings.TrimSpace(obj.IdFranqueado) == "" {
+		obj.IdFranqueado = "TODOS"
+	}
+
+	db, erro := aux.Conectar()
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	defer db.Close()
+
+	tab, erro := db.Query(`
+		SELECT *
+		FROM (
+			SELECT
+				'DISPOSITIVO' AS Tipo,
+				listaManutencao.ID_Alvo,
+				cliente.ID_Franqueado,
+				cliente.Nome AS NomeCliente,
+				dispositivo.ID_Dispositivo,
+				dispositivo.Nome AS NomeDispositivo,
+				'' AS ID_Setor,
+				'' AS NomeSetor,
+				listaManutencao.DataBloqueio,
+				listaManutencao.DataRetirada,
+				listaManutencao.Descricao
+			FROM listaManutencao
+			LEFT JOIN dispositivo
+			ON listaManutencao.ID_Alvo = dispositivo.ID_Dispositivo
+			LEFT JOIN cliente
+			ON dispositivo.ID_Cliente = cliente.ID_Cliente
+			WHERE dispositivo.ID_Dispositivo IS NOT NULL
+			AND (? = 'TODOS' OR cliente.ID_Franqueado = ?)
+
+			UNION ALL
+
+			SELECT
+				'SETOR' AS Tipo,
+				listaManutencao.ID_Alvo,
+				cliente.ID_Franqueado,
+				cliente.Nome AS NomeCliente,
+				dispositivo.ID_Dispositivo,
+				dispositivo.Nome AS NomeDispositivo,
+				setorAlarme.ID_Setor,
+				setorAlarme.Nome AS NomeSetor,
+				listaManutencao.DataBloqueio,
+				listaManutencao.DataRetirada,
+				listaManutencao.Descricao
+			FROM listaManutencao
+			LEFT JOIN setorAlarme
+			ON listaManutencao.ID_Alvo = setorAlarme.ID_Setor
+			LEFT JOIN dispositivo
+			ON setorAlarme.ID_Dispositivo = dispositivo.ID_Dispositivo
+			LEFT JOIN cliente
+			ON dispositivo.ID_Cliente = cliente.ID_Cliente
+			WHERE setorAlarme.ID_Setor IS NOT NULL
+			AND (? = 'TODOS' OR cliente.ID_Franqueado = ?)
+		) manut
+		ORDER BY manut.DataBloqueio DESC
+	`, obj.IdFranqueado, obj.IdFranqueado, obj.IdFranqueado, obj.IdFranqueado)
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	defer tab.Close()
+
+	var lista []item
+	for tab.Next() {
+		var (
+			reg             item
+			tipo            sql.NullString
+			idAlvo          sql.NullString
+			idFranqueado    sql.NullString
+			nomeCliente     sql.NullString
+			idDispositivo   sql.NullString
+			nomeDispositivo sql.NullString
+			idSetor         sql.NullString
+			nomeSetor       sql.NullString
+			dataBloqueio    sql.NullTime
+			dataRetirada    sql.NullTime
+			descricao       sql.NullString
+		)
+
+		if erro := tab.Scan(
+			&tipo,
+			&idAlvo,
+			&idFranqueado,
+			&nomeCliente,
+			&idDispositivo,
+			&nomeDispositivo,
+			&idSetor,
+			&nomeSetor,
+			&dataBloqueio,
+			&dataRetirada,
+			&descricao,
+		); erro != nil {
+			aux.RespostaErro(w, http.StatusBadRequest, erro)
+			return
+		}
+
+		reg.Tipo = tipo.String
+		reg.IdAlvo = idAlvo.String
+		reg.IdFranqueado = idFranqueado.String
+		reg.NomeCliente = nomeCliente.String
+		reg.IdDispositivo = idDispositivo.String
+		reg.NomeDispositivo = nomeDispositivo.String
+		reg.IdSetor = idSetor.String
+		reg.NomeSetor = nomeSetor.String
+		if dataBloqueio.Valid {
+			reg.DataBloqueio = dataBloqueio.Time.Format("02/01/2006 15:04:05")
+		}
+		if dataRetirada.Valid {
+			reg.DataRetirada = dataRetirada.Time.Format("02/01/2006 15:04:05")
+		}
+		reg.Descricao = descricao.String
+
+		lista = append(lista, reg)
+	}
+
+	if len(lista) > 0 {
+		aux.RespostaJsonDados(w, http.StatusOK, lista)
+	} else {
+		aux.RespostaJsonVazio(w)
+	}
+}
+
+func removerManutencao(w http.ResponseWriter, r *http.Request) {
+	type req struct {
+		IdAlvo string `json:"idAlvo"`
+	}
+
+	body, erro := io.ReadAll(r.Body)
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	var obj req
+	if erro := json.Unmarshal(body, &obj); erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	if strings.TrimSpace(obj.IdAlvo) == "" {
+		aux.RespostaErro(w, http.StatusBadRequest, fmt.Errorf("idAlvo deve ser informado"))
+		return
+	}
+
+	db, erro := aux.Conectar()
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	defer db.Close()
+
+	stm, erro := db.Prepare(`
+		DELETE FROM listaManutencao
+		WHERE listaManutencao.ID_Alvo = ?
+	`)
+	if erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+	defer stm.Close()
+
+	if _, erro := stm.Exec(obj.IdAlvo); erro != nil {
+		aux.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
+
+	aux.RespostaJsonOK(w)
+}

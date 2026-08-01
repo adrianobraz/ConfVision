@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-br">
+
+    <head>
+        {{ template "head" . }}
+    </head>
+    <link rel="stylesheet"
+        href="/recursos/modulos/alterar-senha/alterar-senha.css">
+    <body>
+
+        <!--Corpo da Pagina-->
+        <form class="form-alterar-senha" id="form-login"></form>
+        <div id="corpo-pagina" class="container-fluid">
+            <div class="container-login">
+                <div id="box">
+                    <span>Alterar Senha Operador</span>
+                    <div>
+                        <input
+                            type="password"
+                            id="nova-senha"
+                            placeholder="Digite a nova senha"
+                            form="form-alterar-senha">
+                    </div>
+                    <div>
+                        <input
+                            type="password"
+                            id="confirma-senha"
+                            placeholder="Confirme a nova senha"
+                            form="form-alterar-senha">
+                    </div>
+                    <button
+                        id="alterar-senha"
+                        class="btn-alterar-senha">
+                        Alterar Senha
+                    </button>
+
+                </div>
+            </div>
+        </div>
+        <script
+            src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+            crossorigin="anonymous"></script>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"
+            integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+            crossorigin="anonymous"></script>
+        <!--
+            <script src="/recursos/js/bibliotecas/bootstrap.bundle.min.js"></script>
+            <script src="/recursos/js/bibliotecas/jquery-3.6.0.min.js"></script>
+        -->
+        {{ template "link-js" . }}
+        <script src="/recursos/modulos/alterar-senha/alterar-senha.js"></script>
+    </body>
+
+</html>

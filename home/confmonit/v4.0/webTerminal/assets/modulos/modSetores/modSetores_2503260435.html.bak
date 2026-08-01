@@ -1,0 +1,39 @@
+<link rel="stylesheet" href="/assets/modulos/modSetores/modSetores.css">
+
+<div id="modSetores" class="fmt-color">
+    <div id="modSetores_titulo" class="fmt-titulo">
+        <div class="py-1">Dados dos Setores</div>
+    </div>
+
+    <div id="modSetores_responsivo" class="table-responsive">
+        <table class="table table-sm table-bordered">
+            <thead>
+                <tr>
+                    <th 
+                        style="width: 10%;"
+                        class="fmt-thead"
+                    >Câmera</th>
+                    
+                    <th 
+                        style="width: 10%;"
+                        class="fmt-thead"
+                    >Setor</th>
+                    
+                    <th 
+                        style="width: 80%;"
+                        class="fmt-thead"
+                    >Descrição</th>
+                </tr>
+            </thead>
+
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div id="modSetores_boxBtn">
+        <button id="modSetores_btnFechar" class="btn btn-primary text-bg-primary fs-3">
+            <i class="bi bi-x-circle"></i>
+            &nbsp; Fechar
+        </button>
+    </div>
+</div>

@@ -1,0 +1,307 @@
+.fp-plano-card {
+    background: var(--fp-surface, #fff);
+    border: 1px solid var(--fp-border, #dee2e6);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.fp-plano-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.fp-plano-badge.ok { background: #d1e7dd; color: #0f5132; }
+.fp-plano-badge.warn { background: #fff3cd; color: #664d03; }
+.fp-plano-badge.err { background: #f8d7da; color: #842029; }
+
+.fp-plano-loading { color: #6c757d; }
+
+.fp-plano-tabs .nav-link {
+    color: var(--fp-text);
+    cursor: pointer;
+}
+.fp-plano-tabs .nav-link.active {
+    font-weight: 600;
+}
+
+.fp-plano-compare-title { margin-bottom: 0.35rem; }
+
+.fp-plano-compare-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0 1.25rem;
+}
+
+.fp-plano-compare-card {
+    border: 1px solid var(--fp-border, #dee2e6);
+    border-radius: 10px;
+    padding: 1rem;
+    background: var(--fp-surface-2, #f8f9fa);
+}
+
+.fp-plano-card-ativo,
+.fp-plano-compare-card.fp-plano-card-ativo {
+    border-color: var(--fp-primary, #0d6efd);
+    box-shadow: 0 0 0 2px rgba(var(--fp-primary-rgb, 59, 130, 246), 0.15);
+    background: var(--fp-surface, #252830);
+}
+
+.fp-plano-compare-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem;
+    margin-bottom: 0.25rem;
+}
+
+.fp-plano-badge-atual {
+    font-size: 0.65rem;
+    background: #cfe2ff;
+    color: #084298;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    font-weight: 600;
+}
+
+.fp-plano-compare-preco {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.fp-plano-compare-preco small {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--fp-text-muted, #9aa0a6);
+}
+
+.fp-plano-compare-ret {
+    font-size: 0.8rem;
+    color: var(--fp-text-muted, #9aa0a6);
+    margin: 0.35rem 0 0.5rem;
+}
+
+.fp-plano-compare-limites {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: 0.8rem;
+}
+
+.fp-plano-compare-limites li {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+    border-top: 1px solid var(--fp-border, #dee2e6);
+    color: var(--fp-text-muted, #9aa0a6);
+}
+
+.fp-plano-compare-head strong { color: var(--fp-text, #e8eaed); }
+.fp-plano-compare-preco { color: var(--fp-text, #e8eaed); }
+
+.fp-plano-compare-table th,
+.fp-plano-compare-table td {
+    vertical-align: middle;
+    color: var(--fp-text, #e8eaed);
+    border-color: var(--fp-border, #3c4048);
+}
+
+.fp-plano-compare-table thead th {
+    background-color: var(--fp-surface-2, #2d323c);
+    color: var(--fp-text, #e8eaed);
+}
+
+.fp-plano-col-ativo {
+    background: rgba(var(--fp-primary-rgb, 59, 130, 246), 0.12);
+}
+
+.fp-plano-sim { color: #198754; font-weight: 600; }
+.fp-plano-nao { color: #dc3545; font-weight: 600; }
+.fp-plano-mod-min { display: block; color: #adb5bd; font-weight: 400; }
+
+.fp-plano-mod-list {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0 0;
+}
+
+.fp-plano-mod-list li { padding: 0.15rem 0; }
+
+.fp-plano-mod-grupo { margin-bottom: 0.75rem; }
+.fp-plano-mod-grupo strong { color: var(--fp-text, #e8eaed); }
+.fp-plano-atual-head strong { color: var(--fp-text, #e8eaed); }
+.fp-plano-mod-label { font-weight: 600; color: var(--fp-text, #e8eaed); }
+.fp-plano-mod-desc { display: block; color: var(--fp-text-muted, #9aa0a6); font-size: 0.75rem; }
+.fp-plano-grupo-row td {
+    background: var(--fp-surface-2, #2d323c);
+    color: var(--fp-text, #e8eaed);
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-color: var(--fp-border, #3c4048);
+}
+.fp-plano-grupo-row strong { color: var(--fp-text, #e8eaed); }
+.fp-plano-produtos-list { font-size: 0.85rem; color: #6c757d; }
+
+.fp-plano-inclusos {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--fp-border, #dee2e6);
+}
+
+.fp-plano-inclusos ul {
+    margin: 0.5rem 0 0;
+    padding-left: 1.1rem;
+    color: #6c757d;
+    font-size: 0.85rem;
+}
+
+.fp-plano-alerta-suspensao {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    color: #664d03;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.fp-plano-tabs .nav-link.disabled {
+    pointer-events: none;
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+body.fp-lic-presa-fatura .fp-lic-nav-bloqueado {
+    pointer-events: none;
+    opacity: 0.45;
+    cursor: not-allowed !important;
+}
+
+body.fp-lic-presa-fatura #fp-atalhos {
+    display: none !important;
+}
+
+/* Modal "Módulos e acesso" — fundo claro legível */
+#fp-plano-modulos-modal {
+    z-index: 1060;
+}
+
+#fp-plano-modulos-modal .modal-dialog {
+    max-width: 900px;
+    max-height: calc(100vh - 2rem);
+    margin: 1rem auto;
+}
+
+#fp-plano-modulos-modal .modal-content {
+    background-color: #fff;
+    color: #212529;
+    border: 1px solid #dee2e6;
+    max-height: calc(100vh - 2rem);
+}
+
+#fp-plano-modulos-modal .modal-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    flex-shrink: 0;
+}
+
+#fp-plano-modulos-modal .modal-footer {
+    background-color: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    flex-shrink: 0;
+}
+
+#fp-plano-modulos-modal .modal-title {
+    color: #212529;
+    font-weight: 600;
+}
+
+#fp-plano-modulos-modal .btn-close {
+    opacity: 0.65;
+    filter: none;
+}
+
+#fp-plano-modulos-modal .text-muted {
+    color: #6c757d !important;
+}
+
+#fp-plano-modulos-modal .fp-plano-mod-grupo strong {
+    color: #212529;
+}
+
+#fp-plano-modulos-modal .fp-plano-mod-label,
+#fp-plano-modulos-modal .fp-plano-atual-head strong {
+    color: #212529;
+}
+
+#fp-plano-modulos-modal .modal-body {
+    overflow-y: auto;
+}
+
+/* Modal "Regularizar fatura" — fundo claro legível, scroll interno, sempre visível na tela */
+#fp-fatura-pagar-modal {
+    z-index: 1065;
+}
+
+#fp-fatura-pagar-modal .modal-dialog {
+    max-width: 520px;
+    max-height: calc(100vh - 2rem);
+    margin: 1rem auto;
+}
+
+#fp-fatura-pagar-modal .modal-content {
+    background-color: #fff;
+    color: #212529;
+    border: 1px solid #dee2e6;
+    max-height: calc(100vh - 2rem);
+}
+
+#fp-fatura-pagar-modal .modal-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    flex-shrink: 0;
+}
+
+#fp-fatura-pagar-modal .modal-footer {
+    background-color: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    flex-shrink: 0;
+}
+
+#fp-fatura-pagar-modal .modal-title {
+    color: #212529;
+    font-weight: 600;
+}
+
+#fp-fatura-pagar-modal .btn-close {
+    opacity: 0.65;
+    filter: none;
+}
+
+#fp-fatura-pagar-modal .btn-close:hover {
+    opacity: 1;
+}
+
+#fp-fatura-pagar-modal .text-muted {
+    color: #6c757d !important;
+}
+
+#fp-fatura-pagar-modal .alert-info {
+    background-color: #cff4fc;
+    border-color: #9eeaf9;
+    color: #055160;
+}
+
+#fp-fatura-pagar-modal .alert-warning {
+    background-color: #fff3cd;
+    border-color: #ffecb5;
+    color: #664d03;
+}
+
+#fp-fatura-pagar-modal .modal-body {
+    overflow-y: auto;
+}

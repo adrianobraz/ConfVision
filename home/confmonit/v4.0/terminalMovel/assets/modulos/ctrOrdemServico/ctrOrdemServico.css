@@ -1,0 +1,63 @@
+#ctrOrdemServico {
+    box-sizing: border-box;
+    height: 100%;
+    display: flex;
+    flex-flow: row wrap;
+    align-content: stretch;
+    opacity: 1;
+}
+
+#ctrOrdemServico_titulo {
+    height: 40px;
+    flex: 1 1 100%;
+    text-align: center;
+}
+
+
+#ctrOrdemServico_responsivo {
+    height: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 5px;
+}
+
+#ctrOrdemServico_cpDescricao {
+    resize: none;
+    min-height: 140px;
+    max-height: 180px;
+}
+
+/* Campos fixos (empresa e cliente) quando abertos pelo atendimento */
+.ctrOrdemServico-campoFixo {
+    background-color: #2d2d2d !important;
+    cursor: default !important;
+    color: #e0e0e0 !important;
+}
+
+#ctrOrdemServico_boxBtn {  
+    flex: 1 1 100%;
+    flex-flow: row nowrap;
+
+    padding: 5px;
+    display: flex;
+    gap: 5px;
+    justify-content: space-between;
+    margin-top: auto;
+}
+#ctrOrdemServico_boxBtn button {
+    height: 54px;
+    flex: 1 1 100%;
+    font-size: 1.25rem !important;
+}
+
+@media (max-width: 720px) {
+    #ctrOrdemServico_cpDescricao {
+        min-height: 96px;
+        max-height: 120px;
+    }
+
+    #ctrOrdemServico_boxBtn button {
+        height: 48px;
+        font-size: 1.05rem !important;
+    }
+}

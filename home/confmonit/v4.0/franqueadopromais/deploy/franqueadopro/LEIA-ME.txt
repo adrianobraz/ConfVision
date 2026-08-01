@@ -1,0 +1,16 @@
+﻿FranqueadoPro â€” pacote pronto para subir
+========================================
+
+SUBA TODO o conteudo desta pasta para:
+  /home/confmonit/v4.0/franqueadopro/
+
+Arquivos:
+  - franqueadopro   (binario)
+  - .env            (ja configurado â€” nao editar)
+  - recursos\       (pasta inteira)
+
+No servidor (uma vez apos subir):
+  chmod +x franqueadopro
+  systemctl restart confmonit4franqueadopro
+
+Teste: login -> menu Meu Plano

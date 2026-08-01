@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+.btn {
+    cursor: pointer;
+}
+
+textarea {
+    resize: none;
+}
+
+/* Menu dropdown global (navbar) */
+.nav-dropdown .nav-drop-panel {
+    z-index: 60;
+}
+
+.nav-dropdown .nav-drop-btn {
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    color: inherit;
+    font: inherit;
+}

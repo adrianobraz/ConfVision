@@ -1,0 +1,63 @@
+{{ template "pagina" . }}
+
+{{ define "body" }}
+<div class="tech-page">
+    {{ template "navbar" . }}
+
+    <div class="tech-workspace">
+        <section class="tech-col-list">
+            <div class="tech-panel">
+                <div class="tech-panel-head">
+                    <i class="bi bi-table"></i> Listagem · Fabricantes
+                </div>
+                <div class="tech-panel-body">
+                    <div class="tech-table-wrap">
+                        <table id="tabFabricante" class="tech-table w-full text-center">
+                            <thead>
+                                <tr>
+                                    <th style="width: 20%;">Keep Vis.</th>
+                                    <th>Descrição</th>
+                                    <th style="width: 24%;" colspan="3">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="tech-col-form">
+            <div class="tech-panel">
+                <div class="tech-panel-head">
+                    <i class="bi bi-building-gear"></i> Cadastro · Fabricante
+                </div>
+                <div class="tech-panel-body">
+                    <div class="tech-form-block flex flex-col gap-2">
+                        <div>
+                            <label class="ps-1" for="fabKeepVisivel">Keep Visivel</label>
+                            <select id="fabKeepVisivel" class="w-full px-3 py-2 text-center uppercase">
+                                <option value="N">Não</option>
+                                <option value="S">Sim</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="ps-1" for="fabNome">Nome</label>
+                            <input id="fabNome" type="text" class="w-full px-3 py-2 text-center uppercase">
+                        </div>
+                        <div class="w-full flex flex-col md:flex-row gap-2 mt-2">
+                            <button id="btnFabLimpar" class="py-2 w-full rounded-md text-white font-black text-xl bg-red-700">
+                                <i class="bi bi-eraser-fill"></i> &nbsp; Limpar
+                            </button>
+                            <button id="btnFabGravar" class="py-2 w-full rounded-md text-white font-black text-xl bg-green-700">
+                                <i class="bi bi-floppy-fill"></i> &nbsp; Gravar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+<script src="/public/templates/configuracaoCentralAlarme/fabricante.js"></script>
+{{ end }}

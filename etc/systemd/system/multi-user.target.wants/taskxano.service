@@ -1,0 +1,16 @@
+[Unit]
+Description=Task Xano Worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/confmonit/v4.0/taskxano
+EnvironmentFile=/home/confmonit/v4.0/taskxano/.env
+ExecStart=/home/confmonit/v4.0/taskxano/taskxano
+Restart=always
+RestartSec=3
+User=confmonit
+
+[Install]
+WantedBy=multi-user.target

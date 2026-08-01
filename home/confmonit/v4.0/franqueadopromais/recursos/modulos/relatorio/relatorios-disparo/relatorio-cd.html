@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    {{ template "head" . }}
+    <style>
+        .cd-td-transcript { max-width: 160px; width: 160px; vertical-align: middle; }
+        .cd-tr-cell {
+            display: flex;
+            align-items: center;
+            gap: .35rem;
+            max-width: 160px;
+        }
+        .cd-tr-preview {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: .85rem;
+            cursor: pointer;
+        }
+        .cd-tr-cell .btn-cd-transcript {
+            flex-shrink: 0;
+            padding: .15rem .4rem;
+            line-height: 1;
+        }
+        .cd-td-audio { min-width: 320px; width: 340px; vertical-align: middle; }
+        .cd-audio-cell {
+            display: flex;
+            flex-direction: column;
+            gap: .35rem;
+            min-width: 300px;
+        }
+        .cd-audio-player {
+            width: 100%;
+            min-width: 280px;
+            height: 40px;
+        }
+        .cd-tr-modal-body {
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-family: inherit;
+            font-size: .95rem;
+            line-height: 1.45;
+            color: inherit;
+            background: transparent;
+            border: 0;
+        }
+    </style>
+</head>
+<body>
+    {{ template "variaveis-controle" . }}
+    {{ template "nav-bar" . }}
+    <div class="container-fluid container-principal pt-2">
+        <form id="formulario"></form>
+        <div class="row text-center">
+
+            <div class="col-lg-4 mb-1 text-start" id="filtro-cliente-wrap">
+                <label for="busca-cliente" class="form-label mb-0">Cliente:</label>
+                <div class="position-relative">
+                    <input type="text" autocomplete="off" autofocus
+                        class="form-control form-control-sm text-uppercase"
+                        id="busca-cliente"
+                        placeholder="Pesquisar por nome, CPF, CNPJ ou nick...">
+                    <input type="hidden" form="formulario" id="id-cliente" value="0">
+                    <ul id="lista-clientes" class="fp-combo-list d-none"></ul>
+                </div>
+            </div>
+
+            <div class="col-lg-2 mb-1 text-start">
+                <label for="start" class="form-label mb-0">Data Inicial:</label>
+                <input type="text" autocomplete="off"
+                    class="form-control form-control-sm" form="formulario" id="start"
+                    placeholder="dd/mm/aaaa hh:mm">
+            </div>
+
+            <div class="col-lg-2 mb-1 text-start">
+                <label for="end" class="form-label mb-0">Data Final:</label>
+                <input type="text" autocomplete="off"
+                    class="form-control form-control-sm" form="formulario" id="end"
+                    placeholder="dd/mm/aaaa hh:mm">
+            </div>
+
+            <div class="col-lg-1 d-grid gap-2 mb-1">
+                <button type="button" id="btn-limpar" class="btn btn-danger">LIMPAR</button>
+            </div>
+            <div class="col-lg-1 d-grid gap-2 mb-1">
+                <button type="button" id="btn-filtrar" class="btn btn-primary">FILTRAR</button>
+            </div>
+            <div class="col-lg-2 d-grid gap-2 mb-1">
+                <button type="button" id="btn-imprimir" class="btn btn-primary">IMPRIMIR</button>
+            </div>
+
+            <div class="col-lg-12"><hr></div>
+
+            <div class="col-lg-12 table-responsive" id="cd-table-wrap" style="max-height:70vh;overflow:auto;">
+                <table class="table table-bordered table-sm" id="tabCdRelatorio">
+                    <thead class="table-dark sticky-top" id="tabCdHead"></thead>
+                    <tbody id="tabCdBody"></tbody>
+                </table>
+                <div id="cd-scroll-sentinel" class="py-2 text-center text-muted small">
+                    <span id="cd-loading" class="d-none">
+                        <span class="spinner-border spinner-border-sm me-1"></span>Carregando...
+                    </span>
+                    <span id="cd-fim" class="d-none">Fim dos registros</span>
+                </div>
+            </div>
+            <div class="col-lg-12 text-start">
+                <small class="text-muted" id="qtd-registros">Total: 0</small>
+            </div>
+        </div>
+    </div>
+    {{ template "link-js" . }}
+    <script>window.FP_CD_REPORT = "{{ .LinkJs }}";</script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/themes/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/pt.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+    <script src="/recursos/js/auxiliares/geraTabelaPdf.js"></script>
+    <script src="/recursos/js/auxiliares/relatorio-cd.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+RewriteEngine On
+RewriteBase /
+
+# API ConfService → PHP proxy → Proxmox :2020
+# (KingHost nao tem ProxyPass; sem isso o SPA engole /parceiro/registrar)
+RewriteRule ^health$ cs-proxy.php [L,QSA]
+RewriteRule ^parceiros$ cs-proxy.php [L,QSA]
+RewriteRule ^parceiro/.+$ cs-proxy.php [L,QSA]
+RewriteRule ^admin/.+$ cs-proxy.php [L,QSA]
+RewriteRule ^marketplace(/.*)?$ cs-proxy.php [L,QSA]
+RewriteRule ^internal(/.*)?$ cs-proxy.php [L,QSA]
+
+# SPA React — so o que NAO for arquivo/pasta real
+RewriteRule ^index\.html$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.html [L]

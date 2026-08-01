@@ -1,0 +1,603 @@
+/* ConfVision — tema escuro telas cadastro legado (v2 — overrides Bootstrap) */
+/* Variáveis de cor vêm de :root via cv-theme.js */
+
+body.cv-cadastro,
+.cv-cadastro-root {
+    --cv-radius: 10px;
+}
+
+body.cv-cadastro {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+    background: var(--cv-bg) !important;
+    background-image:
+        radial-gradient(ellipse 80% 50% at 50% -20%, var(--cv-bg-glow-1), transparent),
+        radial-gradient(ellipse 60% 40% at 100% 100%, var(--cv-bg-glow-2), transparent) !important;
+    color: var(--cv-text) !important;
+    min-height: 100vh;
+}
+
+body.cv-cadastro .bi,
+.cv-cadastro-root .bi {
+    width: auto !important;
+    height: auto !important;
+}
+
+/* Navbar */
+body.cv-cadastro .navbar.bg-dark,
+.cv-cadastro-root .navbar.bg-dark {
+    background: rgba(7, 11, 20, 0.95) !important;
+    border-bottom: 1px solid var(--cv-border);
+}
+
+body.cv-cadastro .navbar-brand,
+.cv-cadastro-root .navbar-brand {
+    color: var(--cv-text) !important;
+}
+
+body.cv-cadastro .navbar .btn-outline-light,
+.cv-cadastro-root .navbar .btn-outline-light {
+    color: var(--cv-text-muted) !important;
+    border-color: var(--cv-border) !important;
+    background: transparent !important;
+}
+
+body.cv-cadastro .navbar .btn-outline-light:hover,
+.cv-cadastro-root .navbar .btn-outline-light:hover {
+    color: var(--cv-accent) !important;
+    background: var(--cv-accent-soft) !important;
+    border-color: var(--cv-border-hover) !important;
+}
+
+/* Subnav */
+body.cv-cadastro .cv-cadastro-subnav,
+.cv-cadastro-root .cv-cadastro-subnav {
+    background: var(--cv-bg-elevated) !important;
+    border-bottom: 1px solid var(--cv-border) !important;
+}
+
+body.cv-cadastro .cv-subnav-btn,
+.cv-cadastro-root .cv-subnav-btn {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border-radius: 8px;
+    border: 1px solid var(--cv-border) !important;
+    background: rgba(15, 23, 42, 0.6) !important;
+    color: var(--cv-text-muted) !important;
+    text-decoration: none !important;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+body.cv-cadastro .cv-subnav-btn:hover,
+body.cv-cadastro .cv-subnav-btn.cv-subnav-active,
+.cv-cadastro-root .cv-subnav-btn:hover,
+.cv-cadastro-root .cv-subnav-btn.cv-subnav-active {
+    color: var(--cv-accent) !important;
+    background: var(--cv-accent-medium) !important;
+    border-color: var(--cv-border-hover) !important;
+}
+
+body.cv-cadastro .cv-cadastro-subnav .btn-outline-secondary,
+.cv-cadastro-root .cv-cadastro-subnav .btn-outline-secondary {
+    color: var(--cv-text-muted) !important;
+    border-color: var(--cv-border) !important;
+    background: rgba(15, 23, 42, 0.6) !important;
+}
+
+body.cv-cadastro .cv-cadastro-subnav .btn-outline-secondary:hover,
+.cv-cadastro-root .cv-cadastro-subnav .btn-outline-secondary:hover {
+    color: var(--cv-accent) !important;
+    background: var(--cv-accent-medium) !important;
+    border-color: var(--cv-border-hover) !important;
+}
+
+/* Layout principal */
+body.cv-cadastro .container,
+body.cv-cadastro .container-fluid,
+body.cv-cadastro .container-principal,
+body.cv-cadastro .row,
+.cv-cadastro-root .container,
+.cv-cadastro-root .container-fluid,
+.cv-cadastro-root .container-principal,
+.cv-cadastro-root .row {
+    background: transparent !important;
+    color: var(--cv-text);
+}
+
+body.cv-cadastro .container-principal,
+.cv-cadastro-root .container-principal {
+    padding-bottom: 2rem;
+}
+
+body.cv-cadastro .bg-form,
+.cv-cadastro-root .bg-form {
+    background: var(--cv-bg-card) !important;
+    border: 1px solid var(--cv-border) !important;
+    border-radius: var(--cv-radius);
+}
+
+body.cv-cadastro label,
+.cv-cadastro-root label {
+    color: var(--cv-text-muted) !important;
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    font-style: normal !important;
+}
+
+/* Tabelas — Bootstrap força fundo branco nas células */
+body.cv-cadastro .table,
+.cv-cadastro-root .table {
+    --bs-table-bg: transparent !important;
+    --bs-table-color: var(--cv-text) !important;
+    --bs-table-border-color: var(--cv-border) !important;
+    --bs-table-striped-bg: rgba(15, 23, 42, 0.65) !important;
+    --bs-table-striped-color: var(--cv-text) !important;
+    --bs-table-hover-bg: var(--cv-accent-faint) !important;
+    --bs-table-hover-color: var(--cv-text) !important;
+    color: var(--cv-text) !important;
+    border-color: var(--cv-border) !important;
+    margin-bottom: 0;
+}
+
+body.cv-cadastro .table > :not(caption) > * > *,
+.cv-cadastro-root .table > :not(caption) > * > * {
+    background-color: var(--cv-bg-card) !important;
+    color: var(--cv-text) !important;
+    border-color: var(--cv-border) !important;
+    box-shadow: none !important;
+}
+
+body.cv-cadastro .table-striped > tbody > tr:nth-of-type(odd) > *,
+.cv-cadastro-root .table-striped > tbody > tr:nth-of-type(odd) > * {
+    background-color: rgba(15, 23, 42, 0.85) !important;
+    color: var(--cv-text) !important;
+}
+
+body.cv-cadastro .table-striped > tbody > tr:nth-of-type(even) > *,
+.cv-cadastro-root .table-striped > tbody > tr:nth-of-type(even) > * {
+    background-color: var(--cv-bg-card) !important;
+    color: var(--cv-text) !important;
+}
+
+body.cv-cadastro .table thead.table-dark th,
+body.cv-cadastro .table-dark th,
+.cv-cadastro-root .table thead.table-dark th,
+.cv-cadastro-root .table-dark th {
+    background-color: #0f172a !important;
+    color: var(--cv-accent) !important;
+    border-color: var(--cv-border) !important;
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+
+body.cv-cadastro .table-responsive,
+.cv-cadastro-root .table-responsive {
+    background: var(--cv-bg-card) !important;
+    border: 1px solid var(--cv-border) !important;
+    border-radius: var(--cv-radius);
+}
+
+body.cv-cadastro .tab-height,
+body.cv-cadastro .form-height,
+body.cv-cadastro .page-height,
+.cv-cadastro-root .tab-height,
+.cv-cadastro-root .form-height,
+.cv-cadastro-root .page-height {
+    background: transparent !important;
+}
+
+/* Lista de clientes — altura fixa + scroll + filtros */
+body.cv-cadastro #lista-clientes-scroll,
+.cv-cadastro-root #lista-clientes-scroll {
+    overflow-y: auto !important;
+    max-height: calc(100vh - 240px);
+    min-height: 280px;
+}
+
+body.cv-cadastro #tab-clientes thead th,
+.cv-cadastro-root #tab-clientes thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+body.cv-cadastro .cv-cli-filtros .input-group-text,
+.cv-cadastro-root .cv-cli-filtros .input-group-text {
+    background: var(--cv-bg-input) !important;
+    border-color: var(--cv-border) !important;
+    color: var(--cv-text-muted) !important;
+}
+
+body.cv-cadastro .cv-cli-total,
+.cv-cadastro-root .cv-cli-total {
+    color: var(--cv-text-muted);
+    font-size: 0.75rem;
+}
+
+body.cv-cadastro .cv-cli-loading-more,
+.cv-cadastro-root .cv-cli-loading-more {
+    color: var(--cv-text-muted);
+    font-size: 0.8rem;
+    text-align: center;
+    padding: 0.5rem;
+}
+
+/* Combo pesquisável de cliente (dispositivo / setores) */
+body.cv-cadastro .cv-combo-list,
+.cv-cadastro-root .cv-combo-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1055;
+    margin-top: 2px;
+    max-height: 260px;
+    overflow-y: auto;
+    list-style: none;
+    padding: 4px;
+    background-color: var(--cv-bg-card, #0f172a);
+    border: 1px solid var(--cv-border, #334155);
+    border-radius: 8px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, .45);
+    text-align: left;
+}
+
+body.cv-cadastro .cv-combo-item,
+.cv-cadastro-root .cv-combo-item {
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--cv-text, #e2e8f0);
+    font-size: .9rem;
+}
+
+body.cv-cadastro .cv-combo-item:hover,
+.cv-cadastro-root .cv-combo-item:hover {
+    background-color: var(--cv-accent-strong);
+    color: var(--cv-accent, #22d3ee);
+}
+
+body.cv-cadastro .cv-combo-empty,
+.cv-cadastro-root .cv-combo-empty {
+    padding: 8px 10px;
+    color: var(--cv-text-muted, #94a3b8);
+    font-size: .85rem;
+}
+
+/* Formulários */
+body.cv-cadastro .form-control,
+body.cv-cadastro .form-select,
+body.cv-cadastro textarea,
+.cv-cadastro-root .form-control,
+.cv-cadastro-root .form-select,
+.cv-cadastro-root textarea {
+    background-color: var(--cv-bg-input) !important;
+    border: 1px solid var(--cv-border) !important;
+    color: var(--cv-text) !important;
+    border-radius: 8px;
+}
+
+body.cv-cadastro .form-control:focus,
+body.cv-cadastro .form-select:focus,
+body.cv-cadastro textarea:focus,
+.cv-cadastro-root .form-control:focus,
+.cv-cadastro-root .form-select:focus,
+.cv-cadastro-root textarea:focus {
+    background-color: var(--cv-bg-input) !important;
+    border-color: var(--cv-accent) !important;
+    color: var(--cv-text) !important;
+    box-shadow: 0 0 0 0.2rem var(--cv-accent-strong) !important;
+}
+
+body.cv-cadastro .form-control:disabled,
+body.cv-cadastro .form-select:disabled,
+.cv-cadastro-root .form-control:disabled,
+.cv-cadastro-root .form-select:disabled {
+    background-color: rgba(15, 23, 42, 0.6) !important;
+    color: var(--cv-text-muted) !important;
+}
+
+body.cv-cadastro .form-check-input,
+.cv-cadastro-root .form-check-input {
+    background-color: var(--cv-bg-input) !important;
+    border-color: var(--cv-border) !important;
+}
+
+body.cv-cadastro .form-check-input:checked,
+.cv-cadastro-root .form-check-input:checked {
+    background-color: var(--cv-accent-dim) !important;
+    border-color: var(--cv-accent) !important;
+}
+
+body.cv-cadastro .form-check-label,
+.cv-cadastro-root .form-check-label {
+    color: var(--cv-text) !important;
+}
+
+/* Botões */
+body.cv-cadastro .btn-success,
+.cv-cadastro-root .btn-success {
+    background: linear-gradient(135deg, var(--cv-accent-dim), var(--cv-accent)) !important;
+    border: none !important;
+    color: #0f172a !important;
+    font-weight: 600;
+}
+
+body.cv-cadastro .btn-success:hover,
+.cv-cadastro-root .btn-success:hover {
+    filter: brightness(1.08);
+    color: #0f172a !important;
+}
+
+body.cv-cadastro .btn-danger,
+.cv-cadastro-root .btn-danger {
+    background: rgba(248, 113, 113, 0.2) !important;
+    border: 1px solid rgba(248, 113, 113, 0.45) !important;
+    color: var(--cv-danger) !important;
+}
+
+body.cv-cadastro .btn-danger:hover,
+.cv-cadastro-root .btn-danger:hover {
+    background: rgba(248, 113, 113, 0.35) !important;
+    color: #fff !important;
+}
+
+body.cv-cadastro .btn-primary,
+.cv-cadastro-root .btn-primary {
+    background: var(--cv-accent-strong) !important;
+    border: 1px solid var(--cv-border-hover) !important;
+    color: var(--cv-accent) !important;
+}
+
+body.cv-cadastro .btn-info,
+body.cv-cadastro .btn-warning,
+body.cv-cadastro .btn-secondary,
+.cv-cadastro-root .btn-info,
+.cv-cadastro-root .btn-warning,
+.cv-cadastro-root .btn-secondary {
+    border: 1px solid var(--cv-border) !important;
+}
+
+body.cv-cadastro .table .btn,
+.cv-cadastro-root .table .btn {
+    font-size: 0.75rem;
+}
+
+/* Modais */
+body.cv-cadastro .modal-content,
+.cv-cadastro-root .modal-content {
+    background: var(--cv-bg-elevated) !important;
+    border: 1px solid var(--cv-border) !important;
+    color: var(--cv-text) !important;
+}
+
+body.cv-cadastro .modal-header,
+body.cv-cadastro .modal-footer,
+.cv-cadastro-root .modal-header,
+.cv-cadastro-root .modal-footer {
+    border-color: var(--cv-border) !important;
+}
+
+body.cv-cadastro .btn-close,
+.cv-cadastro-root .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+body.cv-cadastro .text-danger,
+.cv-cadastro-root .text-danger {
+    color: var(--cv-danger) !important;
+}
+
+body.cv-cadastro hr,
+.cv-cadastro-root hr {
+    border-color: var(--cv-border) !important;
+    opacity: 1;
+}
+
+body.cv-cadastro ::-webkit-scrollbar,
+.cv-cadastro-root ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+body.cv-cadastro ::-webkit-scrollbar-thumb,
+.cv-cadastro-root ::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.35);
+    border-radius: 4px;
+}
+
+/* ── Mobile polish cadastro (não altera desktop) ── */
+@media (max-width: 991.98px) {
+    body.cv-cadastro {
+        overflow-x: hidden;
+    }
+
+    body.cv-cadastro .container-principal,
+    .cv-cadastro-root .container-principal {
+        padding-left: 0.65rem;
+        padding-right: 0.65rem;
+        padding-bottom: 5rem;
+    }
+
+    body.cv-cadastro .form-control,
+    body.cv-cadastro .form-select,
+    body.cv-cadastro textarea,
+    .cv-cadastro-root .form-control,
+    .cv-cadastro-root .form-select,
+    .cv-cadastro-root textarea {
+        font-size: 16px !important;
+        min-height: 42px;
+    }
+
+    body.cv-cadastro .form-control-sm,
+    body.cv-cadastro .form-select-sm,
+    .cv-cadastro-root .form-control-sm,
+    .cv-cadastro-root .form-select-sm {
+        min-height: 40px;
+        font-size: 16px !important;
+    }
+
+    body.cv-cadastro #lista-clientes-scroll,
+    .cv-cadastro-root #lista-clientes-scroll {
+        max-height: none;
+        min-height: 200px;
+    }
+
+    body.cv-cadastro .page-height,
+    body.cv-cadastro .tab-height,
+    body.cv-cadastro .form-height,
+    body.cv-cadastro .altura-fixa,
+    .cv-cadastro-root .page-height,
+    .cv-cadastro-root .tab-height,
+    .cv-cadastro-root .form-height,
+    .cv-cadastro-root .altura-fixa {
+        max-height: none !important;
+        height: auto !important;
+        min-height: 0 !important;
+    }
+
+    body.cv-cadastro .bg-form,
+    .cv-cadastro-root .bg-form {
+        margin-bottom: 1rem;
+        border-radius: 12px;
+    }
+
+    body.cv-cadastro .table-responsive,
+    .cv-cadastro-root .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    body.cv-cadastro .table .btn,
+    .cv-cadastro-root .table .btn {
+        min-height: 36px;
+        padding: 0.35rem 0.55rem;
+    }
+
+    body.cv-cadastro form.p-4,
+    .cv-cadastro-root form.p-4 {
+        padding: 1rem !important;
+    }
+
+    /* Subnav: só ícones */
+    .cv-cadastro-subnav {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+        position: sticky;
+        top: 0;
+        z-index: 50;
+    }
+
+    .cv-cadastro-subnav .d-flex {
+        justify-content: space-around !important;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        flex-wrap: nowrap !important;
+        padding-bottom: 0.15rem;
+        gap: 0.35rem !important;
+    }
+
+    .cv-subnav-btn {
+        flex: 1 1 0;
+        min-width: 44px;
+        max-width: 64px;
+        min-height: 44px;
+        justify-content: center !important;
+        padding: 0.45rem 0.35rem !important;
+        white-space: nowrap;
+    }
+
+    .cv-subnav-btn .cv-subnav-label {
+        display: none !important;
+    }
+
+    .cv-subnav-btn .bi {
+        font-size: 1.25rem;
+        margin: 0 !important;
+    }
+
+    /* Lista vs formulário — só páginas com .cv-cadastro-split (Clientes/Dispositivos/Setores) */
+    body.cv-cadastro-split:not(.cv-cadastro-form-mode) .cv-cad-form,
+    body.cv-cadastro-split:not(.cv-cadastro-form-mode) .bg-form {
+        display: none !important;
+    }
+
+    body.cv-cadastro-split:not(.cv-cadastro-form-mode) .cv-cad-lista {
+        display: block !important;
+        width: 100%;
+        max-width: 100%;
+        flex: 0 0 100%;
+    }
+
+    body.cv-cadastro-split.cv-cadastro-form-mode .cv-cad-lista {
+        display: none !important;
+    }
+
+    body.cv-cadastro-split.cv-cadastro-form-mode .cv-cad-form,
+    body.cv-cadastro-split.cv-cadastro-form-mode .bg-form {
+        display: block !important;
+        width: 100%;
+        max-width: 100%;
+        flex: 0 0 100%;
+    }
+
+    body.cv-cadastro-split .cv-cad-bar-lista {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 0.65rem;
+    }
+
+    body.cv-cadastro-split .cv-cad-btn-novo {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        min-height: 44px;
+        padding: 0.5rem 1rem;
+        border: 1px solid var(--cv-accent-border);
+        border-radius: 10px;
+        background: var(--cv-accent-strong);
+        color: var(--cv-accent);
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    body.cv-cadastro-split .cv-cad-bar-form {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.85rem;
+        padding-bottom: 0.65rem;
+        border-bottom: 1px solid var(--cv-border);
+    }
+
+    body.cv-cadastro-split .cv-cad-btn-voltar {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        min-height: 40px;
+        padding: 0.4rem 0.75rem;
+        border: 1px solid var(--cv-border);
+        border-radius: 8px;
+        background: rgba(15, 23, 42, 0.7);
+        color: #e2e8f0;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    body.cv-cadastro-split .cv-cad-form-titulo {
+        font-weight: 600;
+        color: var(--cv-accent);
+        font-size: 1rem;
+    }
+}
+
+@media (min-width: 992px) {
+    .cv-cad-bar-lista,
+    .cv-cad-bar-form {
+        display: none !important;
+    }
+}
+

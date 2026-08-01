@@ -1,0 +1,106 @@
+{{ template "pagina" . }}
+
+{{ define "body" }}
+<div class="h-full w-full">
+    {{ template "navbar" . }}
+    <div class="flex flex-col bg-zinc-500 md:flex-row gap-2 md:h-[calc(100%-4rem)]">
+
+        {{ template "contactid"}}
+
+        <div class="w-6/12 p-2 flex justify-center items-center">
+            <img class="" src="/public/img/logo2Id.png" alt="">
+
+        </div >
+
+    </div>
+</div>
+<script src="/public/templates/configuracao/configuracao.js"></script>
+{{ end }}
+
+
+{{ define "contactid"}}
+<div class="md:w-6/12 bg-zinc-400 flex flex-col gap-2 p-2">
+    <h1 class="text-center text-xl font-black border-b">Gerenciar Contacid</h1>
+
+    <div class="w-full flex flex-col md:flex-row gap-2">
+        <div class="md:w-4/5 flex flex-col gap-2">
+            <div class="flex gap-2">
+                
+                <div class="flex flex-col md:w-1/4">
+                    <label class="ps-2 font-black" for="ciCodigo">Codigo</label>
+                    <input 
+                        id="ciCodigo" 
+                        type="text" 
+                        class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase mskCid">
+                </div>
+
+                <div class="flex flex-col md:w-2/4">
+                    <label class="ps-2 font-black" for="ciGrupo">Grupo</label>
+                    <select id="ciGrupo"
+                        class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase">
+                        <option value="ALARME">ALARME</option>
+                        <option value="GERAL">GERAL</option>
+                        <option value="MEDICO">MEDICO</option>
+                        <option value="PANICO">PANICO</option>
+                        <option value="FALHAS">FALHAS</option>
+                        <option value="SETUP">SETUP</option>
+                        <option value="DESARME">DESARME</option>
+                        <option value="TESTE">TESTE</option>
+                        <option value="RESTAURE">RESTAURE</option>
+                        <option value="ARME">ARME</option>
+                        <option value="EMERGENCIA">EMERGENCIA</option>
+                    </select>
+                </div>
+
+                <div class="flex flex-col md:w-1/4">
+                    <label class="ps-2 font-black" for="ciNivel">Nivel</label>
+                    <select id="ciNivel"
+                        class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase">
+                        <option value="0">NIVEL 0</option>
+                        <option value="1">NIVEL 1</option>
+                        <option value="2">NIVEL 2</option>
+                        <option value="3">NIVEL 3</option>
+                        <option value="4">NIVEL 4</option>
+                        <option value="5">NIVEL 5</option>
+                        
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="flex flex-col">
+                <label class="ps-2 font-black" for="ciDescricao">Descrição</label>
+                <input id="ciDescricao" type="text"
+                    class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase" maxlength="70">
+            </div>
+
+
+        </div>
+
+        <div class=" md:w-1/5 flex flex-col gap-2 ">
+            
+            <button id="ciBtnGravar" class="w-full md:h-1/2 py-2 rounded-md text-white font-black text-xl bg-green-700">Gravar</button>
+            
+            <button id="ciBtnLimpar" class="w-full md:h-1/2 py-2 rounded-md text-white font-black text-xl bg-red-700">Limpar</button>
+        </div>
+    </div>
+
+    <div class="overflow-x-auto">
+        <div class="min-w-[560px]">
+            <!--  -->
+            <table id="tabContacid" class="w-full text-center border-separate bg-green-100">
+                <thead class="py-3 text-white font-black bg-green-950">
+                    <tr>
+                        <th style="width: 10%;">Código</th>
+                        <th style="width: 18%;">Grupo</th>
+                        <th>Descricao</th>
+                        <th style="width: 8%;">Nivel</th>
+                        <th style="width: 10%;" colspan="2">Ação</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-green-200 text-sm"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{{ end }}

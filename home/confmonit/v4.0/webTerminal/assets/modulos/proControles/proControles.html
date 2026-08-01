@@ -1,0 +1,183 @@
+<link rel="stylesheet" href="/assets/modulos/proControles/proControles.css">
+<div id="proControles" class="h-100 container-fluid flex-fill">
+
+    <div class="h-100 row text-center flex-fill d-flex">
+        <!-- Coluna Esquerda -->
+        <div class=" col-3 col-lg-1 p-1 ">
+            <div id="proControles_cpQtdEventos" class="
+                    h-100 w-100 
+                    d-flex align-items-center justify-content-center 
+                    fs-1  rounded fmt-painel">0</div>
+        </div>
+        <!-- /Coluna Esquerda -->
+
+        <!-- Coluna Central -->
+        <div class="h-100 col-9 col-lg-5 p-1">
+            <div class="
+                    h-100 w-100 
+                    d-flex align-items-center justify-content-center 
+                    rounded fmt-painel">
+                <div class="h-100 w-100 p-1 row px-3">
+                    <div id="proControles_cpRelogio" class="col-12 col-sm-8 pb-1"></div>
+                    <div id="proControles_cpVersao" class="col-12 col-sm-4 pb-1 fw-bold"></div>
+                    <div id="proControles_cpAtendente" class="col-12 py-1 rounded bg-light text-bg-light"></div>
+                    <div id="proControles_boxLed" class="col-12 d-flex p-0 text-center">
+
+                        <div id="proControles_ledA" class="col">
+                            <i class="bi bi-volume-up"></i>
+                        </div>
+
+                        <div id="proControles_ledB" class="col ledOff">B</div>
+                        <div id="proControles_ledC" class="col ledOff">C</div>
+                        <div id="proControles_ledD" class="col ledOff">D</div>
+                        <div id="proControles_ledE" class="col ledOff">E</div>
+                        <div id="proControles_ledF" class="col ledOff">F</div>
+                        <div id="proControles_ledG" class="col ledOff">G</div>
+                        <div id="proControles_ledH" class="col ledOff">H</div>
+                        <div id="proControles_ledI" class="col ledOff">I</div>
+                        <div id="proControles_ledJ" class="col ledOff">J</div>
+                        <div id="proControles_ledL" class="col ledOff">L</div>
+                        <div id="proControles_ledM" class="col ledOff">M</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- /Coluna Central -->
+
+        <!-- Coluna Direita -->
+        <div class="h-100 col-12 col-lg-6 p-1">
+            <div class="h-100 container-fluid">
+                <div class="
+                    h-100 row rounded fmt-painel
+                    d-flex align-items-lg-center justify-content-evenly">
+
+                    <!-- Botao Audio -->
+                    <div 
+                        class="click h-100 col p-1 py-lg-2 px-lg-1 d-flex " title="Ativar/Desativar Audio"
+                        onclick="proControles_btnAdio()"
+                    >
+                        <div 
+                            class="flex-fill rounded-3 border border-3 border-dark-subtle d-flex fmt-botao"
+                        >
+                            <div class="flex-fill d-flex align-items-center fmt-botao rounded-2">
+                                <div class="fs-1 flex-fill text-center">
+                                    <i class="bi bi-volume-up txt-botao"></i>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                    <!-- /Botao Audio -->
+
+                    <!-- Botao Alterar Senha -->
+                    <div class="click h-100 col p-1 py-lg-2 px-lg-1 d-flex" title="Alterar a senha"
+                        id="proControles_btnAlterarSenha">
+                        <div class="flex-fill rounded-3 border border-3 border-dark-subtle d-flex"
+                        >
+                            <div 
+                                class="flex-fill d-flex align-items-center fmt-botao rounded-2"
+                            >
+                                <div class="fs-1 flex-fill text-center ">
+                                    <i class="bi bi-key txt-botao"></i>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                    <!-- /Botao Alterar Senha -->
+
+                    <!-- Botao Manutencoes Ativas -->
+                    <div class="click h-100 col p-1 py-lg-2 px-lg-1 d-flex" title="Manutenções ativas"
+                        id="proControles_btnManutencoesAtivas">
+                        <div class="flex-fill rounded-3 border border-3 border-dark-subtle d-flex"
+                        >
+                            <div
+                                class="flex-fill d-flex align-items-center fmt-botao rounded-2"
+                            >
+                                <div class="fs-1 flex-fill text-center ">
+                                    <i class="bi bi-gear-wide-connected txt-botao"></i>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                    <!-- /Botao Manutencoes Ativas -->
+
+                    <!-- Botao Dados Clientes -->
+                    <div class=" h-100 col p-1 py-lg-2 px-lg-1 d-flex" title="Consultar dados do cliente"
+                        id="proControles_btnDadosCliente">
+                        <div 
+                            class="flex-fill rounded-3 fmt-botao border border-3 border-dark-subtle d-flex"
+                        >
+                            <div 
+                                class="flex-fill d-flex align-items-center fmt-botao rounded-2"
+                            >
+                                <div class="fs-1 flex-fill text-center">
+                                    <i class="bi bi-person-vcard-fill txt-botao"></i>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                    <!-- /Botao Dados Clientes -->
+
+                    <!-- Botao Ordem Servico -->
+                    <div class="click h-100 col p-1 py-lg-2 px-lg-1 d-flex" title="Gerar ordem de servico" id="proControles_btnOs">
+                        <div 
+                            class="flex-fill rounded-3 fmt-botao border border-3 border-dark-subtle d-flex"
+                        >
+                            <div 
+                                class="flex-fill d-flex align-items-center fmt-botao rounded-2"
+                            >
+                                <div class="fs-1 flex-fill text-center">
+                                    <i class="bi bi-tools txt-botao"></i>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                    <!-- /Botao Ordem Servico -->
+
+                    <!-- Botao Ultimos Atendimentos -->
+                    <div class="click h-100 col p-1 py-lg-2 px-lg-1 d-flex" title="Últimos atendimentos finalizados" id="proControles_btnUltimosAtendimentos">
+                        <div 
+                            class="flex-fill rounded-3 fmt-botao border border-3 border-dark-subtle d-flex"
+                        >
+                            <div 
+                                class="flex-fill d-flex align-items-center fmt-botao rounded-2"
+                            >
+                                <div class="fs-1 flex-fill text-center">
+                                    <i class="bi bi-clock-history txt-botao"></i>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                    <!-- /Botao Ultimos Atendimentos -->
+
+                    <!-- Botao Logout -->
+                    <div class=" h-100 col p-1 py-lg-2 px-lg-1 d-flex" title="Efetuar o logout no sistema" onclick="proControles_btnLogout()">
+                        <div 
+                            class="flex-fill rounded-3 fmt-botao border border-3 border-dark-subtle d-flex"
+                        >
+                            <div 
+                                class="flex-fill d-flex align-items-center fmt-botao rounded-2"
+                            >
+                                <div class="fs-1 flex-fill text-center">
+                                    <i class="bi bi-door-closed-fill txt-botao"></i>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                    <!-- //Botao Logout -->
+
+
+                </div><!-- /row -->
+            </div><!-- /container-fluid -->
+        </div>
+        <!-- /Coluna Direita -->
+
+    </div>
+
+</div>

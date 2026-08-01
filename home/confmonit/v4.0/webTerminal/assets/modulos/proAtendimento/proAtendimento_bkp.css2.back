@@ -1,0 +1,30 @@
+#proAtendimento {
+    box-sizing: border-box;
+    height: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    opacity: 1;
+}
+@media(width <576px) {
+    #proAtendimento {
+        max-height: 400px;
+    }
+}
+
+#proAtendimento_titulo {
+    height: 40px;
+    flex: 1 1 100%;
+    text-align: center;
+   
+}
+
+#proAtendimento_responsivo {
+    height: calc(100% - 40px);
+    display: flex;
+    flex-wrap: wrap;
+    padding: 0 5px;
+    flex: 1 1 100%;
+    
+    align-items: start;
+    text-align: center;
+}

@@ -1,0 +1,380 @@
+/* container-principal tem overflow:hidden + animacao no tema — quebra position:sticky */
+.fp-page-montar-plano.container-principal {
+    overflow: visible;
+    animation: none;
+    transform: none;
+    max-width: 100%;
+}
+
+.fp-page-montar-plano .row {
+    overflow: visible;
+}
+
+.fp-alacarte-layout-row {
+    align-items: stretch;
+}
+
+.fp-alacarte-col-resumo {
+    position: relative;
+}
+
+.fp-alacarte-resumo-sticky {
+    width: 100%;
+}
+
+.fp-alacarte-resumo-sticky.is-fixed {
+    position: fixed;
+    z-index: 1020;
+}
+
+.fp-alacarte-resumo-sticky.is-bottom {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 1020;
+}
+
+@media (min-width: 992px) {
+    .fp-alacarte-resumo-sticky:not(.is-fixed):not(.is-bottom) {
+        position: -webkit-sticky;
+        position: sticky;
+        top: 1rem;
+        z-index: 1020;
+    }
+}
+
+.fp-alacarte-resumo-spacer {
+    display: block;
+    width: 100%;
+    height: 0;
+    pointer-events: none;
+}
+
+.fp-alacarte-header {
+    margin-bottom: 1.25rem;
+}
+
+.fp-alacarte-header h4 {
+    margin-bottom: 0.35rem;
+}
+
+.fp-alacarte-bases {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+}
+
+.fp-alacarte-base-card {
+    border: 2px solid var(--fp-border, #dee2e6);
+    border-radius: 10px;
+    padding: 1rem;
+    cursor: pointer;
+    background: var(--fp-surface-2, #f8f9fa);
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.fp-alacarte-base-card:hover {
+    border-color: var(--fp-primary, #0d6efd);
+}
+
+.fp-alacarte-base-card.ativo {
+    border-color: var(--fp-primary, #0d6efd);
+    box-shadow: 0 0 0 2px rgba(var(--fp-primary-rgb, 13, 110, 253), 0.2);
+}
+
+.fp-alacarte-base-card.plano-atual {
+    background: linear-gradient(135deg, rgba(var(--fp-primary-rgb, 13, 110, 253), 0.12), rgba(var(--fp-primary-rgb, 13, 110, 253), 0.04));
+    border-color: var(--fp-primary, #0d6efd);
+}
+
+.fp-alacarte-base-card.plano-atual strong {
+    color: var(--fp-primary, #0d6efd);
+}
+
+.fp-alacarte-base-card.travado {
+    cursor: default;
+    opacity: 0.65;
+}
+
+.fp-alacarte-base-card.travado.ativo,
+.fp-alacarte-base-card.travado.plano-atual {
+    opacity: 1;
+    cursor: default;
+}
+
+.fp-alacarte-base-card.travado:not(.ativo) {
+    pointer-events: none;
+}
+
+.fp-alacarte-base-card strong {
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.fp-alacarte-base-preco {
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.fp-alacarte-grupo {
+    margin-bottom: 1.25rem;
+}
+
+.fp-alacarte-grupo-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--fp-text-muted, #6c757d);
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--fp-border, #dee2e6);
+}
+
+.fp-alacarte-mod-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.65rem 0;
+    border-bottom: 1px solid var(--fp-border, #dee2e6);
+}
+
+.fp-alacarte-mod-item:last-child {
+    border-bottom: none;
+}
+
+.fp-alacarte-mod-item.incluso {
+    opacity: 0.75;
+}
+
+.fp-alacarte-mod-item.contratado {
+    background: rgba(25, 135, 84, 0.1);
+    border: 1px solid rgba(25, 135, 84, 0.35);
+    border-radius: 8px;
+    padding: 0.65rem 0.75rem;
+    margin-bottom: 0.35rem;
+    align-items: center;
+}
+
+.fp-alacarte-mod-item.novo {
+    background: rgba(var(--fp-primary-rgb, 13, 110, 253), 0.08);
+    border: 1px solid rgba(var(--fp-primary-rgb, 13, 110, 253), 0.25);
+    border-radius: 8px;
+    padding: 0.65rem 0.75rem;
+    margin-bottom: 0.35rem;
+}
+
+.fp-alacarte-mod-item.removendo {
+    background: rgba(220, 53, 69, 0.08);
+    border: 1px dashed rgba(220, 53, 69, 0.4);
+    border-radius: 8px;
+    padding: 0.65rem 0.75rem;
+    margin-bottom: 0.35rem;
+    opacity: 0.85;
+    align-items: center;
+}
+
+.fp-alacarte-mod-item.removendo .fp-alacarte-mod-info strong {
+    text-decoration: line-through;
+}
+
+.fp-alacarte-mod-remover,
+.fp-alacarte-mod-desfazer {
+    flex-shrink: 0;
+    align-self: center;
+    width: 2rem;
+    height: 2rem;
+    border: none;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.fp-alacarte-mod-remover i,
+.fp-alacarte-mod-desfazer i {
+    display: block;
+    line-height: 1;
+    font-size: 0.95rem;
+}
+
+.fp-alacarte-mod-remover {
+    background: rgba(220, 53, 69, 0.15);
+    color: #dc3545;
+}
+
+.fp-alacarte-mod-remover:hover {
+    background: rgba(220, 53, 69, 0.28);
+}
+
+.fp-alacarte-mod-desfazer {
+    background: rgba(var(--fp-primary-rgb, 13, 110, 253), 0.15);
+    color: var(--fp-primary, #0d6efd);
+}
+
+.fp-alacarte-mod-desfazer:hover {
+    background: rgba(var(--fp-primary-rgb, 13, 110, 253), 0.28);
+}
+
+.fp-alacarte-mod-badge-contratado {
+    display: block;
+    color: #198754;
+    font-weight: 600;
+    font-size: 0.72rem;
+    margin-top: 0.15rem;
+}
+
+.fp-alacarte-alteracoes-bloco {
+    padding: 0.55rem 0.65rem;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+}
+
+.fp-alacarte-alteracoes-bloco.downgrade {
+    background: rgba(220, 53, 69, 0.08);
+    border: 1px solid rgba(220, 53, 69, 0.2);
+}
+
+.fp-alacarte-alteracoes-bloco.upgrade {
+    background: rgba(25, 135, 84, 0.08);
+    border: 1px solid rgba(25, 135, 84, 0.2);
+}
+
+.fp-alacarte-alteracoes-titulo {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    margin-bottom: 0.35rem;
+}
+
+.fp-alacarte-alteracoes-bloco.downgrade .fp-alacarte-alteracoes-titulo {
+    color: #b02a37;
+}
+
+.fp-alacarte-alteracoes-bloco.upgrade .fp-alacarte-alteracoes-titulo {
+    color: #146c43;
+}
+
+.fp-alacarte-alteracoes-lista {
+    margin: 0;
+    padding-left: 1.1rem;
+    font-size: 0.82rem;
+}
+
+.fp-alacarte-alteracoes-lista li {
+    margin-bottom: 0.2rem;
+}
+
+.fp-alacarte-mod-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.fp-alacarte-mod-info strong {
+    display: block;
+    font-size: 0.95rem;
+}
+
+.fp-alacarte-mod-info small {
+    display: block;
+    color: var(--fp-text-muted, #6c757d);
+    font-size: 0.78rem;
+}
+
+.fp-alacarte-mod-preco {
+    font-weight: 700;
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+
+.fp-alacarte-eco-acoes {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+    min-width: 9.5rem;
+}
+
+.fp-alacarte-eco-acoes .fp-alacarte-eco-plano {
+    max-width: 11rem;
+    font-size: 0.8rem;
+}
+
+.fp-alacarte-eco-item .fp-alacarte-mod-info small {
+    display: block;
+}
+
+.fp-alacarte-mod-preco.incluso {
+    color: #198754;
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+
+.fp-plano-card {
+    background: var(--fp-surface-2, #f8f9fa);
+    border: 1px solid var(--fp-border, #dee2e6);
+    border-radius: 10px;
+    padding: 1.25rem;
+}
+
+.fp-alacarte-resumo {
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+}
+
+.fp-alacarte-resumo-detalhe {
+    font-size: 0.85rem;
+}
+
+.fp-alacarte-resumo-linha {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.3rem 0;
+    border-bottom: 1px dashed var(--fp-border, #dee2e6);
+}
+
+.fp-alacarte-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 1rem;
+    padding-top: 0.5rem;
+    border-top: 2px solid var(--fp-border, #dee2e6);
+}
+
+.fp-alacarte-total strong {
+    font-size: 1.35rem;
+    color: var(--fp-primary, #0d6efd);
+}
+
+.fp-alacarte-total-fatura {
+    border-top: 1px dashed var(--fp-border, #dee2e6);
+    padding-top: 0.65rem;
+    margin-top: 0.5rem !important;
+}
+
+.fp-alacarte-total-fatura strong {
+    font-size: 1.2rem;
+    color: #b45309;
+}
+
+.fp-alacarte-aviso-cobranca {
+    font-size: 0.8rem;
+    line-height: 1.45;
+    padding: 0.65rem 0.75rem;
+    margin-top: 0.75rem;
+    border-radius: 8px;
+    background: rgba(var(--fp-primary-rgb, 13, 110, 253), 0.08);
+    border: 1px solid rgba(var(--fp-primary-rgb, 13, 110, 253), 0.2);
+    color: var(--fp-text, #212529);
+}
+
+.fp-alacarte-aviso-cobranca i {
+    color: var(--fp-primary, #0d6efd);
+    margin-right: 0.25rem;
+}

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    {{ template "head" . }}
+    {{ template "confvision-head-extra" . }}
+</head>
+<body class="cv-app">
+    {{ template "variaveis-controle" . }}
+    {{ template "confvision-config" . }}
+    {{ template "confvision-nav" . }}
+
+    <main class="cv-main">
+        <div class="cv-panel cv-gravacoes-panel">
+            <div class="cv-panel-toolbar">
+                <div>
+                    <p class="cv-page-eyebrow mb-1" id="display-nome-franqueado"></p>
+                    <h1 class="cv-page-title mb-0">Timeline de gravações</h1>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="/gravacoes" class="cv-btn-ghost">
+                        <i class="bi bi-arrow-left"></i> Ativar gravação
+                    </a>
+                    <button type="button" id="btn-atualizar-timeline" class="cv-btn-ghost" title="Atualizar">
+                        <i class="bi bi-arrow-clockwise"></i> Atualizar
+                    </button>
+                </div>
+            </div>
+
+            <div class="cv-panel-body">
+                <section class="cv-gravacoes-secao cv-gravacoes-timeline cv-gravacoes-timeline-pagina">
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-4">
+                            <label class="cv-label" for="sel-timeline-camera">Câmera</label>
+                            <select id="sel-timeline-camera" class="cv-select form-select">
+                                <option value="">Todas as câmeras</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="cv-label" for="filtro-de">De</label>
+                            <input type="datetime-local" id="filtro-de" class="cv-input form-control">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="cv-label" for="filtro-ate">Até</label>
+                            <input type="datetime-local" id="filtro-ate" class="cv-input form-control">
+                        </div>
+                        <div class="col-12 col-md-2 d-flex align-items-end">
+                            <button type="button" id="btn-buscar-segmentos" class="cv-btn-primary w-100">Buscar</button>
+                        </div>
+                    </div>
+                    <div class="table-responsive cv-gravacoes-timeline-table cv-gravacoes-timeline-table-full">
+                        <table class="cv-table cv-table-cards">
+                            <thead>
+                                <tr>
+                                    <th class="cv-gravacao-tipo-col" title="Tipo de gravação"></th>
+                                    <th>Câmera</th>
+                                    <th>Início</th>
+                                    <th>Fim</th>
+                                    <th>Duração</th>
+                                    <th>Tamanho</th>
+                                    <th>Vídeo</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tab-gravacao-segmentos"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal fade cv-modal-midia" id="modal-gravacao-video" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content cv-modal-content">
+                <div class="modal-header cv-modal-header">
+                    <h5 class="modal-title cv-modal-gravacao-titulo-wrap mb-0">
+                        <span id="modal-gravacao-tipo-badge"></span>
+                        <span id="modal-gravacao-titulo">Gravação</span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body cv-modal-body">
+                    <video id="modal-gravacao-player" controls playsinline preload="metadata" class="cv-clip-video w-100"></video>
+                    <div class="text-end mt-2">
+                        <a id="modal-gravacao-download" class="cv-btn-ghost cv-btn-sm" download>
+                            <i class="bi bi-download"></i> Baixar vídeo
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{ template "link-js" . }}
+    <script src="/recursos/modulos/confvision/urls.js?v=20260727mob4"></script>
+    <script src="/recursos/modulos/confvision/gravacoes-tipo.js?v=20250628a"></script>
+    <script src="/recursos/modulos/confvision/gravacoes-timeline.js?v=20250702a"></script>
+</body>
+</html>

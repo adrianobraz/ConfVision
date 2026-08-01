@@ -1,0 +1,94 @@
+
+body {
+    background-color: #f3f4f2;
+    background-color: #D3D3D3;
+    padding-top: 0;
+    padding-bottom: 0;
+   
+}
+
+.tam-body {
+    font-size: 15px;
+}
+
+.container-principal {
+    background-color: #fff;
+}
+
+.bg-vd-claro {
+    background-color: #dff0d8;
+
+}
+
+.font-gg {
+    font-size: 30px;
+}
+
+.bi {
+    width: 1rem;
+    height: 1rem;
+    font-size: 20px;
+}
+
+label {
+    font-size: 17px;
+    font-weight: bold;
+    font-style: italic;
+}
+
+tr {
+    font-size: 15px;
+}
+
+a {
+    text-decoration: none;
+}
+
+.bg-form {
+    background-color: #DCDCDC;
+    margin: 0;
+    padding: 0;
+}
+.bg-form {
+    background-color: #DCDCDC;
+    margin: 0;
+    padding: 0;
+}
+
+textarea {
+    resize: none;
+}
+
+/****************** Botoes do menu **********************/
+
+.botao{
+    font-size: 20px;
+    font-weight: bold;
+    line-height: 30px;
+    color: #006400;
+    color: #a9c958;
+    color: white;
+    
+}
+
+.botao .botaoFrame{
+    cursor: pointer;
+    padding: 10px;
+    margin-bottom: 10px;
+    width: 100%;
+    border-width: 2px;
+    border-color: #9999;
+    border-style: solid;
+    border-radius: 20px;
+    height: 190px;
+    background-color: #556B2F;
+    background-color: #006400;
+    background-color: #E0FFFF;
+    background-color: #DCDCDC;
+    background-color: #a9c958;
+    background-color: #A9A9A9;
+}
+
+.botao i {
+    font-size: 100px;
+}

@@ -1,0 +1,191 @@
+{{ template "pagina" . }}
+
+{{ define "body" }}
+<div class="tech-page">
+    {{ template "navbar" . }}
+
+    <div class="tech-workspace">
+        <!-- Listagem (esquerda) -->
+        <section class="tech-col-list">
+            <div class="tech-panel">
+                <div class="tech-panel-head">
+                    <i class="bi bi-table"></i> Listagem · Pacotes
+                </div>
+                <div class="tech-panel-body">
+                    {{ template "tabela" }}
+                </div>
+            </div>
+        </section>
+
+        <!-- Cadastro (direita) -->
+        <section class="tech-col-form">
+            <div class="tech-panel">
+                <div class="tech-panel-head">
+                    <i class="bi bi-box-seam"></i> Cadastro · Pacote
+                </div>
+                <div class="tech-panel-body">
+                    <div class="tech-form-block">
+                        <h3>Identificação</h3>
+                        <div class="flex flex-col md:flex-row gap-2">
+                            <div class="w-full md:w-9/12">
+                                <label for="pacoteNome" class="ps-1">Nome Pacote</label>
+                                <input id="pacoteNome" type="text"
+                                    class="w-full px-3 py-2 text-center">
+                            </div>
+                            <div class="w-full md:w-3/12">
+                                <label for="periodo" class="ps-1">Periodicidade</label>
+                                <select id="periodo" class="w-full px-3 py-2 text-center">
+                                    <option value="15">Quinzenal</option>
+                                    <option value="30">Mensal</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tech-form-block">
+                        <h3>Dados Pacote</h3>
+                        <div class="flex gap-2">
+                            <div class="w-1/3">
+                                <label for="pacoteValor" class="ps-1">Valor</label>
+                                <input id="pacoteValor" type="text"
+                                    class="w-full px-3 py-2 text-center mskReal">
+                            </div>
+                            <div class="w-1/3">
+                                <label for="pacoteQtdConta" class="ps-1">Qtd Contas</label>
+                                <input id="pacoteQtdConta" type="number"
+                                    class="w-full px-3 py-2 text-center">
+                            </div>
+                            <div class="w-1/3">
+                                <label for="pacoteAdicional" class="ps-1">Adicional</label>
+                                <input id="pacoteAdicional" type="text"
+                                    class="w-full px-3 py-2 text-center mskReal">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tech-form-block">
+                        <h3>Adicionais</h3>
+                        <div class="flex gap-2">
+                            <div class="w-1/3">
+                                <label for="adicionaisTerminal" class="ps-1">Terminal</label>
+                                <select id="adicionaisTerminal" class="w-full px-3 py-2 text-center">
+                                    <option value="0">Não</option>
+                                    <option value="1">Sim</option>
+                                </select>
+                            </div>
+                            <div class="w-1/3">
+                                <label for="adicionaisGrade" class="ps-1">Grade</label>
+                                <select id="adicionaisGrade" class="w-full px-3 py-2 text-center">
+                                    <option value="0">Não</option>
+                                    <option value="1">Sim</option>
+                                </select>
+                            </div>
+                            <div class="w-1/3">
+                                <label for="adicionaisGradeValor" class="ps-1">Valor Grade</label>
+                                <input id="adicionaisGradeValor" type="text"
+                                    class="w-full px-3 py-2 text-center mskReal">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tech-form-block">
+                        <h3>Atendimento</h3>
+                        <div class="flex gap-2">
+                            <div class="w-1/2">
+                                <label for="atendimentoQtd" class="ps-1">Quantidade</label>
+                                <input id="atendimentoQtd" type="number"
+                                    class="w-full px-3 py-2 text-center">
+                            </div>
+                            <div class="w-1/2">
+                                <label for="atendimentoAdicional" class="ps-1">Adicional</label>
+                                <input id="atendimentoAdicional" type="text"
+                                    class="w-full px-3 py-2 text-center mskReal">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tech-form-block">
+                        <h3>SMS</h3>
+                        <div class="flex gap-2">
+                            <div class="w-1/3">
+                                <label for="smsQtd" class="ps-1">Qtd</label>
+                                <input id="smsQtd" type="number"
+                                    class="w-full px-3 py-2 text-center">
+                            </div>
+                            <div class="w-1/3">
+                                <label for="smsAdicional" class="ps-1">Adicional</label>
+                                <input id="smsAdicional" type="text"
+                                    class="w-full px-3 py-2 text-center mskReal">
+                            </div>
+                            <div class="w-1/3">
+                                <label for="smsBloquear" class="ps-1">Bloquear</label>
+                                <select id="smsBloquear" class="w-full px-3 py-2 text-center">
+                                    <option value="0">Não</option>
+                                    <option value="1">Sim</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tech-form-block">
+                        <h3>Ligações</h3>
+                        <div class="flex gap-2">
+                            <div class="w-1/3">
+                                <label for="ligacaoQtd" class="ps-1">Qtd</label>
+                                <input id="ligacaoQtd" type="number"
+                                    class="w-full px-3 py-2 text-center">
+                            </div>
+                            <div class="w-1/3">
+                                <label for="ligacaoAdicional" class="ps-1">Adicional</label>
+                                <input id="ligacaoAdicional" type="text"
+                                    class="w-full px-3 py-2 text-center mskReal">
+                            </div>
+                            <div class="w-1/3">
+                                <label for="ligacaoBloquear" class="ps-1">Bloquear</label>
+                                <select id="ligacaoBloquear" class="w-full px-3 py-2 text-center">
+                                    <option value="0">Não</option>
+                                    <option value="1">Sim</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tech-form-block">
+                        <h3>Email</h3>
+                        <div class="flex gap-2">
+                            <div class="w-1/3">
+                                <label for="emailQtd" class="ps-1">Qtd</label>
+                                <input id="emailQtd" type="number"
+                                    class="w-full px-3 py-2 text-center">
+                            </div>
+                            <div class="w-1/3">
+                                <label for="emailAdicional" class="ps-1">Adicional</label>
+                                <input id="emailAdicional" type="text"
+                                    class="w-full px-3 py-2 text-center mskReal">
+                            </div>
+                            <div class="w-1/3">
+                                <label for="emailBloquear" class="ps-1">Bloquear</label>
+                                <select id="emailBloquear" class="w-full px-3 py-2 text-center">
+                                    <option value="0">Não</option>
+                                    <option value="1">Sim</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{ template "btnLimparGravar" }}
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+<script src="/public/templates/financeiroPacote/financeiroPacote.js"></script>
+{{ end }}
+
+{{ define "thead" }}
+<th class="py-2 w-10/12 text-sm">Pacote</th>
+<th class="py-2 w-2/12 text-sm" colspan="3">Ação</th>
+{{end}}
+
+{{ define "tbody" }}
+{{ end }}

@@ -1,0 +1,1461 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"log"
+	"math/rand"
+	"net/http"
+	"net/url"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"syscall"
+	"time"
+
+	"taskxano/autofim"
+)
+
+var running int32
+var runningLigacao int32
+var runningLigacao060 int32
+var runningLigacao180 int32
+var runningLigacao300 int32
+var runningLigacao600 int32
+var runningArmeDesarmeAuto int32
+var pendingWhatsAppCycle int32
+
+func main() {
+	loadDotEnv()
+	cfg := loadConfig()
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	notifyCh := make(chan struct{}, 64)
+
+	client := &http.Client{
+		Timeout: cfg.Timeout,
+	}
+
+	log.Printf("taskxano iniciado | interval=%s | timeout=%s | retries=%d", cfg.Interval, cfg.Timeout, cfg.Retries)
+	if cfg.DisparaWhatsappURL != "" {
+		log.Printf("whatsapp modo=XANO (GET fn_DisparaWhatsapp) | url=%s", cfg.DisparaWhatsappURL)
+	} else {
+		procMode := "sequencial"
+		if cfg.WhatsAppAsyncConcurrency > 1 {
+			procMode = fmt.Sprintf("goroutines paralelas (limite=%d)", cfg.WhatsAppAsyncConcurrency)
+		}
+		log.Printf("whatsapp modo=ITEMS | fn_AlarmeEventos_Pendente=GET %s | FuncaoSis_WhatsappProcFila=POST %s (%s) | fila_get=%s | controle_get=%s",
+			cfg.AlarmeEventosPendenteURL, cfg.ProcessItemURL, procMode, cfg.FilaGetURL, cfg.ControleGetURL)
+	}
+	if cfg.LigacaoEnabled() {
+		log.Printf("fila ligacao | interval=%s | task_get=%s | ligacao_fila=%s | ligar_process=%s",
+			cfg.LigacaoInterval, cfg.TaskGetURL, cfg.LigacaoFilaGetURL, cfg.LigacaoProcessURL)
+	}
+	if cfg.Ligacao060Enabled {
+		log.Printf("ligacao060 (ex-task Xano Ligacao_0) | interval=%s | whatsapp_q=%s | ligacao_fila_post=%s",
+			cfg.Ligacao060Interval, cfg.WhatsappLigarErroBase, cfg.Ligacao060FilaPostURL)
+	}
+	if cfg.Ligacao180Enabled {
+		log.Printf("ligacao180 (ex-task Xano ligacao_3) | interval=%s | whatsapp_q=%s | ligacao_fila_post=%s",
+			cfg.Ligacao180Interval, cfg.WhatsappLigarErroBase, cfg.Ligacao180FilaPostURL)
+	}
+	if cfg.Ligacao300Enabled {
+		log.Printf("ligacao300 (ex-task Xano Ligacao_5) | interval=%s | whatsapp_q=%s | ligacao_fila_post=%s",
+			cfg.Ligacao300Interval, cfg.WhatsappLigarErroBase, cfg.Ligacao300FilaPostURL)
+	}
+	if cfg.Ligacao600Enabled {
+		log.Printf("ligacao600 (ex-task Xano ligacao_10) | interval=%s | whatsapp_q=%s | ligacao_fila_post=%s",
+			cfg.Ligacao600Interval, cfg.WhatsappLigarErroBase, cfg.Ligacao600FilaPostURL)
+	}
+	if cfg.AutoFimEnabled {
+		log.Printf("autofim worker | interval=%s | concorrencia=%d | pending=%s",
+			cfg.AutoFimInterval, cfg.AutoFimConcurrency, cfg.AutoFimPendingURL)
+	}
+	if cfg.ArmeDesarmeAutoEnabled {
+		log.Printf("arme_desarme_auto | interval=%s | query=%s",
+			cfg.ArmeDesarmeAutoInterval, cfg.ArmeDesarmeAutoQueryURL)
+	}
+	notifyServer := startNotifyServer(cfg, notifyCh)
+	if notifyServer != nil {
+		defer shutdownHTTPServer(notifyServer)
+	}
+
+	shutdown := make(chan struct{})
+	if cfg.LigacaoEnabled() {
+		go runLigacaoLoop(client, cfg, shutdown)
+	}
+	if cfg.Ligacao060Enabled {
+		go runLigacao060Loop(client, cfg, shutdown)
+	}
+	if cfg.Ligacao180Enabled {
+		go runLigacao180Loop(client, cfg, shutdown)
+	}
+	if cfg.Ligacao300Enabled {
+		go runLigacao300Loop(client, cfg, shutdown)
+	}
+	if cfg.Ligacao600Enabled {
+		go runLigacao600Loop(client, cfg, shutdown)
+	}
+	if cfg.AutoFimEnabled {
+		go autofim.StartLoop(client, autofim.Config{
+			Interval:      cfg.AutoFimInterval,
+			Concurrency:   cfg.AutoFimConcurrency,
+			PendingURL:    cfg.AutoFimPendingURL,
+			ClaimURL:      cfg.AutoFimClaimURL,
+			ContextURL:    cfg.AutoFimContextURL,
+			ProcessEndURL: cfg.AutoFimProcessEndURL,
+			LogURL:        cfg.AutoFimLogURL,
+			SuccessURL:    cfg.AutoFimSuccessURL,
+			FailURL:       cfg.AutoFimFailURL,
+		}, shutdown)
+	}
+	if cfg.ArmeDesarmeAutoEnabled {
+		go runArmeDesarmeAutoLoop(client, cfg, shutdown)
+	}
+
+	// Roda uma vez ao iniciar.
+	runOnce(client, cfg, rng, false)
+
+	ticker := time.NewTicker(cfg.Interval)
+	defer ticker.Stop()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+
+	for {
+		select {
+		case <-ticker.C:
+			runOnce(client, cfg, rng, false)
+		case <-notifyCh:
+			log.Printf("notificacao recebida via /notify, executando ciclo imediato")
+			runOnce(client, cfg, rng, true)
+		case sig := <-stop:
+			log.Printf("sinal recebido (%s), encerrando", sig.String())
+			close(shutdown)
+			return
+		}
+	}
+}
+
+type Config struct {
+	Interval           time.Duration
+	Timeout            time.Duration
+	Retries            int
+	FilaGetURL         string
+	FilaPutBaseURL     string
+	ControleGetURL     string
+	ControlePutBaseURL string
+	ProcessItemURL     string
+	// DisparaWhatsappURL: GET no endpoint Xano que executa a function fn_DisparaWhatsapp inteira (lock, fila, envios).
+	// Se preenchido, ignora PROCESS_ITEM_URL e o loop local — igual a task antiga no Xano.
+	DisparaWhatsappURL string
+	// AlarmeEventosPendenteURL: GET na API Xano que executa fn_AlarmeEventos_Pendente (uma vez por ciclo, depois do lock).
+	AlarmeEventosPendenteURL string
+	// WhatsAppAsyncConcurrency: paralelismo ao chamar FuncaoSis_WhatsappProcFila (similar a async-shared). 1 = sequencial com pausas.
+	WhatsAppAsyncConcurrency int
+	NotifyListenAddr         string
+	NotifyAPIKey             string
+	// NotifyFilaRetryAttempts: apos /notify, reconsulta a fila N vezes se vier vazia (corrige race Xano insert vs GET).
+	NotifyFilaRetryAttempts int
+	NotifyFilaRetryDelay    time.Duration
+	// FilaLigacao (task Xano migrada)
+	LigacaoInterval       time.Duration
+	TaskGetURL            string
+	TaskPutBaseURL        string
+	TaskRowID             int
+	LigacaoFilaGetURL     string
+	LigacaoFilaDeleteBase string
+	WhatsappLigarErroBase string
+	LigacaoProcessURL     string
+	// Ligacao060: ex-task Xano Ligacao_0 (desligada por padrao — LIGACAO_060_ENABLED=true).
+	Ligacao060Enabled     bool
+	Ligacao060Interval    time.Duration
+	Ligacao060FilaPostURL string
+	// Ligacao180: ex-task Xano ligacao_3 (desligada por padrao — LIGACAO_180_ENABLED=true).
+	Ligacao180Enabled     bool
+	Ligacao180Interval    time.Duration
+	Ligacao180FilaPostURL string
+	// Ligacao300: ex-task Xano Ligacao_5 (desligada por padrao — LIGACAO_300_ENABLED=true).
+	Ligacao300Enabled     bool
+	Ligacao300Interval    time.Duration
+	Ligacao300FilaPostURL string
+	// Ligacao600: ex-task Xano ligacao_10 (desligada por padrao — LIGACAO_600_ENABLED=true).
+	Ligacao600Enabled     bool
+	Ligacao600Interval    time.Duration
+	Ligacao600FilaPostURL string
+	// AutoFim: worker de finalizacao automatica (bot_finalizaeventoauto) migrado para Go.
+	AutoFimEnabled       bool
+	AutoFimInterval      time.Duration
+	AutoFimConcurrency   int
+	AutoFimPendingURL    string
+	AutoFimClaimURL      string
+	AutoFimContextURL    string
+	AutoFimProcessEndURL string
+	AutoFimLogURL        string
+	AutoFimSuccessURL    string
+	AutoFimFailURL       string
+	// ArmeDesarmeAuto: agenda do Xano para acionar arme/desarme e notificar no WhatsApp.
+	ArmeDesarmeAutoEnabled         bool
+	ArmeDesarmeAutoInterval        time.Duration
+	ArmeDesarmeAutoQueryURL        string
+	ArmeDesarmeAutoDispositivoURL  string
+	ArmeDesarmeAutoComandoURL      string
+	ArmeDesarmeAutoComandoSenhaWeb string
+	ArmeDesarmeAutoUazapiURL       string
+	ArmeDesarmeAutoUazapiToken     string
+	ArmeDesarmeAutoStatusDelay     time.Duration
+}
+
+func (c Config) LigacaoEnabled() bool {
+	return strings.TrimSpace(c.LigacaoProcessURL) != ""
+}
+
+func loadConfig() Config {
+	return Config{
+		// Task critica: roda a cada 30s por padrao.
+		Interval: getenvSeconds("INTERVAL_SECONDS", 30),
+		// Timeout maior para aguentar a funcao com sleeps no Xano.
+		Timeout: getenvSeconds("HTTP_TIMEOUT_SECONDS", 90),
+		// Tentativa inicial + N retries.
+		Retries:            getenvInt("RETRIES", 2),
+		FilaGetURL:         getenv("XANO_FILA_GET_URL", "https://xpcy-oyme-lno7.b2.xano.io/api:PJcUZdmd/whatsappprocfila"),
+		FilaPutBaseURL:     getenv("XANO_FILA_PUT_BASE_URL", "https://xpcy-oyme-lno7.b2.xano.io/api:PJcUZdmd/whatsappprocfila"),
+		ControleGetURL:     getenv("XANO_CONTROLE_GET_URL", "https://xpcy-oyme-lno7.b2.xano.io/api:PJcUZdmd/whatsprocfila_controle"),
+		ControlePutBaseURL: getenv("XANO_CONTROLE_PUT_BASE_URL", "https://xpcy-oyme-lno7.b2.xano.io/api:PJcUZdmd/whatsprocfila_controle"),
+		// Equivale a function.run FuncaoSis_WhatsappProcFila no Xano (POST, corpo = campos do item da fila).
+		ProcessItemURL: getenv("PROCESS_ITEM_URL", "https://xpcy-oyme-lno7.b2.xano.io/api:PJcUZdmd/FuncaoSis_WhatsappProcFila"),
+		// Se nao vazio: um GET substitui o loop local (fn_DisparaWhatsapp inteira no Xano).
+		DisparaWhatsappURL: getenv("DISPARA_WHATSAPP_URL", ""),
+		// Equivale a fn_AlarmeEventos_Pendente: GET na API AlarmeEventos_Pendente (apos lock).
+		AlarmeEventosPendenteURL: getenv("ALARME_EVENTOS_PENDENTE_URL", "https://xpcy-oyme-lno7.b2.xano.io/api:PJcUZdmd/AlarmeEventos_Pendente"),
+		// >=2: POST FuncaoSis em paralelo (goroutines, estilo async-shared). 1: sequencial com pausas como no foreach do Xano.
+		WhatsAppAsyncConcurrency: getenvInt("WHATSAPP_ASYNC_CONCURRENCY", 5),
+		NotifyListenAddr:         getenv("NOTIFY_LISTEN_ADDR", ":8081"),
+		NotifyAPIKey:             getenv("NOTIFY_API_KEY", ""),
+		NotifyFilaRetryAttempts:  getenvInt("NOTIFY_FILA_RETRY_ATTEMPTS", 12),
+		NotifyFilaRetryDelay:     time.Duration(getenvInt("NOTIFY_FILA_RETRY_DELAY_MS", 250)) * time.Millisecond,
+		LigacaoInterval:          getenvSeconds("LIGACAO_INTERVAL_SECONDS", 5),
+		TaskGetURL:               getenv("XANO_TASK_GET_URL", "https://xpcy-oyme-lno7.b2.xano.io/api:PJcUZdmd/task"),
+		TaskPutBaseURL:           getenv("XANO_TASK_PUT_BASE_URL", "https://xpcy-oyme-lno7.b2.xano.io/api:PJcUZdmd/task"),
+		TaskRowID:                getenvInt("TASK_ROW_ID", 1),
+		LigacaoFilaGetURL:        getenv("XANO_LIGACAO_FILA_GET_URL", "https://xpcy-oyme-lno7.b2.xano.io/api:PJcUZdmd/ligacaofila"),
+		LigacaoFilaDeleteBase:    getenv("XANO_LIGACAO_FILA_DELETE_BASE", "https://xpcy-oyme-lno7.b2.xano.io/api:PJcUZdmd/ligacaofila"),
+		WhatsappLigarErroBase:    getenv("XANO_WHATSAPP_LIGAR_ERRO_BASE", "https://xpcy-oyme-lno7.b2.xano.io/api:PJcUZdmd/whatsappligarerro"),
+		LigacaoProcessURL:        getenv("LIGACAO_PROCESS_URL", ""),
+		Ligacao060Enabled:        strings.EqualFold(strings.TrimSpace(getenv("LIGACAO_060_ENABLED", "")), "true"),
+		Ligacao060Interval:       getenvSeconds("LIGACAO_060_INTERVAL_SECONDS", 60),
+		Ligacao060FilaPostURL:    getenv("LIGACAO_060_LIGACAO_FILA_POST_URL", getenv("XANO_LIGACAO_FILA_GET_URL", "https://xpcy-oyme-lno7.b2.xano.io/api:PJcUZdmd/ligacaofila")),
+		Ligacao180Enabled:        strings.EqualFold(strings.TrimSpace(getenv("LIGACAO_180_ENABLED", "")), "true"),
+		Ligacao180Interval:       getenvSeconds("LIGACAO_180_INTERVAL_SECONDS", 180),
+		Ligacao180FilaPostURL:    getenv("LIGACAO_180_LIGACAO_FILA_POST_URL", getenv("XANO_LIGACAO_FILA_GET_URL", "https://xpcy-oyme-lno7.b2.xano.io/api:PJcUZdmd/ligacaofila")),
+		Ligacao300Enabled:        strings.EqualFold(strings.TrimSpace(getenv("LIGACAO_300_ENABLED", "")), "true"),
+		Ligacao300Interval:       getenvSeconds("LIGACAO_300_INTERVAL_SECONDS", 300),
+		Ligacao300FilaPostURL:    getenv("LIGACAO_300_LIGACAO_FILA_POST_URL", getenv("XANO_LIGACAO_FILA_GET_URL", "https://xpcy-oyme-lno7.b2.xano.io/api:PJcUZdmd/ligacaofila")),
+		Ligacao600Enabled:        strings.EqualFold(strings.TrimSpace(getenv("LIGACAO_600_ENABLED", "")), "true"),
+		Ligacao600Interval:       getenvSeconds("LIGACAO_600_INTERVAL_SECONDS", 600),
+		Ligacao600FilaPostURL:    getenv("LIGACAO_600_LIGACAO_FILA_POST_URL", getenv("XANO_LIGACAO_FILA_GET_URL", "https://xpcy-oyme-lno7.b2.xano.io/api:PJcUZdmd/ligacaofila")),
+		AutoFimEnabled:           strings.EqualFold(strings.TrimSpace(getenv("AUTOFIM_ENABLED", "true")), "true"),
+		AutoFimInterval:          getenvSeconds("AUTOFIM_INTERVAL_SECONDS", 15),
+		AutoFimConcurrency:       getenvInt("AUTOFIM_CONCURRENCY", 5),
+		AutoFimPendingURL:        getenv("AUTOFIM_PENDING_URL", "https://xpcy-oyme-lno7.b2.xano.io/api:PJcUZdmd/autofim/pending"),
+		AutoFimClaimURL:          getenv("AUTOFIM_CLAIM_URL", "https://xpcy-oyme-lno7.b2.xano.io/api:PJcUZdmd/autofim/claim"),
+		AutoFimContextURL:        getenv("AUTOFIM_CONTEXT_URL", "https://xpcy-oyme-lno7.b2.xano.io/api:PJcUZdmd/autofim/context"),
+		AutoFimProcessEndURL:     getenv("AUTOFIM_PROCESS_END_URL", "https://xpcy-oyme-lno7.b2.xano.io/api:PJcUZdmd/autofim/processo-end"),
+		AutoFimLogURL:            getenv("AUTOFIM_LOG_URL", "https://xpcy-oyme-lno7.b2.xano.io/api:PJcUZdmd/autofim/log"),
+		AutoFimSuccessURL:        getenv("AUTOFIM_SUCCESS_URL", "https://xpcy-oyme-lno7.b2.xano.io/api:PJcUZdmd/autofim/success"),
+		AutoFimFailURL:           getenv("AUTOFIM_FAIL_URL", "https://xpcy-oyme-lno7.b2.xano.io/api:PJcUZdmd/autofim/fail"),
+		ArmeDesarmeAutoEnabled: strings.EqualFold(
+			strings.TrimSpace(getenv("ARME_DESARME_AUTO_ENABLED", "")),
+			"true",
+		),
+		ArmeDesarmeAutoInterval:        getenvSeconds("ARME_DESARME_AUTO_INTERVAL_SECONDS", 1200),
+		ArmeDesarmeAutoQueryURL:        getenv("ARME_DESARME_AUTO_QUERY_URL", "https://xpcy-oyme-lno7.b2.xano.io/api:Maqjhbl9/whatsappeventcadjanela/Queryall/WhatsEventCadJan"),
+		ArmeDesarmeAutoDispositivoURL:  getenv("ARME_DESARME_AUTO_DISPOSITIVO_GET_URL", "http://185.130.61.4:2010/v4/dispositivo/getDadosById"),
+		ArmeDesarmeAutoComandoURL:      getenv("ARME_DESARME_AUTO_COMANDO_URL", "http://185.130.61.3:2030/armar"),
+		ArmeDesarmeAutoComandoSenhaWeb: getenv("ARME_DESARME_AUTO_COMANDO_SENHA_WEB", ""),
+		ArmeDesarmeAutoUazapiURL:       getenv("ARME_DESARME_AUTO_UAZAPI_URL", "https://monitoramento.uazapi.com/send/text"),
+		ArmeDesarmeAutoUazapiToken:     getenv("ARME_DESARME_AUTO_UAZAPI_TOKEN", ""),
+		ArmeDesarmeAutoStatusDelay:     time.Duration(getenvInt("ARME_DESARME_AUTO_STATUS_DELAY_SECONDS", 3)) * time.Second,
+	}
+}
+
+func startNotifyServer(cfg Config, notifyCh chan<- struct{}) *http.Server {
+	if strings.TrimSpace(cfg.NotifyListenAddr) == "" {
+		log.Printf("notify server desabilitado (NOTIFY_LISTEN_ADDR vazio)")
+		return nil
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	})
+	mux.HandleFunc("/notify", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			log.Printf("notify: ignorado metodo=%s de %s (obrigatorio POST)", r.Method, r.RemoteAddr)
+			w.Header().Set("Allow", http.MethodPost)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		if cfg.NotifyAPIKey != "" {
+			got := strings.TrimSpace(r.Header.Get("X-Task-Key"))
+			if got != cfg.NotifyAPIKey {
+				log.Printf("notify: X-Task-Key invalido ou ausente de %s", r.RemoteAddr)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+		}
+
+		log.Printf("notify: POST aceito de %s", r.RemoteAddr)
+		queued := true
+		select {
+		case notifyCh <- struct{}{}:
+		default:
+			queued = false
+			log.Printf("notify: buffer interno cheio, evento descartado (aumente carga ou intervalo)")
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if queued {
+			w.WriteHeader(http.StatusAccepted)
+			_, _ = w.Write([]byte(`{"queued":true}`))
+		} else {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write([]byte(`{"queued":false,"reason":"channel_full"}`))
+		}
+	})
+
+	srv := &http.Server{
+		Addr:    cfg.NotifyListenAddr,
+		Handler: mux,
+	}
+
+	go func() {
+		log.Printf("notify server ouvindo em %s", cfg.NotifyListenAddr)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Printf("erro no notify server: %v", err)
+		}
+	}()
+
+	if cfg.NotifyAPIKey == "" {
+		log.Printf("aviso: NOTIFY_API_KEY vazio, /notify sem autenticacao")
+	}
+	return srv
+}
+
+func shutdownHTTPServer(srv *http.Server) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("falha ao encerrar notify server: %v", err)
+	}
+}
+
+func runOnce(client *http.Client, cfg Config, rng *rand.Rand, fromNotify bool) {
+	if !atomic.CompareAndSwapInt32(&running, 0, 1) {
+		atomic.StoreInt32(&pendingWhatsAppCycle, 1)
+		log.Printf("execucao anterior ainda em andamento; ciclo extra agendado (notify ou timer sobreposto)")
+		return
+	}
+	defer func() {
+		atomic.StoreInt32(&running, 0)
+		if atomic.CompareAndSwapInt32(&pendingWhatsAppCycle, 1, 0) {
+			log.Printf("executando ciclo pendente imediatamente apos o anterior")
+			go runOnce(client, cfg, rng, false)
+		}
+	}()
+
+	start := time.Now()
+	attempts := cfg.Retries + 1
+	var lastErr error
+
+	for attempt := 1; attempt <= attempts; attempt++ {
+		if attempt > 1 {
+			backoff := backoffForAttempt(attempt)
+			log.Printf("retry=%d aguardando backoff=%s", attempt-1, backoff)
+			time.Sleep(backoff)
+		}
+
+		err := processRoutine(client, cfg, rng, fromNotify)
+		if err == nil {
+			log.Printf("sucesso | attempt=%d/%d | duracao=%s", attempt, attempts, time.Since(start))
+			return
+		}
+
+		lastErr = err
+		log.Printf("falha | attempt=%d/%d | erro=%v", attempt, attempts, err)
+	}
+
+	log.Printf("erro final apos retries | duracao=%s | erro=%v", time.Since(start), lastErr)
+}
+
+// --- FilaLigacao (ex-task Xano FilaLigacao, freq 5s) ---
+
+type TaskRow struct {
+	ID      int  `json:"id"`
+	Running bool `json:"Running"`
+}
+
+type LigacaoFilaItem struct {
+	ID                  int `json:"id"`
+	WhatsappligarerroID int `json:"whatsappligarerro_id"`
+}
+
+type WhatsappLigarErro struct {
+	Franqueado      string `json:"franqueado"`
+	Telefone        string `json:"telefone"`
+	Nomecliente     string `json:"nomecliente"`
+	Empresanome     string `json:"empresanome"`
+	Tipoevento      string `json:"tipoevento"`
+	Zona            string `json:"zona"`
+	Local           string `json:"local"`
+	AlarmEventsID   int64  `json:"alarm_events_id"`
+	Datahorario     string `json:"datahorario"`
+	Ideventgo       string `json:"ideventgo"`
+	IDDispositivo   string `json:"idDispositivo"`
+	IDProcesso      string `json:"idProcesso"`
+	Notificarsempre bool   `json:"notificarsempre"`
+	DispNome        string `json:"DispNome"`
+	DispDescricao   string `json:"DispDescricao"`
+	DispTipo        string `json:"DispTipo"`
+}
+
+// WhatsappLigarPayload espelha o body do endpoint Xano api:PJcUZdmd/WhatsappLigar (POST).
+type WhatsappLigarPayload struct {
+	Franqueado      string `json:"franqueado"`
+	Telefone        string `json:"telefone"`
+	Nomecliente     string `json:"nomecliente"`
+	Empresanome     string `json:"empresanome"`
+	Tipoevento      string `json:"tipoevento"`
+	Zona            string `json:"zona"`
+	Local           string `json:"local"`
+	Datahorario     string `json:"datahorario"`
+	AlarmEventsID   int64  `json:"alarm_events_id"`
+	Ideventgo       string `json:"ideventgo"`
+	IDDispositivo   string `json:"idDispositivo"`
+	IDProcesso      string `json:"idProcesso"`
+	Notificarsempre bool   `json:"notificarsempre"`
+	DispNome        string `json:"DispNome"`
+	DispDescricao   string `json:"DispDescricao"`
+	DispTipo        string `json:"DispTipo"`
+}
+
+// ligarErroJSON decodifica alarm_events_id como json.RawMessage (IDs grandes / float no JSON do Xano).
+type ligarErroJSON struct {
+	Franqueado      string          `json:"franqueado"`
+	Telefone        string          `json:"telefone"`
+	Nomecliente     string          `json:"nomecliente"`
+	Empresanome     string          `json:"empresanome"`
+	Tipoevento      string          `json:"tipoevento"`
+	Zona            string          `json:"zona"`
+	Local           string          `json:"local"`
+	AlarmEventsID   json.RawMessage `json:"alarm_events_id"`
+	Datahorario     string          `json:"datahorario"`
+	Ideventgo       string          `json:"ideventgo"`
+	IDDispositivo   string          `json:"idDispositivo"`
+	IDProcesso      string          `json:"idProcesso"`
+	Notificarsempre bool            `json:"notificarsempre"`
+	DispNome        string          `json:"DispNome"`
+	DispDescricao   string          `json:"DispDescricao"`
+	DispTipo        string          `json:"DispTipo"`
+}
+
+func parseAlarmEventsIDRaw(raw json.RawMessage) int64 {
+	raw = bytes.TrimSpace(raw)
+	if len(raw) == 0 || bytes.Equal(raw, []byte("null")) {
+		return 0
+	}
+	var n json.Number
+	if err := json.Unmarshal(raw, &n); err == nil {
+		if v, err := n.Int64(); err == nil {
+			return v
+		}
+		f, err := strconv.ParseFloat(n.String(), 64)
+		if err == nil {
+			return int64(f)
+		}
+	}
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		v, _ := strconv.ParseInt(s, 10, 64)
+		return v
+	}
+	return 0
+}
+
+func runLigacaoLoop(client *http.Client, cfg Config, shutdown <-chan struct{}) {
+	ticker := time.NewTicker(cfg.LigacaoInterval)
+	defer ticker.Stop()
+	runLigacaoOnce(client, cfg)
+	for {
+		select {
+		case <-shutdown:
+			log.Printf("fila ligacao: loop encerrado")
+			return
+		case <-ticker.C:
+			runLigacaoOnce(client, cfg)
+		}
+	}
+}
+
+func runLigacaoOnce(client *http.Client, cfg Config) {
+	if !atomic.CompareAndSwapInt32(&runningLigacao, 0, 1) {
+		log.Printf("ligacao: execucao anterior em andamento, pulando ciclo")
+		return
+	}
+	defer atomic.StoreInt32(&runningLigacao, 0)
+
+	start := time.Now()
+	attempts := cfg.Retries + 1
+	var lastErr error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		if attempt > 1 {
+			backoff := backoffForAttempt(attempt)
+			log.Printf("ligacao retry=%d backoff=%s", attempt-1, backoff)
+			time.Sleep(backoff)
+		}
+		err := processLigacaoRoutine(client, cfg)
+		if err == nil {
+			log.Printf("ligacao sucesso | attempt=%d/%d | duracao=%s", attempt, attempts, time.Since(start))
+			return
+		}
+		lastErr = err
+		log.Printf("ligacao falha | attempt=%d/%d | erro=%v", attempt, attempts, err)
+	}
+	log.Printf("ligacao erro final | duracao=%s | erro=%v", time.Since(start), lastErr)
+}
+
+func processLigacaoRoutine(client *http.Client, cfg Config) error {
+	task, err := getTaskRow(client, cfg.TaskGetURL, cfg.TaskRowID)
+	if err != nil {
+		return fmt.Errorf("erro ao buscar task: %w", err)
+	}
+	if task.Running {
+		log.Printf("ligacao: task Running=true (Rodando), pulando")
+		return nil
+	}
+	if err := setTaskRunning(client, cfg.TaskPutBaseURL, cfg.TaskRowID, true); err != nil {
+		return fmt.Errorf("erro ao marcar task Running=true: %w", err)
+	}
+	defer func() {
+		if e := setTaskRunning(client, cfg.TaskPutBaseURL, cfg.TaskRowID, false); e != nil {
+			log.Printf("ligacao: falha ao liberar task Running=false: %v", e)
+		}
+	}()
+
+	fila, err := getLigacaoFilaList(client, cfg.LigacaoFilaGetURL)
+	if err != nil {
+		return fmt.Errorf("erro ao buscar ligacaofila: %w", err)
+	}
+	if len(fila) == 0 {
+		log.Printf("ligacao: fila vazia")
+		return nil
+	}
+	sort.Slice(fila, func(i, j int) bool {
+		return fila[i].ID < fila[j].ID
+	})
+
+	for _, row := range fila {
+		erro, err := getWhatsappLigarErro(client, cfg.WhatsappLigarErroBase, row.WhatsappligarerroID)
+		if err != nil {
+			return fmt.Errorf("erro whiteligarerro id=%d: %w", row.WhatsappligarerroID, err)
+		}
+		if err := deleteLigacaoFila(client, cfg.LigacaoFilaDeleteBase, row.ID); err != nil {
+			return fmt.Errorf("erro ao deletar ligacaofila id=%d: %w", row.ID, err)
+		}
+		payload := WhatsappLigarPayload{
+			Franqueado:      erro.Franqueado,
+			Telefone:        erro.Telefone,
+			Nomecliente:     erro.Nomecliente,
+			Empresanome:     erro.Empresanome,
+			Tipoevento:      erro.Tipoevento,
+			Zona:            erro.Zona,
+			Local:           erro.Local,
+			Datahorario:     erro.Datahorario,
+			AlarmEventsID:   erro.AlarmEventsID,
+			Ideventgo:       erro.Ideventgo,
+			IDDispositivo:   erro.IDDispositivo,
+			IDProcesso:      erro.IDProcesso,
+			Notificarsempre: erro.Notificarsempre,
+			DispNome:        erro.DispNome,
+			DispDescricao:   erro.DispDescricao,
+			DispTipo:        erro.DispTipo,
+		}
+		if err := postWhatsappLigar(client, cfg.LigacaoProcessURL, payload); err != nil {
+			return fmt.Errorf("WhatsappLigar falhou (fila era id=%d): %w", row.ID, err)
+		}
+	}
+	return nil
+}
+
+func getTaskRow(client *http.Client, rawURL string, wantID int) (TaskRow, error) {
+	body, status, err := doJSONRequest(client, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return TaskRow{}, err
+	}
+	if status < 200 || status >= 300 {
+		return TaskRow{}, &httpStatusError{Code: status}
+	}
+	var raw any
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return TaskRow{}, err
+	}
+	tr, ok := extractTaskByID(raw, wantID)
+	if !ok {
+		return TaskRow{}, fmt.Errorf("task id=%d nao encontrada: %s", wantID, compactBody(body))
+	}
+	return tr, nil
+}
+
+func extractTaskByID(v any, wantID int) (TaskRow, bool) {
+	switch x := v.(type) {
+	case []any:
+		for _, it := range x {
+			if tr, ok := extractTaskByID(it, wantID); ok {
+				return tr, true
+			}
+		}
+	case map[string]any:
+		id := toInt(x["id"])
+		if id == wantID {
+			r := toBool(x["Running"])
+			if _, ok := x["Running"]; !ok {
+				r = toBool(x["running"])
+			}
+			return TaskRow{ID: id, Running: r}, true
+		}
+		for _, k := range []string{"dados", "data", "items", "result"} {
+			if vv, ok := x[k]; ok {
+				if tr, ok := extractTaskByID(vv, wantID); ok {
+					return tr, true
+				}
+			}
+		}
+	}
+	return TaskRow{}, false
+}
+
+func setTaskRunning(client *http.Client, baseURL string, id int, running bool) error {
+	target := strings.TrimRight(baseURL, "/") + "/" + strconv.Itoa(id)
+	payload := map[string]any{
+		"task_id": id,
+		"Running": running,
+	}
+	_, status, err := doJSONRequest(client, http.MethodPut, target, payload)
+	if err != nil {
+		return err
+	}
+	if status < 200 || status >= 300 {
+		return &httpStatusError{Code: status}
+	}
+	return nil
+}
+
+func getLigacaoFilaList(client *http.Client, rawURL string) ([]LigacaoFilaItem, error) {
+	body, status, err := doJSONRequest(client, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	if status < 200 || status >= 300 {
+		return nil, &httpStatusError{Code: status}
+	}
+	var items []LigacaoFilaItem
+	if err := json.Unmarshal(body, &items); err != nil {
+		var wrapped struct {
+			Dados []LigacaoFilaItem `json:"dados"`
+			Data  []LigacaoFilaItem `json:"data"`
+		}
+		if err2 := json.Unmarshal(body, &wrapped); err2 != nil {
+			return nil, err
+		}
+		switch {
+		case len(wrapped.Dados) > 0:
+			items = wrapped.Dados
+		case len(wrapped.Data) > 0:
+			items = wrapped.Data
+		default:
+			items = []LigacaoFilaItem{}
+		}
+	}
+	return items, nil
+}
+
+func deleteLigacaoFila(client *http.Client, baseURL string, id int) error {
+	target := strings.TrimRight(baseURL, "/") + "/" + strconv.Itoa(id)
+	_, status, err := doJSONRequest(client, http.MethodDelete, target, nil)
+	if err != nil {
+		return err
+	}
+	if status < 200 || status >= 300 {
+		return &httpStatusError{Code: status}
+	}
+	return nil
+}
+
+func getWhatsappLigarErro(client *http.Client, baseURL string, id int) (WhatsappLigarErro, error) {
+	target := strings.TrimRight(baseURL, "/") + "/" + strconv.Itoa(id)
+	body, status, err := doJSONRequest(client, http.MethodGet, target, nil)
+	if err != nil {
+		return WhatsappLigarErro{}, err
+	}
+	if status < 200 || status >= 300 {
+		return WhatsappLigarErro{}, &httpStatusError{Code: status}
+	}
+	var raw any
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return WhatsappLigarErro{}, err
+	}
+	b, err := json.Marshal(extractFirstObject(raw))
+	if err != nil {
+		return WhatsappLigarErro{}, err
+	}
+	var aux ligarErroJSON
+	if err := json.Unmarshal(b, &aux); err != nil {
+		return WhatsappLigarErro{}, err
+	}
+	return WhatsappLigarErro{
+		Franqueado:      aux.Franqueado,
+		Telefone:        aux.Telefone,
+		Nomecliente:     aux.Nomecliente,
+		Empresanome:     aux.Empresanome,
+		Tipoevento:      aux.Tipoevento,
+		Zona:            aux.Zona,
+		Local:           aux.Local,
+		AlarmEventsID:   parseAlarmEventsIDRaw(aux.AlarmEventsID),
+		Datahorario:     aux.Datahorario,
+		Ideventgo:       aux.Ideventgo,
+		IDDispositivo:   aux.IDDispositivo,
+		IDProcesso:      aux.IDProcesso,
+		Notificarsempre: aux.Notificarsempre,
+		DispNome:        aux.DispNome,
+		DispDescricao:   aux.DispDescricao,
+		DispTipo:        aux.DispTipo,
+	}, nil
+}
+
+func extractFirstObject(v any) any {
+	switch x := v.(type) {
+	case map[string]any:
+		if _, ok := x["id"]; ok || x["franqueado"] != nil {
+			return x
+		}
+		for _, k := range []string{"dados", "data"} {
+			if vv, ok := x[k]; ok {
+				return extractFirstObject(vv)
+			}
+		}
+	case []any:
+		if len(x) > 0 {
+			return extractFirstObject(x[0])
+		}
+	}
+	return v
+}
+
+func postWhatsappLigar(client *http.Client, rawURL string, p WhatsappLigarPayload) error {
+	_, status, err := doJSONRequest(client, http.MethodPost, rawURL, p)
+	if err != nil {
+		return err
+	}
+	if status < 200 || status >= 300 {
+		return &httpStatusError{Code: status}
+	}
+	return nil
+}
+
+func processRoutine(client *http.Client, cfg Config, rng *rand.Rand, fromNotify bool) error {
+	// Igual a task antiga: um GET chama a function fn_DisparaWhatsapp no Xano (tudo dentro do Xano).
+	if strings.TrimSpace(cfg.DisparaWhatsappURL) != "" {
+		return callDisparaWhatsappFunction(client, cfg.DisparaWhatsappURL)
+	}
+
+	if cfg.ProcessItemURL == "" {
+		return errors.New("configure DISPARA_WHATSAPP_URL (GET fn_DisparaWhatsapp no Xano) ou PROCESS_ITEM_URL (POST por item)")
+	}
+
+	ctrl, err := getControle(client, cfg.ControleGetURL)
+	if err != nil {
+		return fmt.Errorf("erro ao buscar controle: %w", err)
+	}
+
+	if ctrl.Lock {
+		log.Printf("controle lock=true, rotina em andamento, encerrando ciclo")
+		return nil
+	}
+
+	if err := setControleLock(client, cfg.ControlePutBaseURL, ctrl.ID, true); err != nil {
+		return fmt.Errorf("erro ao travar controle: %w", err)
+	}
+	defer func() {
+		if unlockErr := setControleLock(client, cfg.ControlePutBaseURL, ctrl.ID, false); unlockErr != nil {
+			log.Printf("falha ao liberar lock do controle: %v", unlockErr)
+		}
+	}()
+
+	if strings.TrimSpace(cfg.AlarmeEventosPendenteURL) != "" {
+		if err := callSimpleGET(client, cfg.AlarmeEventosPendenteURL, "AlarmeEventos_Pendente"); err != nil {
+			return err
+		}
+	}
+
+	items, err := getFilaPendentes(client, cfg.FilaGetURL)
+	if err != nil {
+		return fmt.Errorf("erro ao buscar fila: %w", err)
+	}
+	if fromNotify && len(items) == 0 && cfg.NotifyFilaRetryAttempts > 0 {
+		for attempt := 1; attempt <= cfg.NotifyFilaRetryAttempts; attempt++ {
+			time.Sleep(cfg.NotifyFilaRetryDelay)
+			items, err = getFilaPendentes(client, cfg.FilaGetURL)
+			if err != nil {
+				return fmt.Errorf("erro ao buscar fila: %w", err)
+			}
+			if len(items) > 0 {
+				log.Printf("notify: fila com itens apos espera (tentativa %d/%d)", attempt, cfg.NotifyFilaRetryAttempts)
+				break
+			}
+		}
+	}
+	if len(items) == 0 {
+		log.Printf("fila vazia")
+		return nil
+	}
+
+	// Mantem comportamento similar ao sort desc no Xano.
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].CreatedAt > items[j].CreatedAt
+	})
+
+	if cfg.WhatsAppAsyncConcurrency <= 1 {
+		return processWhatsappItemsSequential(client, cfg, rng, items)
+	}
+	return processWhatsappItemsAsync(client, cfg, items)
+}
+
+// processWhatsappItemsSequential replica pausas do Xano (1–3s entre itens, pausa longa a cada 5).
+func processWhatsappItemsSequential(client *http.Client, cfg Config, rng *rand.Rand, items []FilaItem) error {
+	contador := 0
+	for _, item := range items {
+		contador++
+		if contador > 5 {
+			sleepSec := randomBetween(rng, 15, 20)
+			log.Printf("pausa longa apos 5 envios: %ds", sleepSec)
+			time.Sleep(time.Duration(sleepSec) * time.Second)
+			contador = 1
+		}
+
+		if err := processItem(client, cfg.ProcessItemURL, item); err != nil {
+			return fmt.Errorf("erro ao processar item id=%d: %w", item.ID, err)
+		}
+
+		item.Disparo = true
+		if err := updateFilaItem(client, cfg.FilaPutBaseURL, item); err != nil {
+			return fmt.Errorf("erro ao marcar disparo item id=%d: %w", item.ID, err)
+		}
+
+		sleepSec := randomBetween(rng, 1, 3)
+		time.Sleep(time.Duration(sleepSec) * time.Second)
+	}
+	return nil
+}
+
+// processWhatsappItemsAsync dispara POST + PUT disparo em paralelo (limite = concorrencia), similar a runtime_mode async-shared.
+func processWhatsappItemsAsync(client *http.Client, cfg Config, items []FilaItem) error {
+	n := cfg.WhatsAppAsyncConcurrency
+	sem := make(chan struct{}, n)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var firstErr error
+
+	for _, item := range items {
+		item := item
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			if err := processItem(client, cfg.ProcessItemURL, item); err != nil {
+				mu.Lock()
+				if firstErr == nil {
+					firstErr = fmt.Errorf("erro ao processar item id=%d: %w", item.ID, err)
+				}
+				mu.Unlock()
+				return
+			}
+			item.Disparo = true
+			if err := updateFilaItem(client, cfg.FilaPutBaseURL, item); err != nil {
+				mu.Lock()
+				if firstErr == nil {
+					firstErr = fmt.Errorf("erro ao marcar disparo item id=%d: %w", item.ID, err)
+				}
+				mu.Unlock()
+			}
+		}()
+	}
+	wg.Wait()
+	return firstErr
+}
+
+func callDisparaWhatsappFunction(client *http.Client, rawURL string) error {
+	return callSimpleGET(client, rawURL, "DisparaWhatsapp")
+}
+
+// callSimpleGET executa GET com timeout do client (DisparaWhatsapp, AlarmeEventos_Pendente, etc.).
+func callSimpleGET(client *http.Client, rawURL, label string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), client.Timeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("GET %s: %w", label, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("%s: status HTTP invalido: %d", label, resp.StatusCode)
+	}
+	log.Printf("whatsapp: GET %s ok | status=%d", label, resp.StatusCode)
+	return nil
+}
+
+func backoffForAttempt(attempt int) time.Duration {
+	// attempt 2 -> 2s, attempt 3 -> 5s, demais -> 10s
+	switch attempt {
+	case 2:
+		return 2 * time.Second
+	case 3:
+		return 5 * time.Second
+	default:
+		return 10 * time.Second
+	}
+}
+
+type Controle struct {
+	ID   int  `json:"id"`
+	Lock bool `json:"Lock"`
+}
+
+type FilaItem struct {
+	ID                       int    `json:"id"`
+	CreatedAt                int64  `json:"created_at"`
+	SendMsgWhats             string `json:"SendMsgWhats"`
+	Numerowhatsapp           string `json:"numerowhatsapp"`
+	EnviaSom                 bool   `json:"enviaSom"`
+	SendAudioWhats           string `json:"SendAudioWhats"`
+	TblWhatsAppEnviadosTexto int    `json:"tblWhatsAppEnviadosTexto"`
+	TblWhatsAppEnviadosAudio int    `json:"tblWhatsAppEnviadosAudio"`
+	TblWhatsAppEnviadosLigar int    `json:"tblWhatsAppEnviadosLigar"`
+	Ligar                    bool   `json:"ligar"`
+	IDFranqueado             string `json:"idFranqueado"`
+	Nomecliente              string `json:"nomecliente"`
+	Empresanome              string `json:"empresanome"`
+	GRUPOFALHA               string `json:"GRUPOFALHA"`
+	Tipoevento               string `json:"tipoevento"`
+	Zona                     string `json:"zona"`
+	Local                    string `json:"local"`
+	IDEvento                 int    `json:"idevento"`
+	Datahorario              string `json:"datahorario"`
+	IDEventgo                string `json:"ideventgo"`
+	Enviartexto              bool   `json:"enviartexto"`
+	IDProcesso               string `json:"idProcesso"`
+	IDDispositivo            string `json:"idDispositivo"`
+	Notificarsempre          bool   `json:"notificarsempre"`
+	DispNome                 string `json:"DispNome"`
+	DispDescricao            string `json:"DispDescricao"`
+	DispTipo                 string `json:"DispTipo"`
+	Analise                  bool   `json:"analise"`
+	Zonauser                 string `json:"zonauser"`
+	Particao                 string `json:"particao"`
+	Disparo                  bool   `json:"disparo"`
+}
+
+type ProcessItemPayload struct {
+	SendMsgWhats             string `json:"SendMsgWhats"`
+	Numerowhatsapp           string `json:"numerowhatsapp"`
+	EnviaSom                 bool   `json:"enviaSom"`
+	SendAudioWhats           string `json:"SendAudioWhats"`
+	TblWhatsAppEnviadosTexto int    `json:"tblWhatsAppEnviadosTexto"`
+	TblWhatsAppEnviadosAudio int    `json:"tblWhatsAppEnviadosAudio"`
+	TblWhatsAppEnviadosLigar int    `json:"tblWhatsAppEnviadosLigar"`
+	Ligar                    bool   `json:"ligar"`
+	IDFranqueado             string `json:"idFranqueado"`
+	Nomecliente              string `json:"nomecliente"`
+	Empresanome              string `json:"empresanome"`
+	Tipoevento               string `json:"tipoevento"`
+	Zona                     string `json:"zona"`
+	Local                    string `json:"local"`
+	IDEvento                 int    `json:"idevento"`
+	Datahorario              string `json:"datahorario"`
+	IDEventgo                string `json:"ideventgo"`
+	Enviartexto              bool   `json:"enviartexto"`
+	IDProcesso               string `json:"idProcesso"`
+	IDDispositivo            string `json:"idDispositivo"`
+	Notificarsempre          bool   `json:"notificarsempre"`
+	DispNome                 string `json:"DispNome"`
+	DispDescricao            string `json:"DispDescricao"`
+	DispTipo                 string `json:"DispTipo"`
+}
+
+type updateFilaPayload struct {
+	WhatsappProcFilaID       int    `json:"whatsappprocfila_id"`
+	SendMsgWhats             string `json:"SendMsgWhats"`
+	Numerowhatsapp           string `json:"numerowhatsapp"`
+	EnviaSom                 bool   `json:"enviaSom"`
+	SendAudioWhats           string `json:"SendAudioWhats"`
+	TblWhatsAppEnviadosTexto int    `json:"tblWhatsAppEnviadosTexto"`
+	TblWhatsAppEnviadosAudio int    `json:"tblWhatsAppEnviadosAudio"`
+	TblWhatsAppEnviadosLigar int    `json:"tblWhatsAppEnviadosLigar"`
+	Ligar                    bool   `json:"ligar"`
+	IDFranqueado             string `json:"idFranqueado"`
+	Nomecliente              string `json:"nomecliente"`
+	Empresanome              string `json:"empresanome"`
+	GRUPOFALHA               string `json:"GRUPOFALHA"`
+	Tipoevento               string `json:"tipoevento"`
+	Zona                     string `json:"zona"`
+	Local                    string `json:"local"`
+	IDEvento                 int    `json:"idevento"`
+	Datahorario              string `json:"datahorario"`
+	IDEventgo                string `json:"ideventgo"`
+	Enviartexto              bool   `json:"enviartexto"`
+	IDProcesso               string `json:"idProcesso"`
+	IDDispositivo            string `json:"idDispositivo"`
+	Notificarsempre          bool   `json:"notificarsempre"`
+	DispNome                 string `json:"DispNome"`
+	DispDescricao            string `json:"DispDescricao"`
+	DispTipo                 string `json:"DispTipo"`
+	Analise                  bool   `json:"analise"`
+	Zonauser                 string `json:"zonauser"`
+	Particao                 string `json:"particao"`
+	Disparo                  bool   `json:"disparo"`
+}
+
+func getControle(client *http.Client, rawURL string) (Controle, error) {
+	body, status, err := doJSONRequest(client, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return Controle{}, err
+	}
+	if status < 200 || status >= 300 {
+		return Controle{}, &httpStatusError{Code: status}
+	}
+
+	// Endpoint pode retornar:
+	// [] | {} | {"dados":[]} | {"dados":{}} | {"data":[...]}.
+	var raw any
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return Controle{}, fmt.Errorf("controle json invalido: %w", err)
+	}
+
+	if ctrl, ok := extractControle(raw); ok {
+		return ctrl, nil
+	}
+	return Controle{}, fmt.Errorf("controle vazio ou formato inesperado: %s", compactBody(body))
+}
+
+func extractControle(v any) (Controle, bool) {
+	switch x := v.(type) {
+	case []any:
+		for _, it := range x {
+			if ctrl, ok := extractControle(it); ok {
+				return ctrl, true
+			}
+		}
+	case map[string]any:
+		// Caso base: objeto com id e lock/Lock.
+		id := toInt(x["id"])
+		if id != 0 {
+			lock := toBool(x["Lock"])
+			if _, ok := x["Lock"]; !ok {
+				lock = toBool(x["lock"])
+			}
+			return Controle{ID: id, Lock: lock}, true
+		}
+
+		// Caso envelope: percorre chaves comuns e fallback geral.
+		keys := []string{"dados", "data", "items", "result", "results", "response", "payload", "record", "controle", "Controle"}
+		for _, k := range keys {
+			if vv, ok := x[k]; ok {
+				if ctrl, ok := extractControle(vv); ok {
+					return ctrl, true
+				}
+			}
+		}
+		for _, vv := range x {
+			if ctrl, ok := extractControle(vv); ok {
+				return ctrl, true
+			}
+		}
+	}
+	return Controle{}, false
+}
+
+func toInt(v any) int {
+	switch n := v.(type) {
+	case float64:
+		return int(n)
+	case int:
+		return n
+	case int64:
+		return int(n)
+	case string:
+		i, _ := strconv.Atoi(n)
+		return i
+	default:
+		return 0
+	}
+}
+
+func toBool(v any) bool {
+	switch b := v.(type) {
+	case bool:
+		return b
+	case string:
+		return strings.EqualFold(strings.TrimSpace(b), "true")
+	case float64:
+		return int(b) != 0
+	case int:
+		return b != 0
+	default:
+		return false
+	}
+}
+
+func compactBody(b []byte) string {
+	s := strings.TrimSpace(string(b))
+	if len(s) > 180 {
+		return s[:180] + "..."
+	}
+	return s
+}
+
+// extractFilaItemsFromAny aceita resposta do Xano como array na raiz ou envelope
+// (dados/data/items/...) e objeto unico em vez de lista.
+func extractFilaItemsFromAny(v any) []FilaItem {
+	if v == nil {
+		return nil
+	}
+	switch x := v.(type) {
+	case []any:
+		var out []FilaItem
+		for _, el := range x {
+			if it, ok := filaItemFromAny(el); ok {
+				out = append(out, it)
+				continue
+			}
+			out = append(out, extractFilaItemsFromAny(el)...)
+		}
+		return out
+	case map[string]any:
+		if it, ok := filaItemFromAny(x); ok {
+			return []FilaItem{it}
+		}
+		keys := []string{"dados", "data", "items", "Items", "records", "result", "results", "response", "payload", "list", "rows", "Dados", "Data"}
+		var out []FilaItem
+		for _, k := range keys {
+			if vv, ok := x[k]; ok {
+				out = append(out, extractFilaItemsFromAny(vv)...)
+			}
+		}
+		if len(out) > 0 {
+			return out
+		}
+		for _, vv := range x {
+			out = append(out, extractFilaItemsFromAny(vv)...)
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
+func filaItemFromAny(v any) (FilaItem, bool) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return FilaItem{}, false
+	}
+	var it FilaItem
+	if err := json.Unmarshal(b, &it); err != nil {
+		return FilaItem{}, false
+	}
+	if it.ID == 0 {
+		return FilaItem{}, false
+	}
+	return it, true
+}
+
+func setControleLock(client *http.Client, baseURL string, id int, lock bool) error {
+	target := strings.TrimRight(baseURL, "/") + "/" + strconv.Itoa(id)
+	payload := map[string]any{
+		"whatsprocfila_controle_id": id,
+		"Lock":                      lock,
+	}
+	_, status, err := doJSONRequest(client, http.MethodPut, target, payload)
+	if err != nil {
+		return err
+	}
+	if status < 200 || status >= 300 {
+		return &httpStatusError{Code: status}
+	}
+	return nil
+}
+
+func getFilaPendentes(client *http.Client, rawURL string) ([]FilaItem, error) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, err
+	}
+	q := u.Query()
+	q.Set("analise", "false")
+	q.Set("disparo", "false")
+	u.RawQuery = q.Encode()
+
+	body, status, err := doJSONRequest(client, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	if status < 200 || status >= 300 {
+		return nil, &httpStatusError{Code: status}
+	}
+
+	var raw any
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return nil, fmt.Errorf("fila json invalido: %w", err)
+	}
+	items := extractFilaItemsFromAny(raw)
+
+	// Garante filtro local caso endpoint ignore querystring.
+	out := make([]FilaItem, 0, len(items))
+	for _, it := range items {
+		if !it.Analise && !it.Disparo {
+			out = append(out, it)
+		}
+	}
+	return out, nil
+}
+
+func processItem(client *http.Client, rawURL string, item FilaItem) error {
+	payload := ProcessItemPayload{
+		SendMsgWhats:             item.SendMsgWhats,
+		Numerowhatsapp:           item.Numerowhatsapp,
+		EnviaSom:                 item.EnviaSom,
+		SendAudioWhats:           item.SendAudioWhats,
+		TblWhatsAppEnviadosTexto: item.TblWhatsAppEnviadosTexto,
+		TblWhatsAppEnviadosAudio: item.TblWhatsAppEnviadosAudio,
+		TblWhatsAppEnviadosLigar: item.TblWhatsAppEnviadosLigar,
+		Ligar:                    item.Ligar,
+		IDFranqueado:             item.IDFranqueado,
+		Nomecliente:              item.Nomecliente,
+		Empresanome:              item.Empresanome,
+		Tipoevento:               item.Tipoevento,
+		Zona:                     item.Zona,
+		Local:                    item.Local,
+		IDEvento:                 item.IDEvento,
+		Datahorario:              item.Datahorario,
+		IDEventgo:                item.IDEventgo,
+		Enviartexto:              item.Enviartexto,
+		IDProcesso:               item.IDProcesso,
+		IDDispositivo:            item.IDDispositivo,
+		Notificarsempre:          item.Notificarsempre,
+		DispNome:                 item.DispNome,
+		DispDescricao:            item.DispDescricao,
+		DispTipo:                 item.DispTipo,
+	}
+
+	_, status, err := doJSONRequest(client, http.MethodPost, rawURL, payload)
+	if err != nil {
+		return err
+	}
+	if status < 200 || status >= 300 {
+		return &httpStatusError{Code: status}
+	}
+	return nil
+}
+
+func updateFilaItem(client *http.Client, baseURL string, item FilaItem) error {
+	target := strings.TrimRight(baseURL, "/") + "/" + strconv.Itoa(item.ID)
+	payload := updateFilaPayload{
+		WhatsappProcFilaID:       item.ID,
+		SendMsgWhats:             item.SendMsgWhats,
+		Numerowhatsapp:           item.Numerowhatsapp,
+		EnviaSom:                 item.EnviaSom,
+		SendAudioWhats:           item.SendAudioWhats,
+		TblWhatsAppEnviadosTexto: item.TblWhatsAppEnviadosTexto,
+		TblWhatsAppEnviadosAudio: item.TblWhatsAppEnviadosAudio,
+		TblWhatsAppEnviadosLigar: item.TblWhatsAppEnviadosLigar,
+		Ligar:                    item.Ligar,
+		IDFranqueado:             item.IDFranqueado,
+		Nomecliente:              item.Nomecliente,
+		Empresanome:              item.Empresanome,
+		GRUPOFALHA:               item.GRUPOFALHA,
+		Tipoevento:               item.Tipoevento,
+		Zona:                     item.Zona,
+		Local:                    item.Local,
+		IDEvento:                 item.IDEvento,
+		Datahorario:              item.Datahorario,
+		IDEventgo:                item.IDEventgo,
+		Enviartexto:              item.Enviartexto,
+		IDProcesso:               item.IDProcesso,
+		IDDispositivo:            item.IDDispositivo,
+		Notificarsempre:          item.Notificarsempre,
+		DispNome:                 item.DispNome,
+		DispDescricao:            item.DispDescricao,
+		DispTipo:                 item.DispTipo,
+		Analise:                  item.Analise,
+		Zonauser:                 item.Zonauser,
+		Particao:                 item.Particao,
+		Disparo:                  item.Disparo,
+	}
+
+	_, status, err := doJSONRequest(client, http.MethodPut, target, payload)
+	if err != nil {
+		return err
+	}
+	if status < 200 || status >= 300 {
+		return &httpStatusError{Code: status}
+	}
+	return nil
+}
+
+func doJSONRequest(client *http.Client, method, rawURL string, payload any) ([]byte, int, error) {
+	var bodyReader *bytes.Reader
+	if payload == nil {
+		bodyReader = bytes.NewReader(nil)
+	} else {
+		b, err := json.Marshal(payload)
+		if err != nil {
+			return nil, 0, err
+		}
+		bodyReader = bytes.NewReader(b)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), client.Timeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, method, rawURL, bodyReader)
+	if err != nil {
+		return nil, 0, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, err
+	}
+	return respBody, resp.StatusCode, nil
+}
+
+type httpStatusError struct {
+	Code int
+}
+
+func (e *httpStatusError) Error() string {
+	return "status HTTP invalido: " + strconv.Itoa(e.Code)
+}
+
+func randomBetween(rng *rand.Rand, min, max int) int {
+	if max <= min {
+		return min
+	}
+	return rng.Intn(max-min+1) + min
+}
+
+// loadDotEnv le .env no diretorio de trabalho ou ao lado do binario.
+// Nao sobrescreve variaveis ja definidas no ambiente (ex.: systemd).
+func loadDotEnv() {
+	paths := []string{".env"}
+	if exe, err := os.Executable(); err == nil {
+		paths = append(paths, filepath.Join(filepath.Dir(exe), ".env"))
+	}
+	for _, p := range paths {
+		if applyDotEnvFile(p) {
+			return
+		}
+	}
+}
+
+func applyDotEnvFile(filename string) bool {
+	b, err := os.ReadFile(filename)
+	if err != nil {
+		return false
+	}
+	text := strings.ReplaceAll(string(b), "\r\n", "\n")
+	lines := strings.Split(text, "\n")
+	out := make(map[string]string)
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.HasPrefix(line, "export ") {
+			line = strings.TrimSpace(strings.TrimPrefix(line, "export "))
+		}
+		idx := strings.IndexByte(line, '=')
+		if idx <= 0 {
+			continue
+		}
+		key := strings.TrimSpace(line[:idx])
+		val := strings.TrimSpace(line[idx+1:])
+		if len(val) >= 2 && val[0] == '"' && val[len(val)-1] == '"' {
+			val = val[1 : len(val)-1]
+		}
+		out[key] = val
+	}
+	for k, v := range out {
+		if os.Getenv(k) == "" {
+			os.Setenv(k, v)
+		}
+	}
+	return true
+}
+
+func getenv(key, fallback string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	return v
+}
+
+func getenvInt(key string, fallback int) int {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	out, err := strconv.Atoi(v)
+	if err != nil {
+		log.Printf("valor invalido em %s=%q, usando fallback=%d", key, v, fallback)
+		return fallback
+	}
+	return out
+}
+
+func getenvSeconds(key string, fallbackSec int) time.Duration {
+	v := os.Getenv(key)
+	if v == "" {
+		return time.Duration(fallbackSec) * time.Second
+	}
+	sec, err := strconv.Atoi(v)
+	if err != nil || sec <= 0 {
+		log.Printf("valor invalido em %s=%q, usando fallback=%ds", key, v, fallbackSec)
+		return time.Duration(fallbackSec) * time.Second
+	}
+	return time.Duration(sec) * time.Second
+}

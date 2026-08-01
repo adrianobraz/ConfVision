@@ -1,0 +1,60 @@
+{{ template "pagina" . }}
+
+{{ define "body" }}
+<div class="tech-page">
+    {{ template "navbar" . }}
+
+    <div class="tech-workspace">
+        <!-- Listagem (esquerda) -->
+        <section class="tech-col-list">
+            <div class="tech-panel">
+                <div class="tech-panel-head">
+                    <i class="bi bi-table"></i> Listagem · Ordens de Serviço
+                </div>
+                <div class="tech-panel-body">
+                    {{ template "tabela" }}
+                </div>
+            </div>
+        </section>
+
+        <!-- Cadastro (direita) -->
+        <section class="tech-col-form">
+            <div class="tech-panel">
+                <div class="tech-panel-head">
+                    <i class="bi bi-clipboard-check"></i> Cadastro · Ordem de Serviço
+                </div>
+                <div class="tech-panel-body">
+                    <div class="tech-form-block">
+                        <h3>Dados da OS</h3>
+
+                        <label for="franqueado" class="ps-1">Franqueado</label>
+                        <select id="franqueado" class="selFranqueado w-full px-3 py-2 text-center"></select>
+
+                        <label for="assunto" class="ps-1 mt-2">Assunto</label>
+                        <input id="assunto" type="text"
+                            class="w-full px-3 py-2 uppercase text-center">
+
+                        <label for="historico" class="ps-1 mt-2">Histórico</label>
+                        <textarea id="historico" rows="5" readonly
+                            class="w-full px-3 py-2"></textarea>
+
+                        <label for="descricao" class="ps-1 mt-2">Descrição</label>
+                        <textarea id="descricao" rows="4"
+                            class="w-full px-3 py-2 uppercase text-center"></textarea>
+                    </div>
+
+                    {{ template "btnLimparGravarFechar" }}
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+<script src="/public/templates/franqueadoOs/franqueadoOs.js"></script>
+{{ end }}
+
+{{ define "thead" }}
+<th class="py-2 w-5/12 text-xs">Nome</th>
+<th class="py-2 w-4/12 text-xs">Assunto</th>
+<th class="py-2 w-2/12 text-xs">Status</th>
+<th class="py-2 w-1/12 text-xs" colspan="2">Ação</th>
+{{end}}

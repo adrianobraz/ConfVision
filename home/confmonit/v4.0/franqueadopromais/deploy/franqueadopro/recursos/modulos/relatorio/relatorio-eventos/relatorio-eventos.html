@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="pt-br">
+
+<head>
+    {{ template "head" . }}
+
+</head>
+
+<body>
+    {{ template "variaveis-controle" . }}
+    {{ template "nav-bar" . }}
+    <div class="container-fluid container-principal pt-2">
+        <form id="formulario"></form>
+        <div class="row text-center">
+
+            <div class="col-lg-6 mb-2 text-start">
+                <label for="busca-cliente" class="form-label mb-0">
+                    Cliente:
+                </label>
+                <div class="position-relative">
+                    <input type="text" autocomplete="off" autofocus
+                        class="form-control form-control-sm text-uppercase"
+                        id="busca-cliente"
+                        placeholder="Pesquisar por nome, CPF, CNPJ ou nick...">
+                    <input type="hidden" form="formulario" id="id-cliente" value="">
+                    <ul id="lista-clientes" class="fp-combo-list d-none"></ul>
+                </div>
+            </div>          
+
+            <div class="col-lg-6 mb-1 text-start">
+                <label for="idDispositivo" class="form-label mb-0">
+                    Dispositivo:
+                </label>
+                <select type="datetime-local" autofocus maxlength="50"
+                    class="form-control form-control-sm text-uppercase" form="formulario" id="idDispositivo">
+                    `<option value="">SELECIONE</option>                
+                </select>
+
+            </div>         
+
+            <div class="col-lg-2 mb-1 text-start">
+                <label for="start" class="form-label mb-0">
+                    Data Inicial:
+                </label>
+                <input type="text" autocomplete="off"
+                    class="form-control form-control-sm" form="formulario" id="start"
+                    placeholder="dd/mm/aaaa hh:mm">
+            </div>
+
+            <div class="col-lg-2 mb-1 text-start">
+                <label for="end" class="form-label mb-0">
+                    Data Final:
+                </label>
+                <input type="text" autocomplete="off"
+                    class="form-control form-control-sm" form="formulario" id="end"
+                    placeholder="dd/mm/aaaa hh:mm">
+            </div>
+
+            <div class="col-lg-2 d-grid gap-2 mb-1">
+                <button id="btn-limpar" class="btn btn-danger">LIMPAR</button>
+            </div>
+
+            <div class="col-lg-3 d-grid gap-2 mb-1">
+                <button id="btn-filtrar" class="btn btn-primary">FILTRAR</button>
+            </div>
+
+            <div class="col-lg-3 d-grid gap-2 mb-1">
+                <button id="btn-imprimir" class="btn btn-primary">IMPRIMIR RELATÓRIO</button>
+            </div>
+
+            <div class="col-lg-12">
+                <hr>
+            </div>
+            <div id="qtd-eventos" class="col-lg-12 text-center fs-2 fw-bold fst-italic"">
+                Total de Eventos: 0
+            </div>
+            <div class="col-lg-12 table-responsive ">
+                <table class="table table-bordered table-sm table-striped" id="tabEventos">
+                    <thead class="table-dark">
+                        
+                        <tr>
+                            <th style="width: 15%;">Entrada</th>
+                            <th style="width: 25%;">Conta</th>
+                            <th style="width: 5%;">Cód.</th>
+                            <th style="width: 25%;">Evento</th>
+                            <th style="width: 10%;">Set./Usu.</th>
+                            <th>Desc. S/U</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- preenchido via JS -->
+
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+    {{ template "link-js" . }}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/themes/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/pt.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+   
+    <script src="/recursos/js/auxiliares/geraTabelaPdf.js"></script>
+    <script src="/recursos/modulos/relatorio/relatorio-eventos/relatorio-eventos.js"></script>
+
+   
+</body>
+
+</html>

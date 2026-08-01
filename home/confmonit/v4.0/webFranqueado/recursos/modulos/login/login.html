@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+    <meta charset="UTF-8">
+
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- Favicon -->
+    <link rel="apple-touch-icon" sizes="180x180"
+        href="/recursos/img/favicon/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32"
+        href="/recursos/img/favicon/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16"
+        href="/recursos/img/favicon/favicon-16x16.png">
+    <link rel="manifest" href="/recursos/img/favicon/site.webmanifest">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap CSS -->
+    <!--link rel="stylesheet" href="/recursos/css/bootstrap.min.css"-->
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC"
+        crossorigin="anonymous">
+
+    <!--Css padrao de cor-->
+    <link rel="stylesheet" href="/recursos/css/login.css">
+
+
+    <title>{{.TituloSite}}</title>
+    <body>
+
+        <!--Corpo da Pagina-->
+        <div id="corpo-pagina" class="container-fluid">
+            <div class="container-login">
+                <div>
+                    <form class="form-allguardian" id="form-login">
+                        <span>Seja bem vindo a <br> Central do Franqueado!</span>
+                        <div>
+                            <input
+                                type="text"
+                                name="email"
+                                id="email"
+                                placeholder="Digite seu Email">
+                        </div>
+                        <div>
+                            <input
+                                type="password"
+                                name="senha"
+                                id="senha"
+                                placeholder="Digite sua senha">
+                        </div>
+                        <button
+                            id="btn-logar"
+                            type="button"
+                            class="btn-allguardian">
+                            Login                            
+                        </button>
+                        
+                    </form>
+                </div>
+            </div>
+        </div>
+        <script
+            src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+            crossorigin="anonymous"></script>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"
+            integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+            crossorigin="anonymous"></script>
+        <!--
+            <script src="/recursos/js/bibliotecas/bootstrap.bundle.min.js"></script>
+            <script src="/recursos/js/bibliotecas/jquery-3.6.0.min.js"></script>
+        -->
+        <script src="/recursos/modulos/login/login.js"></script>
+        <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        <script src="/recursos/js/auxiliares/box-mensagem-padrao.js"></script>
+    </body>
+
+</html>

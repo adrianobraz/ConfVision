@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="pt-br">
+
+<head>
+    {{ template "head" . }}
+    <link rel="stylesheet" href="/recursos/modulos/minha-empresa/gerenciarUsuarios/gerenciarUsuarios.css">
+</head>
+
+<body>
+    {{ template "variaveis-controle" . }}
+    {{ template "nav-bar" . }}
+    {{ template "sub-menu-fluid" }}
+    <div class="container-fluid container-principal">
+        <div class="row text-center">
+            <!-- COLUNA ESQUERDA -->
+            <div class="col-lg-7 mt-2">
+
+                <div class="px-1 mb-2">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" id="pesquisar-responsavel" class="form-control"
+                            placeholder="Pesquisar por nome ou celular...">
+                    </div>
+                </div>
+
+                <div id="coluna-direita" class="altura-fixa table-responsive tab-height">
+                    <table class="table table-bordered table-sm ">
+                        <thead class="table-dark">
+                            <th>Nome</th>
+                            <th style="width: 18%;">Celular</th>
+                            <th style="width: 25%;" colspan="7">Ações</th>
+                        </thead>
+                        <tbody><!-- Preenchido via js --></tbody>
+                    </table>
+                </div>
+
+            </div><!-- COLUNA ESQUERDA -->
+
+
+
+            <!-- COLUNA DIREITA -->
+            <div id="coluna-esquerda" class="col-lg-5 mt-2 bg-form page-height">
+                <form id="formulario" class="px-4 pt-4">
+                    <div class="table-responsive form-height">
+                    <div class="row mx-0">
+                        <div class="col-lg-12 mb-1 text-start">
+                            <label for="nome-responsavel" class="form-label mb-0">
+                                Nome*:
+                            </label>
+                            <input type="text" autofocus maxlength="50" class="form-control form-control-sm
+                                    text-uppercase" id="nome-responsavel">
+                        </div>
+
+                        <div class="col-lg-8 mb-1 text-start">
+                            <label for="nick-responsavel" class="form-label mb-0">
+                                Nick*:
+                            </label>
+                            <input type="text" maxlength="20" class="form-control form-control-sm
+                                    text-uppercase" id="nick-responsavel">
+                        </div>
+
+                        <div class="col-lg-4 mb-1 text-start">
+                            <label for="telefone_1-responsavel" class="form-label mb-0">
+                                Telefone 1*:
+                            </label>
+                            <input type="text" class="form-control form-control-sm
+                                    msk-telefone" id="telefone_1-responsavel">
+                        </div>
+
+                        <div class="col-lg-8 mb-1 text-start">
+                            <label for="email_1-responsavel" class="form-label mb-0">
+                                Email 1*:
+                            </label>
+                            <input type="email" class="form-control form-control-sm
+                                    text-lowercase" id="email_1-responsavel">
+                        </div>
+
+
+                        <div class="col-lg-4 mb-1 text-start">
+                            <label for="telefone_2-responsavel" class="form-label mb-0">
+                                Telefone 2:
+                            </label>
+                            <input type="text" class="form-control form-control-sm
+                                    msk-telefone" id="telefone_2-responsavel">
+                        </div>
+
+                        <div class="col-lg-8 mb-1 text-start">
+                            <label for="email_2-responsavel" class="form-label mb-0">
+                                Email 2:
+                            </label>
+                            <input type="email" class="form-control form-control-sm
+                                    text-lowercase" id="email_2-responsavel">
+                        </div>
+
+
+
+
+
+
+
+                        <div class="col-lg-12">
+                            <hr>
+                        </div>
+
+                    </div>
+                    </div>
+
+                    <div class="row g-3 fp-form-actions mx-0 pb-3">
+                        <div class="col-12">
+                            <hr class="my-2">
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <button id="btn-limpar" class="btn btn-danger w-100 fp-btn-form-action" type="button">
+                                <i class="bi bi-eraser-fill"></i>
+                                &nbsp; Limpar
+                            </button>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <button id="btn-gravar" class="btn btn-success w-100 fp-btn-form-action" type="button">
+                                <i class="bi bi-save-fill"></i>
+                                &nbsp; Gravar
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div><!-- COLUNA DIREITA -->
+
+
+        </div>
+    </div>
+
+    {{ template "link-js" . }}
+    <script src="/recursos/modulos/minha-empresa/gerenciarUsuarios/gerenciarUsuarios.js"></script>
+</body>
+
+</html>

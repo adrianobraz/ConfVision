@@ -1,0 +1,80 @@
+<link rel="stylesheet" href="/assets/modulos/ateEventosDetalhe/ateEventosDetalhe.css">
+
+<div id="ateEventosDetalhe">
+    <div id="ateEventosDetalhe_tabEventos">
+        <div class="h-100 w-100 table-responsive">
+            <table class="table table-sm  table-bordered align-middle">
+                <thead>
+                    <tr>
+                        <th 
+                            style="width: 8%;" 
+                            class="fmt-thead"
+                        >Qtd.</th>
+                        
+                        <th 
+                            style="width: 56%;" 
+                            colspan="3" 
+                            class="fmt-thead"
+                        >Evento</th>
+                                                
+                        <th 
+                            style="width: 36%;" 
+                            colspan="3" 
+                            class="fmt-thead"
+                        >Setor/Usuario</th>
+
+                        <th 
+                            style="width: 8%;" 
+                            class="fmt-thead"
+                        >Hora</th>
+
+                    </tr>
+                </thead>
+                <tbody></tbody> 
+            </table>
+
+        </div>
+    </div>
+    <div class="text-center fmt-titulo txt-titulo py-1">Ultimos 25 eventos</div>
+    <div id="ateEventosDetalhe_tabUltimos25" class="table-responsive">
+        <!-- <div class="h-100 w-100 "> -->
+            <table id="" class="table table-sm table-striped table-bordered align-middle">
+                <thead> 
+                    <tr>
+                        <th
+                        class="fmt-thead"
+                        >Num.</th>
+                        
+                        <th 
+                            colspan="2" 
+                            class="fmt-thead"
+                        >Descrição</th>
+                        
+                        <th 
+                            class="fmt-thead"
+                        >Set/Usu</th>
+                        
+                        <th
+                            class="fmt-thead"
+                        >Entrada</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        <!-- </div> -->
+    </div>
+</div>
+
+<div class="modal fade" id="descricaoAtendimento" tabindex="-1" aria-labelledby="descricaoAtendimento" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header fmt-painel">
+                <h5 class="modal-title" id="descricaoAtendimento">DESCRICAO ATENDIMENTO</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body fmt-color"> 
+                <textarea id="descricaoAtendimentoMsg" class="form-control fmt-campo" rows="15" style="resize: none;"></textarea>
+            </div>
+        </div>
+    </div>
+</div>

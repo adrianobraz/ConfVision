@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="pt-br">
+    <head>
+        {{ template "head" . }}
+    </head>
+    <body>
+        {{ template "variaveis-controle" . }}
+        {{ template "nav-bar" . }}
+
+        <div class="container-fluid container-principal">
+            <div class="row text-center g-3 py-3 justify-content-center">
+
+                <div class="col-6 col-lg-3">
+                    <div id="BtnGerenciarCadastroAlarme" class="fp-menu-card" role="button">
+                        <i class="bi bi-phone-vibrate"></i>
+                        <span>Gerenciar Cadastro Alarme</span>
+                    </div>
+                </div>
+
+                <div class="col-6 col-lg-3">
+                    <div id="BtnGerenciarUsuarioAlarme" class="fp-menu-card" role="button">
+                        <i class="bi bi-person-vcard-fill"></i>
+                        <span>Gerenciar Cadastro Usuário Alarme</span>
+                    </div>
+                </div>
+
+                <div class="col-6 col-lg-3">
+                    <div id="BtnGerenciarSetoresAlarme" class="fp-menu-card" role="button">
+                        <i class="bi bi-bounding-box"></i>
+                        <span>Gerenciar Cadastro Setores Alarme</span>
+                    </div>
+                </div>
+
+                <div class="col-6 col-lg-3">
+                    <div id="BtnGerenciarProcedimentoAtendimento" class="fp-menu-card" role="button">
+                        <i class="bi bi-headset"></i>
+                        <span>Gerenciar Proced. Atendimento</span>
+                    </div>
+                </div>
+
+                <div class="col-6 col-lg-3">
+                    <div id="BtnGerenciarContactidPersonalizado" class="fp-menu-card" role="button">
+                        <i class="bi bi-flag-fill"></i>
+                        <span>Gerenciar Contactid Personalizado</span>
+                    </div>
+                </div>
+
+                <div class="col-6 col-lg-3">
+                    <div id="BtnGerenciarGradeHorario" class="fp-menu-card" role="button">
+                        <i class="bi bi-alarm-fill"></i>
+                        <span>Gerenciar Grade Horário</span>
+                    </div>
+                </div>
+
+                <div class="col-6 col-lg-3">
+                    <div id="BtnGerenciarEnvioEvento" class="fp-menu-card" role="button">
+                        <i class="bi bi-envelope-arrow-up-fill"></i>
+                        <span>Gerenciar Email Evento</span>
+                    </div>
+                </div>
+
+            </div>
+        </div><!-- container -->
+
+        {{ template "link-js" . }}
+        <script
+            src="/recursos/modulos/configuracao/menu-configuracao/menu-configuracao.js"></script>
+    </body>
+</html> 

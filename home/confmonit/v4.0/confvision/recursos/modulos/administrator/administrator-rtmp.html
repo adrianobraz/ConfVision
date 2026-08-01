@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administrator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpPLImLBaoPzYbkcfn+j52dCnbR8XomDOtYPQ/ve7prQ" crossorigin="anonymous">
+    <link rel="stylesheet" href="/recursos/css/confvision.css?v=20260729adm4">
+    <meta name="theme-color" content="#070b14">
+</head>
+<body class="cv-app cv-administrator">
+
+<header class="cv-admin-bar">
+    <div class="cv-admin-bar-inner">
+        <a href="/administrator/rtmp-falhas" class="cv-admin-brand">
+            <img src="/recursos/img/brand/logo-confvision-horizontal-white.png" alt="Logo" width="140" height="34">
+            <span class="cv-admin-badge">Administrator</span>
+        </a>
+        <h1 class="cv-admin-title"><i class="bi bi-camera-video"></i> Administrator</h1>
+        <a href="/logout" class="cv-btn-ghost cv-btn-sm"><i class="bi bi-box-arrow-right"></i> Sair</a>
+    </div>
+</header>
+
+<main class="cv-main">
+    <div class="cv-panel">
+        <div class="cv-panel-toolbar">
+            <div>
+                <p class="cv-page-desc mb-0">Bloqueio administrativo de câmeras e monitoramento RTMP</p>
+            </div>
+            <button type="button" id="btn-atualizar-rtmp-falhas" class="cv-btn-ghost" title="Atualizar">
+                <i class="bi bi-arrow-clockwise"></i> Atualizar
+            </button>
+        </div>
+
+        <ul class="nav cv-form-tabs cv-admin-tabs mb-3" id="admin-tabs" role="tablist">
+            <li class="nav-item">
+                <button type="button" class="nav-link active" data-admin-tab="cameras" role="tab">
+                    <i class="bi bi-camera-video"></i> Todas as câmeras
+                </button>
+            </li>
+            <li class="nav-item">
+                <button type="button" class="nav-link" data-admin-tab="online" role="tab">
+                    <i class="bi bi-broadcast"></i> Câmeras online (RTMP)
+                </button>
+            </li>
+            <li class="nav-item">
+                <button type="button" class="nav-link" data-admin-tab="bans" role="tab">
+                    <i class="bi bi-shield-x"></i> IPs banidos
+                </button>
+            </li>
+            <li class="nav-item">
+                <button type="button" class="nav-link" data-admin-tab="relatorio" role="tab">
+                    <i class="bi bi-file-earmark-text"></i> Relatório
+                </button>
+            </li>
+        </ul>
+
+        <div class="cv-form-tab-panels">
+
+            <div class="cv-form-tab-panel" data-admin-panel="cameras" role="tabpanel">
+                <p class="cv-page-desc mb-2">Cadastro <code>vis_camera</code> — bloqueio administrativo (pagamento).</p>
+                <div class="cv-cameras-filtros mb-3">
+                    <div class="cv-cameras-filtro-busca">
+                        <label class="cv-label" for="busca-cameras-admin">Buscar câmeras</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="search" id="busca-cameras-admin" class="form-control"
+                                placeholder="Nome da câmera, franqueado ou cliente..." autocomplete="off">
+                        </div>
+                    </div>
+                </div>
+                <div class="cv-armado-resumo mb-3 cv-admin-resumo-mini">
+                    <div class="cv-armado-resumo-item">
+                        <span class="cv-armado-resumo-num" id="lbl-cam-total">0</span>
+                        <span class="cv-armado-resumo-label">Total</span>
+                    </div>
+                    <div class="cv-armado-resumo-item cv-armado-resumo-off">
+                        <span class="cv-armado-resumo-num" id="lbl-cam-bloq">0</span>
+                        <span class="cv-armado-resumo-label">Bloqueadas</span>
+                    </div>
+                </div>
+                <div class="cv-admin-scroll-panel">
+                    <table class="table cv-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Câmera</th>
+                                <th>Franqueado</th>
+                                <th>Cliente</th>
+                                <th>Licença</th>
+                                <th>Bloqueado</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tab-cameras-admin">
+                            <tr><td colspan="6"><div class="cv-empty">Carregando…</div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="cv-form-tab-panel cv-admin-panel-hidden" data-admin-panel="online" role="tabpanel">
+                <p class="cv-page-desc mb-2">Streams publicando agora no MediaMTX.</p>
+                <div class="cv-admin-scroll-panel">
+                    <table class="table cv-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Câmera</th>
+                                <th>Franqueado</th>
+                                <th>Cliente</th>
+                                <th>Path</th>
+                                <th>IP</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tab-rtmp-online">
+                            <tr><td colspan="7"><div class="cv-empty">Carregando…</div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="cv-form-tab-panel cv-admin-panel-hidden" data-admin-panel="bans" role="tabpanel">
+                <p class="cv-page-desc mb-2">Auto-ban por taxa de falha. Use <strong>Desbanir</strong> após corrigir a câmera.</p>
+                <div class="cv-admin-scroll-panel">
+                    <table class="table cv-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>IP</th>
+                                <th>Motivo</th>
+                                <th>Restante</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tab-rtmp-bans">
+                            <tr><td colspan="4"><div class="cv-empty">Carregando…</div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="cv-form-tab-panel cv-admin-panel-hidden" data-admin-panel="relatorio" role="tabpanel">
+                <div class="cv-armado-resumo mb-3" id="box-rtmp-resumo">
+                    <div class="cv-armado-resumo-item">
+                        <span class="cv-armado-resumo-num" id="lbl-rtmp-online">0</span>
+                        <span class="cv-armado-resumo-label">Online</span>
+                    </div>
+                    <div class="cv-armado-resumo-item">
+                        <span class="cv-armado-resumo-num" id="lbl-rtmp-total">0</span>
+                        <span class="cv-armado-resumo-label">Eventos</span>
+                    </div>
+                    <div class="cv-armado-resumo-item cv-armado-resumo-off">
+                        <span class="cv-armado-resumo-num" id="lbl-rtmp-ips">0</span>
+                        <span class="cv-armado-resumo-label">IPs falha</span>
+                    </div>
+                    <div class="cv-armado-resumo-item">
+                        <span class="cv-armado-resumo-num" id="lbl-rtmp-bans">0</span>
+                        <span class="cv-armado-resumo-label">Banidos</span>
+                    </div>
+                </div>
+
+                <div id="box-rtmp-aviso" class="cv-form-tab-aviso mb-3 d-none"></div>
+
+                <div class="cv-cameras-filtros mb-3">
+                    <div class="cv-cameras-filtro-busca">
+                        <label class="cv-label" for="busca-rtmp-falhas">Filtrar falhas</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="search" id="busca-rtmp-falhas" class="form-control"
+                                placeholder="IP, câmera, franqueado, cliente, path..." autocomplete="off">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cv-admin-pager mb-2">
+                    <span class="cv-admin-pager-info" id="lbl-rel-pager">—</span>
+                    <div class="cv-admin-pager-btns">
+                        <button type="button" class="cv-btn-ghost btn-sm" id="btn-rel-prev" disabled>
+                            <i class="bi bi-chevron-left"></i> Anterior
+                        </button>
+                        <span class="cv-admin-pager-num" id="lbl-rel-pagina">1 / 1</span>
+                        <button type="button" class="cv-btn-ghost btn-sm" id="btn-rel-next" disabled>
+                            Próxima <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="cv-admin-scroll-panel cv-admin-scroll-panel-relatorio">
+                    <table class="table cv-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Quando</th>
+                                <th>Câmera</th>
+                                <th>Franqueado</th>
+                                <th>Cliente</th>
+                                <th>IP</th>
+                                <th>Problema</th>
+                                <th>Vezes</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tab-rtmp-falhas">
+                            <tr><td colspan="8"><div class="cv-empty">Carregando…</div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</main>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"
+    integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+    crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="/recursos/js/auxiliares/box-mensagem-padrao.js"></script>
+<script src="/recursos/modulos/administrator/administrator-rtmp.js?v=20260729adm4"></script>
+</body>
+</html>

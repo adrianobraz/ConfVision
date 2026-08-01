@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-br">
+
+<head>
+    {{ template "head" . }}
+</head>
+
+<body>
+    {{ template "variaveis-controle" . }}
+    {{ template "nav-bar" . }}
+
+    <div class="container-fluid container-principal py-3 my-3 px-3">
+
+        <div class="table-responsive">
+            <table class="table table-sm table-striped table-hover table-bordered">
+                <thead class="text-center bg-vd-claro fw-bold">
+                    <tr>
+                        <td colspan="7">HORÁRIO DE BRASILIA</td>
+                    </tr>
+                    <tr>
+                        <td colspan="7">
+                            Total de <span id="qtd-sem-comunicar">0</span>
+                            dispositivos — <span id="dash-faixa-sub">...</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width: 5%;">Conta</td>
+                        <td style="width: 18%;">Dispositivo</td>
+                        <td style="width: 18%;">Cliente</td>
+                        <td style="width: 5%;">Cód</td>
+                        <td style="width: 22%;">Descrição do Evento</td>
+                        <td style="width: 14%;">Últ. Evento</td>
+                        <td class="fp-col-tempo">Tempo s/ com.</td>
+                    </tr>
+                </thead>
+                <tbody id="tab-sem-comunicacao"></tbody>
+            </table>
+        </div>
+
+    </div>
+
+    {{ template "link-js" . }}
+    <script src="/recursos/js/auxiliares/sem-comunicacao.js"></script>
+    <script src="/recursos/modulos/menu-principal/dashboard-sem-comunicacao.js"></script>
+</body>
+
+</html>

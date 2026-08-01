@@ -1,0 +1,58 @@
+{{ template "pagina" . }}
+
+{{ define "body" }}
+<div class="min-h-full flex flex-col">
+
+    {{ template "navbar" . }}
+
+    <div class="h-full mb-2 flex flex-col gap-2">
+        <div id="boxBotao" class="md:p-2 flex justify-center gap-2 flex-wrap p-2">
+
+            <a href="/relatorio/evento/page" id="btnMeusDados"
+                class="h-40 w-44 leading-3 font-bold rounded-xl flex flex-col justify-center items-center bg-blue-950 px-2">
+
+                <div class="text-7xl">
+                    <i class="bi bi-calendar4-range"></i>
+                </div>
+                <div class="text-lg md:text-xl text-center">Relatório Eventos</div>
+
+            </a>
+
+
+            <!-- <a href="/grade/page" id="btnGradeHorario"
+                class="h-40 w-44 leading-3 font-bold rounded-xl flex flex-col justify-center items-center bg-blue-950 px-2">
+
+                <div class="text-7xl">
+                    <i class="bi bi-clock-fill"></i>
+                </div>
+                <div class="text-lg md:text-xl text-center">Grade Horário</div>
+
+            </a>
+
+            <a href="/msgAtendente/page" id="btnMsgAtendente"
+                class="h-40 w-44 leading-3 font-bold rounded-xl flex flex-col justify-center items-center bg-blue-950 px-2">
+
+                <div class="text-7xl">
+                    <i class="bi bi-chat-fill"></i>
+                </div>
+                <div class="text-lg md:text-xl text-center">Mensagem Atendente</div>
+
+            </a>
+
+            <a href="/relatorio/menu/page" id="btnRelatorio"
+                class="h-40 w-44 leading-3 font-bold rounded-xl flex flex-col justify-center items-center bg-blue-950 px-2">
+                <div class="text-7xl">
+                    <i class="bi bi-printer-fill"></i>
+                </div>
+                <div class="text-lg md:text-xl text-center">Relatório</div>
+
+            </a> -->
+
+            <!-- -->
+
+        </div>
+    </div>
+
+</div>
+<script src="/public/templates/relatorio/menu/menu.js"></script>
+{{ end }}

@@ -1,0 +1,57 @@
+<link rel="stylesheet" href="/assets/modulos/proControles/proControles.css">
+<div id="proControles" class="container-fluid px-2 py-2">
+    <div id="proControles_status" class="fmt-painel rounded p-2">
+        <div class="proControles_infoRow">
+            <div id="proControles_cpRelogio" class="fw-bold"></div>
+            <div id="proControles_cpAtendente" class="rounded bg-light text-dark py-1 fw-semibold px-2"></div>
+        </div>
+        <div class="proControles_actionRow mt-1">
+            <div id="proControles_cpQtdEventos" class="rounded text-center fw-bold">0</div>
+            <div id="proControles_topActions">
+                <button
+                    id="proControles_btnAudioMobile"
+                    type="button"
+                    class="proControles_topBtn btn fmt-botao border border-3 border-dark-subtle"
+                    title="Ativar/Desativar Audio"
+                    onclick="proControles_btnAdio()"
+                >
+                    <i id="proControles_ledA" class="bi bi-volume-up txt-botao"></i>
+                </button>
+                <button
+                    id="proControles_btnAlterarSenha"
+                    type="button"
+                    class="proControles_topBtn btn fmt-botao border border-3 border-dark-subtle"
+                    title="Alterar a senha"
+                >
+                    <i class="bi bi-key txt-botao"></i>
+                </button>
+                <button
+                    id="proControles_btnLogout"
+                    type="button"
+                    class="proControles_topBtn btn fmt-botao border border-3 border-dark-subtle"
+                    title="Efetuar o logout no sistema"
+                >
+                    <i class="bi bi-door-closed-fill txt-botao"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="proControles_footerMenu" class="fmt-painel rounded mt-2 p-2">
+        <button class="proControles_menuBtn btn fmt-botao border border-3 border-dark-subtle" title="Manutenções ativas" id="proControles_btnManutencoesAtivas">
+            <i class="bi bi-gear-wide-connected txt-botao"></i>
+        </button>
+        <button class="proControles_menuBtn btn fmt-botao border border-3 border-dark-subtle" title="Consultar dados do cliente" id="proControles_btnDadosCliente">
+            <i class="bi bi-person-vcard-fill txt-botao"></i>
+        </button>
+        <button class="proControles_menuBtn btn fmt-botao border border-3 border-dark-subtle" title="Gerar ordem de servico" id="proControles_btnOs">
+            <i class="bi bi-tools txt-botao"></i>
+        </button>
+        <button class="proControles_menuBtn btn fmt-botao border border-3 border-dark-subtle" title="Últimos atendimentos finalizados" id="proControles_btnUltimosAtendimentos">
+            <i class="bi bi-clock-history txt-botao"></i>
+        </button>
+        <button class="proControles_menuBtn btn fmt-botao border border-3 border-dark-subtle" title="Filtrar por franqueado" id="proControles_btnFiltroFranqueado">
+            <i class="bi bi-funnel-fill txt-botao"></i>
+        </button>
+    </div>
+</div>

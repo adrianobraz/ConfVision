@@ -1,0 +1,282 @@
+.cv-lic-main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 3rem;
+}
+
+.cv-lic-main .cv-page-header-body {
+    display: block;
+    min-width: 0;
+}
+
+.cv-lic-main .cv-page-subtitle {
+    display: block;
+    margin: 0.4rem 0 0;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    max-width: 52ch;
+}
+
+.cv-lic-card {
+    background: var(--cv-bg-card);
+    border: 1px solid var(--cv-border);
+    border-radius: var(--cv-radius);
+    padding: 1.25rem 1.5rem;
+}
+
+.cv-lic-loading,
+.cv-lic-muted {
+    color: var(--cv-text-muted);
+}
+
+.cv-lic-alerta {
+    background: rgba(248, 113, 113, 0.12);
+    border: 1px solid rgba(248, 113, 113, 0.35);
+    border-radius: var(--cv-radius);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.cv-lic-tabs .nav-link {
+    color: var(--cv-text-muted);
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.cv-lic-tabs .nav-link.active {
+    color: var(--cv-accent);
+    font-weight: 600;
+    border-bottom: 2px solid var(--cv-accent);
+}
+
+.cv-lic-badge {
+    display: inline-block;
+    padding: 0.2rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(52, 211, 153, 0.15);
+    color: var(--cv-success);
+}
+
+.cv-lic-badge.ok { background: rgba(52, 211, 153, 0.15); color: var(--cv-success); }
+.cv-lic-badge.warn { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+.cv-lic-badge.err { background: rgba(248, 113, 113, 0.15); color: var(--cv-danger); }
+
+.cv-lic-planos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+}
+
+.cv-lic-comprar-intro {
+    border-left: 3px solid var(--cv-accent);
+}
+
+.cv-lic-catalogo-card {
+    overflow: hidden;
+    padding: 0;
+}
+
+.cv-lic-catalogo-card.cv-lic-catalogo-camera {
+    border-color: rgba(56, 189, 248, 0.35);
+}
+
+.cv-lic-catalogo-card.cv-lic-catalogo-gravacao {
+    border-color: rgba(167, 139, 250, 0.35);
+}
+
+.cv-lic-catalogo-card-head {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--cv-border);
+}
+
+.cv-lic-catalogo-head-camera {
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.12) 0%, rgba(56, 189, 248, 0.03) 100%);
+}
+
+.cv-lic-catalogo-head-gravacao {
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.12) 0%, rgba(167, 139, 250, 0.03) 100%);
+}
+
+.cv-lic-catalogo-card-icon {
+    flex-shrink: 0;
+    width: 2.75rem;
+    height: 2.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    font-size: 1.35rem;
+}
+
+.cv-lic-catalogo-camera .cv-lic-catalogo-card-icon {
+    background: rgba(56, 189, 248, 0.18);
+    color: #38bdf8;
+}
+
+.cv-lic-catalogo-gravacao .cv-lic-catalogo-card-icon {
+    background: rgba(167, 139, 250, 0.18);
+    color: #a78bfa;
+}
+
+.cv-lic-catalogo-card-body {
+    padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.cv-lic-catalogo-titulo {
+    margin: 0 0 0.35rem;
+    font-size: 1.15rem;
+    color: var(--cv-text);
+}
+
+.cv-lic-catalogo-intro {
+    margin: 0;
+    font-size: 0.88rem;
+    color: var(--cv-text-muted);
+    line-height: 1.45;
+    max-width: 72ch;
+}
+
+.cv-lic-catalogo-bloco {
+    margin-bottom: 0.5rem;
+}
+
+.cv-lic-plano-grupo {
+    margin-bottom: 1.75rem;
+    padding: 1rem 1rem 1.15rem;
+    border-radius: 10px;
+    background: var(--cv-bg-elevated);
+    border: 1px solid var(--cv-border);
+    border-left: 3px solid var(--cv-border);
+}
+
+.cv-lic-plano-grupo:last-child {
+    margin-bottom: 0;
+}
+
+.cv-lic-plano-grupo-online { border-left-color: #64748b; }
+.cv-lic-plano-grupo-sensor { border-left-color: #38bdf8; }
+.cv-lic-plano-grupo-armado { border-left-color: #fbbf24; }
+.cv-lic-plano-grupo-24h { border-left-color: #34d399; }
+.cv-lic-plano-grupo-continua { border-left-color: #a78bfa; }
+.cv-lic-plano-grupo-movimento { border-left-color: #f472b6; }
+.cv-lic-plano-grupo-timelapse { border-left-color: #fb923c; }
+.cv-lic-plano-grupo-outros { border-left-color: var(--cv-text-muted); }
+
+.cv-lic-plano-grupo-head {
+    margin-bottom: 0.75rem;
+}
+
+.cv-lic-plano-grupo-titulo {
+    margin: 0 0 0.25rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--cv-text);
+}
+
+.cv-lic-plano-grupo-intro {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--cv-text-muted);
+    line-height: 1.45;
+    max-width: 70ch;
+}
+
+.cv-lic-plano-card {
+    border: 1px solid var(--cv-border);
+    border-radius: 12px;
+    padding: 1rem;
+    background: var(--cv-bg-elevated);
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+}
+
+.cv-lic-plano-card h6 {
+    margin: 0 0 0.5rem;
+    font-size: 0.95rem;
+}
+
+.cv-lic-plano-desc {
+    margin: 0 0 0.75rem;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: var(--cv-text-muted);
+    flex: 1;
+}
+
+.cv-lic-plano-preco {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--cv-accent);
+    margin: 0.5rem 0;
+}
+
+.cv-lic-plano-preco small {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--cv-text-muted);
+}
+
+.cv-lic-select {
+    background: var(--cv-bg-elevated);
+    border-color: var(--cv-border);
+    color: var(--cv-text);
+    max-width: 160px;
+}
+
+.cv-lic-table {
+    width: 100%;
+    color: var(--cv-text);
+}
+
+.cv-lic-table th,
+.cv-lic-table td {
+    padding: 0.6rem 0.5rem;
+    border-bottom: 1px solid var(--cv-border);
+    vertical-align: middle;
+}
+
+.cv-lic-table th {
+    color: var(--cv-text-muted);
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+
+.cv-lic-resumo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.cv-lic-stat {
+    text-align: center;
+    padding: 0.75rem;
+    border-radius: 10px;
+    background: var(--cv-bg-elevated);
+    border: 1px solid var(--cv-border);
+}
+
+.cv-lic-stat strong {
+    display: block;
+    font-size: 1.35rem;
+    color: var(--cv-accent);
+}
+
+.cv-lic-stat span {
+    font-size: 0.8rem;
+    color: var(--cv-text-muted);
+}
+
+.cv-lic-qty {
+    width: 70px;
+    background: var(--cv-bg);
+    border-color: var(--cv-border);
+    color: var(--cv-text);
+}

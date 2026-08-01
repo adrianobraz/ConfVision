@@ -1,0 +1,48 @@
+<link rel="stylesheet" href="/assets/modulos/ctrOrdemServico/ctrOrdemServico.css">
+
+<div id="ctrOrdemServico" class="fmt-color">
+    <div id="ctrOrdemServico_titulo" class="fmt-titulo">
+        <div class="py-2">Gerar ordem serviço</div>
+    </div>
+
+    <div id="ctrOrdemServico_responsivo" class="table-responsive">
+        <div class="input-group mb-2">
+            <span class="input-group-text fmt-painel text-bg-success">Empresa:</span>
+            <select id="ctrOrdemServico_cpFranqueado" class="form-control  text-center fmt-campo"></select>
+        </div>
+
+        <div class="input-group mb-2">
+            <span class="input-group-text fmt-painel text-bg-success">Cliente:</span>
+            <select id="ctrOrdemServico_cpCliente" class="form-control  text-center fmt-campo">
+                <option value="0">SELECIONE UM CLIENTE</option>
+            </select>
+        </div>
+        <input id="ctrOrdemServico_cpAssunto" class="form-control mb-2 fmt-campo text-uppercase" placeholder="Assunto:">
+
+        <textarea id="ctrOrdemServico_cpDescricao" class="form-control fmt-campo text-uppercase" rows="10"
+            placeholder="Descrição:"></textarea>
+    </div>
+
+    <div id="ctrOrdemServico_boxBtn">
+
+        <button id="ctrOrdemServico_btnFechar" class="btn btn-primary text-bg-primary fs-3">
+            <i class="bi bi-x-circle"></i>
+            &nbsp; Fechar
+        </button>
+
+        <button id="ctrOrdemServico_btnLimpar" class="btn btn-warning text-bg-warning fs-3">
+            <i class="bi bi-eraser-fill"></i>
+            &nbsp; Limpar
+        </button>
+
+        <button id="ctrOrdemServico_btnGravar" class="btn btn-success text-bg-success fs-3">
+            <i class="bi bi-floppy-fill"></i>
+            &nbsp; Gravar
+        </button>
+
+    </div>
+
+</div>
+
+
+</div>

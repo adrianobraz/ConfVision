@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="pt-br">
+
+<head>
+    {{ template "head" . }}
+    <link rel="stylesheet" href="/recursos/modulos/minha-empresa/parceiro-monitoramento/parceiro-monitoramento.css">
+</head>
+
+<body>
+    {{ template "variaveis-controle" . }}
+    {{ template "nav-bar" . }}
+    {{ template "sub-menu-fluid" }}
+
+    <div class="container-fluid container-principal">
+        <div class="row g-3 mx-0 py-2">
+
+            <div class="col-12 col-xl-5">
+                <section class="fp-pm-panel">
+                    <div class="fp-pm-panel-head">
+                        <i class="bi bi-building-check"></i>
+                        <div>
+                            <h2 class="fp-pm-titulo">Parceiro de Monitoramento</h2>
+                            <h3 class="fp-pm-subtitulo">Vincular cliente a um parceiro externo</h3>
+                        </div>
+                    </div>
+                    <p class="fp-pm-desc">
+                        O cliente deixa de ser monitorado pela IA/WhatsApp padrão e os eventos são enviados por webhook ao parceiro (Moni, dGuard, Segware…).
+                    </p>
+
+                    <div class="mb-3 position-relative">
+                        <label class="form-label" for="pm-busca-cliente">Cliente</label>
+                        <input type="text" class="form-control" id="pm-busca-cliente" placeholder="Buscar cliente..." autocomplete="off">
+                        <input type="hidden" id="pm-id-cliente">
+                        <input type="hidden" id="pm-nome-cliente">
+                        <div id="pm-lista-clientes" class="fp-pm-autocomplete d-none"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="pm-parceiro">Parceiro</label>
+                        <select class="form-select" id="pm-parceiro">
+                            <option value="">Selecione...</option>
+                        </select>
+                        <small class="text-muted" id="pm-preco-hint"></small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="pm-conta-externa">Conta / código no software do parceiro (opcional)</label>
+                        <input type="text" class="form-control" id="pm-conta-externa" maxlength="120">
+                    </div>
+
+                    <button type="button" id="btn-pm-salvar" class="btn btn-success w-100">
+                        <i class="bi bi-link-45deg"></i> Vincular parceiro
+                    </button>
+                </section>
+            </div>
+
+            <div class="col-12 col-xl-7">
+                <section class="fp-pm-panel">
+                    <div class="fp-pm-panel-head">
+                        <i class="bi bi-people"></i>
+                        <div>
+                            <h2 class="fp-pm-titulo">Clientes terceirizados</h2>
+                            <h3 class="fp-pm-subtitulo">Vínculos ativos</h3>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Parceiro</th>
+                                    <th>Preço/quinzena</th>
+                                    <th class="text-center" style="width:70px;">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pm-lista-vinculos"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="fp-pm-panel mt-3">
+                    <div class="fp-pm-panel-head">
+                        <i class="bi bi-receipt"></i>
+                        <div>
+                            <h2 class="fp-pm-titulo">Faturas de parceiros</h2>
+                            <h3 class="fp-pm-subtitulo">Cobrança quinzenal (consulta)</h3>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Período</th>
+                                    <th>Valor</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pm-lista-faturas"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+        </div>
+    </div>
+
+    {{ template "link-js" . }}
+    <script src="/recursos/modulos/minha-empresa/parceiro-monitoramento/parceiro-monitoramento.js"></script>
+</body>
+
+</html>

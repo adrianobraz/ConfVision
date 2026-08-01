@@ -1,0 +1,104 @@
+/* icones bootstrap */
+@import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css");
+
+/* fonte */
+@import url('https://fonts.googleapis.com/css2?family=Playwrite+MX:wght@100..400&display=swap');
+
+*{
+    box-sizing: border-box;
+}
+
+::-webkit-input-placeholder {
+    color: white!important;
+ }
+ 
+ :-moz-placeholder { /* Firefox 18- */
+    color: white!important;  
+ }
+ 
+ ::-moz-placeholder {  /* Firefox 19+ */
+    color: white!important;  
+ }
+ 
+ :-ms-input-placeholder {  
+    color: white!important; 
+ }
+
+ .txt-color {
+    color: white!important;
+ }
+
+.fmt-campo {
+    background-color: #444!important;   
+    background-color: #3f3f3f!important;   
+    color: white!important;
+}
+
+.fmt-color {
+    background-color: #444!important; 
+    color: white!important;
+}
+
+.fmt-painel {
+    background-color: #198754!important;
+    color: white!important;    
+}
+
+.fmt-titulo {
+    background-color: #222!important;
+    color: white!important;
+    font-weight: bold;
+}
+
+.fmt-table {
+    background-color: #444!important;
+    color: white!important;
+}
+
+.fmt-thead {
+    background-color: #333!important;
+    color: white!important;
+}
+
+.txt-tbody{
+    color: white!important;
+    font-weight: bold;
+}
+
+.fmt-tbody {
+    background-color: #888!important;
+    color: white!important;
+    font-weight: bold;
+}
+
+.fmt-botao {
+    background-color: #444!important;
+    background-color: #333!important;
+    color: white!important;
+}
+
+.box-flex {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+
+}
+
+
+@media screen and (min-width: 992px) {
+    .box-flex {        
+        align-items: stretch;
+        justify-content: center;
+        flex-direction: row;
+        flex-wrap: wrap;
+        height: 100%;
+    }
+}
+
+.click{
+    cursor: pointer;
+}
+
+.h-60{
+    height: 60px;
+}

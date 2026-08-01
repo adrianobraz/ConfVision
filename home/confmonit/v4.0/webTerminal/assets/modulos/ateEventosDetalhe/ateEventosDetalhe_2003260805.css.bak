@@ -1,0 +1,31 @@
+#ateEventosDetalhe {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+
+}
+
+#ateEventosDetalhe_tabEventos {
+    height: 40%;
+    display: flex;
+    padding: 6px;
+    text-align: center;
+    font-size: 12px;
+}
+
+#ateEventosDetalhe_tabUltimos25 {
+    max-height: 200px;
+    display: flex;
+    padding: 6px;
+    text-align: center;
+    font-size: 12px;
+
+}
+
+@media (width >= 992px) {
+   
+    #ateEventosDetalhe_tabUltimos25 {
+        max-height: 60%;
+    }
+}

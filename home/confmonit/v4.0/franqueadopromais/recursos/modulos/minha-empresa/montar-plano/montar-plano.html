@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="pt-br">
+    <head>
+        {{ template "head" . }}
+        <link rel="stylesheet" href="/recursos/modulos/minha-empresa/montar-plano/montar-plano.css">
+    </head>
+    <body>
+        {{ template "variaveis-controle" . }}
+        {{ template "nav-bar" . }}
+
+        <div class="container-fluid container-principal fp-page-montar-plano px-3 px-xl-4 py-4">
+                    <div class="fp-alacarte-header">
+                        <h4><i class="bi bi-sliders"></i> Montar Meu Plano — À la Carte</h4>
+                        <p class="text-muted mb-0">
+                            Escolha um plano base, módulos do FranqueadoPro e, se quiser, produtos complementares.
+                            Montar avulso costuma sair mais caro que os pacotes Lite, Pro ou Pro+.
+                            <a href="/carregar-meu-plano">Ver planos em pacote</a>
+                        </p>
+                    </div>
+
+                    <div id="fp-alacarte-erro" class="alert alert-danger d-none" role="alert"></div>
+                    <div id="fp-alacarte-info" class="alert alert-info d-none" role="status"></div>
+
+                    <div class="row g-3 fp-alacarte-layout-row">
+                        <div class="col-lg-7 col-xl-7">
+                            <div class="fp-plano-card">
+                                <h5 class="mb-3">1. Plano base</h5>
+                                <div id="fp-alacarte-bases" class="fp-alacarte-bases">
+                                    <p class="text-muted">Carregando planos...</p>
+                                </div>
+                            </div>
+
+                            <div class="fp-plano-card mt-3">
+                                <h5 class="mb-3">2. Módulos adicionais</h5>
+                                <p class="text-muted small">Módulos já contratados aparecem em verde com botão <strong>X</strong> para remover. Novos módulos são selecionados pelo checkbox. Confirme tudo em <strong>Contratar plano personalizado</strong>.</p>
+                                <div id="fp-alacarte-modulos">
+                                    <p class="text-muted">Carregando módulos...</p>
+                                </div>
+                            </div>
+
+                            <div class="fp-plano-card mt-3">
+                                <h5 class="mb-3">3. Produtos complementares</h5>
+                                <p class="text-muted small mb-2">
+                                    Contrate WebTerminal, Terminal Móvel, Vision, webAmbiente ou Dialyze junto com o plano.
+                                    Itens <strong>inclusos</strong> no FranqueadoPro (conforme o plano base) não precisam ser comprados.
+                                </p>
+                                <div id="fp-alacarte-ecossistema">
+                                    <p class="text-muted">Carregando produtos...</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-5 col-xl-5 fp-alacarte-col-resumo">
+                            <aside id="fp-alacarte-resumo-sticky" class="fp-alacarte-resumo-sticky" aria-label="Resumo do plano">
+                            <div class="fp-plano-card fp-alacarte-resumo">
+                                <h5 class="mb-3">Resumo</h5>
+                                <div id="fp-alacarte-resumo-detalhe" class="fp-alacarte-resumo-detalhe">
+                                    <p class="text-muted small">Selecione o plano base e os módulos.</p>
+                                </div>
+                                <div class="fp-alacarte-total mt-3">
+                                    <span>Total mensal</span>
+                                    <strong id="fp-alacarte-total">R$ 0,00</strong>
+                                </div>
+                                <div class="fp-alacarte-total fp-alacarte-total-fatura">
+                                    <span>Total da fatura a pagar</span>
+                                    <strong id="fp-alacarte-total-fatura">R$ 0,00</strong>
+                                </div>
+                                <div class="fp-alacarte-cupom mt-3">
+                                    <label class="form-label small mb-1" for="fp-alacarte-cupom-codigo">Cupom de desconto</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" class="form-control text-uppercase" id="fp-alacarte-cupom-codigo" placeholder="Código" autocomplete="off">
+                                        <button type="button" class="btn btn-outline-secondary" id="fp-alacarte-cupom-validar">Validar</button>
+                                    </div>
+                                    <div id="fp-alacarte-cupom-msg" class="small text-muted mt-1"></div>
+                                </div>
+                                <div id="fp-alacarte-aviso-cobranca" class="fp-alacarte-aviso-cobranca d-none" role="status"></div>
+                                <button type="button" class="btn btn-primary w-100 mt-3" id="fp-alacarte-contratar" disabled>
+                                    <i class="bi bi-cart-check"></i> Contratar plano personalizado
+                                </button>
+                                <p class="text-muted small mt-2 mb-0" id="fp-alacarte-rodape-acao">
+                                    Ao adicionar módulos ou produtos, será gerada uma fatura em aberto. Remoções de módulos entram na próxima fatura e seguem ativos até lá.
+                                </p>
+                            </div>
+                            </aside>
+                            <div id="fp-alacarte-resumo-spacer" class="fp-alacarte-resumo-spacer" aria-hidden="true"></div>
+                        </div>
+                    </div>
+        </div>
+
+        {{ template "link-js" . }}
+        <script src="/recursos/js/auxiliares/fp-planos-dados.js"></script>
+        <script src="/recursos/js/auxiliares/licenca-menu.js"></script>
+        <script src="/recursos/modulos/minha-empresa/montar-plano/montar-plano.js"></script>
+    </body>
+</html>

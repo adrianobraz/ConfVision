@@ -1,0 +1,159 @@
+<link rel="stylesheet" href="/assets/modulos/ateProDados/ateProDados.css">
+
+<div id="atenProDados" class="fmt.color">
+    <div id="atenProDados_titulo">
+        <div id="atenProDados_cpFranqNome"></div>
+    </div>
+
+    <div id="atenProDados_dadosFixo">
+
+        <div id="atenProDados_boxDados">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-success text-bg-success">Cliente:</span>
+                <input id="atenProDados_cpCliNome" type="text"
+                    class="form-control form-control-sm fmt-campo">
+            </div>
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-success text-bg-success">Alarme:</span>
+                <input id="atenProDados_cpDispNome" type="text"
+                    class="form-control form-control-sm fmt-campo">
+            </div>
+        </div>
+
+        <div id="atenProDados_armado" onclick="ateProDado_armarCentral()"></div>
+
+
+    </div>
+
+    <div id="atenProDados_responsivo" class="table-responsive">
+        <textarea 
+            id="atenProDados_cpMensagemAtendente" 
+            class="form-control form-control-sm mt-1"
+            rows="3" readonly 
+            placeholder="MENSAGEM DO CLIENTE AO ATENDENTE"
+        ></textarea>
+        <textarea 
+            id="atenProDados_cpDescricaoAtendimento"
+            class="form-control form-control-sm fmt-campo mb-1 mt-1 text-uppercase" 
+            rows="5" placeholder="Descreva em poucas palavras o atendimento"
+        ></textarea>
+<select id="atenProDados_cpMenssagemPreFormatada" class="form-control form-control-sm fmt-campo mb-1 mt-1" type="text">
+    <option>Atendimento Padrão</option>
+    <optgroup label="🚨 Intrusão / Disparo">
+        <option>Aguardando Restauração</option>
+        <option>Evento restaurado automaticamente</option>
+        <option>Falha Restaurada</option>
+        <option>Restauração de intrusão</option>
+        <option>Evento confirmado como intrusão</option>
+        <option>Evento confirmado como falso disparo</option>
+    </optgroup>
+
+    <optgroup label="👤 Ação do Usuário">
+        <option>Sistema armado pelo usuário</option>
+        <option>Sistema desarmado pelo usuário</option>
+        <option>Disparo ocasionado pelo usuário ao armar</option>
+        <option>Disparo ocasionado pelo usuário ao desarmar</option>
+    </optgroup>
+
+    <optgroup label="📞 Resultado do Contato">
+        <option>Contato realizado com responsável</option>
+        <option>Contato no local com</option>
+        <option>Entrou em contato e está tudo bem no local</option>
+        <option>Responsável não atendeu</option>
+        <option>Responsável a caminho do local</option>
+        <option>Central não conseguiu contato</option>
+    </optgroup>
+
+    <optgroup label="🚓 Ação da Viatura">
+        <option>Acionando a Viatura</option>
+        <option>Viatura acionada</option>
+        <option>Viatura deslocando para o local</option>
+        <option>Viatura no local verificando</option>
+        <option>Viatura no local, sem movimentação aparente</option>
+    </optgroup>
+
+    <optgroup label="👮 Supervisão">
+        <option>Supervisor ciente do evento</option>
+        <option>Evento encaminhado para supervisão</option>
+    </optgroup>
+
+    <optgroup label="⚙️ Situações Operacionais">
+        <option>Monitoramento preventivo ativado</option>
+        <option>Sistema em Manutenção</option>
+        <option>Evento registrado para acompanhamento</option>
+    </optgroup>
+
+    <optgroup label="🛠 Suporte Técnico">
+        <option>Técnico acionado</option>
+        <option>Técnico no local</option>
+        <option>Gerado ordem de serviço</option>
+        <option>Atendimento encaminhado para manutenção</option>
+    </optgroup>
+
+    <optgroup label="📝 Informações Complementares">
+        <option>Contato realizado com:</option>
+        <option>Zona disparada:</option>
+        <option>Responsável informou:</option>
+    </optgroup>
+
+    <optgroup label="🔐 Armado / Desarmado">
+        <option>Sistema armado pelo usuário</option>
+        <option>Sistema desarmado pelo usuário</option>
+        <option>Abertura fora de horário conforme instrução para desconsiderar</option>
+        <option>Fechamento supervisionado realizado</option>
+    </optgroup>
+
+    <optgroup label="📡 Falhas do Sistema">
+        <option>Falha de comunicação com a central</option>
+        <option>Aguardando restauração</option>
+        <option>Evento restaurado automaticamente</option>
+        <option>Falha restaurada</option>
+        <option>Sistema em manutenção</option>
+        <option>Teste de comunicação recebido</option>
+    </optgroup>    
+
+    <optgroup label="🔴 Pânico">
+        <option>Evento de pânico recebido</option>
+        <option>Contato imediato com responsável</option>
+        <option>Viatura acionada para evento de pânico</option>
+        <option>Evento de pânico cancelado pelo usuário</option>
+    </optgroup>
+
+        <optgroup label="🔥 Incêndio">
+        <option>Evento de incêndio recebido</option>
+        <option>Sensor de incêndio ativado</option>
+        <option>Contato com responsável sobre evento de incêndio</option>
+        <option>Evento de incêndio restaurado</option>
+    </optgroup>
+
+</select>
+    </div><!-- atenProDados_responsivo -->
+
+    <div id="atenProDados_boxBtn">
+        <div class="atenProDados_bntControle">
+            <button 
+                id="atenProDados_btnAguardar" 
+                class="flex-fill btn btn-warning text-bg-warning fs-3"
+            >
+                <i class="bi bi-alarm-fill"></i>
+                &nbsp; Aguardar
+            </button>
+        </div>
+
+        <div class="atenProDados_bntControle">
+
+            <button 
+                id="atenProDados_btnFinalizar" 
+                class="flex-fill btn btn-danger text-bg-danger fs-3"
+            >
+                <i class="bi bi-check-circle-fill"></i>
+                &nbsp; Finalizar
+            </button>
+
+        </div>
+        <div id="atenProDados_boxHistoricoVisual" class="d-none">
+            <div id="atenProDados_historicoTitulo">Histórico do atendimento</div>
+            <div id="atenProDados_cpHistoricoVisual"></div>
+        </div>
+    </div>
+</div>

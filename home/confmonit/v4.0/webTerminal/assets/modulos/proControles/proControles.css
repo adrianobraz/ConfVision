@@ -1,0 +1,25 @@
+
+#proControles_cpRelogio{
+    font-weight: bold;
+}
+
+#proControles_cpVersao{
+    display: none;
+}
+
+#proControles_boxLed .ledOff {
+    
+    --bs-bg-opacity: 1;
+    color: rgba(var(--bs-success-rgb), var(--bs-bg-opacity)) !important;
+}
+
+@media screen and (width >=576px) {
+    #proControles_cpRelogio{
+        text-align: start;    
+    }
+
+    #proControles_cpVersao{
+        text-align: end;
+        display: block;
+    }
+}

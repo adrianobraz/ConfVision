@@ -1,0 +1,124 @@
+{{ template "pagina" . }} {{ define "body" }}
+<link rel="stylesheet" href="/public/css/mapa.css">
+<div class="app-shell">
+    {{ template "navbar" . }}
+
+    <main class="app-main app-main-narrow">
+        <header class="page-header">
+            <div class="page-header-left">
+                <a id="linkVoltar" href="/home" class="btn btn-ghost btn-sm js-voltar">← Voltar</a>
+                <h2 id="tituloForm" class="page-title">Novo mapa</h2>
+            </div>
+        </header>
+
+        <div class="form-panel">
+            <input type="hidden" id="idMapa" value="0" />
+            <input type="hidden" id="idCliente" />
+            <input type="hidden" id="idFranqueado" />
+            <input type="hidden" id="nomeCliente" />
+
+            <div class="form-group">
+                <label class="form-label" for="descricao">Descrição</label>
+                <input id="descricao" type="text" class="form-input"
+                    placeholder="Ex: Piso 1, Loja, Depósito" />
+            </div>
+
+            <div class="form-group ambiente-planta-grupo">
+                <label class="form-label">Planta baixa</label>
+                <div class="btn-row ambiente-planta-tabs">
+                    <button type="button" id="btnModoUrl" class="btn btn-ghost btn-sm ambiente-tab-ativo">
+                        <i class="bi bi-link-45deg" aria-hidden="true"></i><span>URL</span>
+                    </button>
+                    <button type="button" id="btnModoArquivo" class="btn btn-ghost btn-sm">
+                        <i class="bi bi-cloud-upload" aria-hidden="true"></i><span>Enviar imagem</span>
+                    </button>
+                    <button type="button" id="btnModoDesenhar" class="btn btn-ghost btn-sm">
+                        <i class="bi bi-pencil-square" aria-hidden="true"></i><span>Desenhar</span>
+                    </button>
+                </div>
+                <div id="blocoUrl" class="ambiente-planta-bloco">
+                    <input id="imagem_url" type="url" class="form-input" placeholder="https://..." />
+                </div>
+                <div id="blocoArquivo" class="ambiente-planta-bloco hidden">
+                    <input id="arquivoMapa" type="file" class="form-input" accept="image/jpeg,image/png,image/webp,image/gif" />
+                    <p class="form-hint">JPG, PNG ou WebP. Será otimizada para até 150 KB ao salvar.</p>
+                    <p id="uploadStatus" class="form-hint hidden"></p>
+                </div>
+                <div id="blocoDesenhar" class="ambiente-planta-bloco hidden">
+                    <div class="planta-toolbar btn-row">
+                        <button type="button" class="btn btn-ghost btn-sm planta-tool planta-tool-ativo" data-tool="selecionar" title="Selecionar e mover">
+                            <i class="bi bi-cursor" aria-hidden="true"></i><span>Selecionar</span>
+                        </button>
+                        <button type="button" class="btn btn-ghost btn-sm planta-tool" data-tool="texto" title="Nome do ambiente">
+                            <i class="bi bi-type" aria-hidden="true"></i><span>Texto</span>
+                        </button>
+                        <button type="button" class="btn btn-ghost btn-sm planta-tool" data-tool="retangulo" title="Retângulo — ambiente fechado">
+                            <i class="bi bi-square" aria-hidden="true"></i><span>Retângulo</span>
+                        </button>
+                        <button type="button" class="btn btn-ghost btn-sm planta-tool" data-tool="porta" title="Porta">
+                            <i class="bi bi-door-open" aria-hidden="true"></i><span>Porta</span>
+                        </button>
+                        <button type="button" class="btn btn-ghost btn-sm planta-tool" data-tool="janela" title="Janela">
+                            <i class="bi bi-window" aria-hidden="true"></i><span>Janela</span>
+                        </button>
+                        <button type="button" class="btn btn-ghost btn-sm planta-tool" data-tool="parede" title="Parede">
+                            <i class="bi bi-bricks" aria-hidden="true"></i><span>Parede</span>
+                        </button>
+                        <button type="button" class="btn btn-ghost btn-sm planta-tool" data-tool="externa" title="Área externa — varanda, garagem">
+                            <i class="bi bi-brightness-high" aria-hidden="true"></i><span>Área externa</span>
+                        </button>
+                        <button type="button" id="btnPlantaDesfazer" class="btn btn-ghost btn-sm" title="Desfazer">
+                            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i><span>Desfazer</span>
+                        </button>
+                        <button type="button" id="btnPlantaApagar" class="btn btn-ghost btn-sm" title="Apagar selecionado">
+                            <i class="bi bi-trash" aria-hidden="true"></i><span>Apagar</span>
+                        </button>
+                    </div>
+                    <p id="plantaDica" class="form-hint">Retângulo: arraste para 4 paredes. Área externa: clique nos cantos — as linhas aparecem ao mover o mouse. Duplo clique ou clique no 1º ponto azul para fechar.</p>
+                    <p id="plantaFeedback" class="form-hint hidden"></p>
+                    <div class="planta-canvas-wrap">
+                        <canvas id="plantaCanvas" class="planta-canvas"></canvas>
+                    </div>
+                    <button type="button" id="btnUsarDesenho" class="btn btn-primary btn-sm planta-btn-usar" style="margin-top:0.65rem;">
+                        <i class="bi bi-check2-circle" aria-hidden="true"></i><span>Usar este desenho</span>
+                    </button>
+                    <p id="desenhoStatus" class="form-hint hidden"></p>
+                </div>
+                <div id="previewPlanta" class="ambiente-planta-preview hidden">
+                    <button type="button" id="btnLimparPlanta" class="ambiente-preview-excluir hidden"
+                        title="Remover imagem e usar URL">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                    </button>
+                    <img id="previewImagem" alt="Prévia da planta" />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="ordem">Ordem de exibição</label>
+                <input id="ordem" type="number" value="0" class="form-input" />
+            </div>
+
+            <label class="form-check form-group">
+                <input id="ativo" type="checkbox" checked />
+                Mapa ativo
+            </label>
+
+            <div class="btn-row">
+                <button id="btnSalvar" type="button" class="btn btn-primary">Salvar</button>
+                <button id="btnExcluir" type="button" class="btn btn-danger hidden">Excluir</button>
+            </div>
+
+            <p id="msgMaster" class="hidden msg-warn" style="margin-top:1rem;">Cadastro restrito a usuário master.</p>
+        </div>
+    </main>
+
+    <script src="/public/templates/ambiente/plantaEditor.js"></script>
+    <script src="/public/templates/ambiente/ambiente.js"></script>
+</div>
+{{ end }}

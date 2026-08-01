@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="pt-br">
+
+<head>
+    {{ template "head" . }}
+</head>
+
+<body>
+    {{ template "variaveis-controle" . }}
+
+    {{ template "nav-bar" . }}
+    {{ template "sub-menu-fluid" }}
+   
+    <div class="container-fluid container-principal">
+        <div class="row text-center">
+            <!-- COLUNA ESQUERDA -->
+            <div id="coluna-direita" class="col-lg-6 mt-2">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm">
+                        <thead class="table-dark">
+                            <th style="width: 60%;">Nome</th>
+                            <!--th style="width: 21%;">Celular</th-->
+                            <!-- Desativado o botão excluir para que o franqueado não 
+                            exclua o cliente sem antes fazer o fechamento caso habilite 
+                            novamente mudar colspan para 7 -->
+                            <th colspan="7">Ações</th>
+
+                        </thead>
+                        <tbody>
+                            <!-- Preenchido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div><!-- COLUNA ESQUERDA -->
+
+            <!-- COLUNA DIREITA -->
+            <div id="coluna-esquerda" class="col-lg-6 mt-2
+                    bg-form">
+                <form id="formulario" class="p-4">
+                    <div class="row">
+
+                        <div class="col-lg-12 mb-1 text-start">
+                            <label for="nome" class="form-label">
+                                *Nome:
+                            </label>
+
+                            <input type="text" autofocus maxlength="50" class="form-control form-control-sm
+                                    text-uppercase" id="nome">
+                        </div>
+
+                        <div class="col-lg-4 mb-1 text-start">
+                            <label for="nick" class="form-label">
+                                *Nick/Nome Fantasia:
+                            </label>
+
+                            <input type="text" maxlength="20" class="form-control form-control-sm
+                                    text-uppercase" id="nick">
+                        </div>
+
+                        <div class="col-lg-3 mb-1 text-start">
+                            <label for="tipo" class="form-label">
+                                Tipo do Cliente:
+                            </label>
+
+                            <select id="tipo" class="form-control form-control-sm">
+                                <option value="11">PESSOA FISICA</option>
+                                <option value="14">PESSOA JURIDICA</option>
+                            </select>
+                        </div>
+                       
+                        <div class="col-lg-5 mb-1 text-start">
+                            <label for="pacote" class="form-label">
+                                Pacote:
+                            </label>
+
+                            <select id="pacote" class="form-control form-control-sm">
+                                <option value="0">SELECIONE</option>
+                                
+                            </select>
+                        </div>                        
+
+                        <div class="col-lg-4 mb-1 text-start fisica">
+                            <label for="cpf" class="form-label">
+                                CPF:
+                            </label>
+
+                            <input type="text" class="form-control form-control-sm msk-cpf" id="cpf">
+                        </div>
+
+                        <div class="col-lg-4 mb-1 text-start fisica">
+                            <label for="rg" class="form-label">
+                                RG:
+                            </label>
+
+                            <input type="text" class="form-control form-control-sm" id="rg">
+                        </div>
+
+                        <div class="col-lg-4 mb-1 text-start juridica">
+                            <label for="cnpj" class="form-label">
+                                CNPJ:
+                            </label>
+
+                            <input type="text" class="form-control form-control-sm
+                                    msk-cnpj" id="cnpj">
+                        </div>
+
+                        <div class="col-lg-4 mb-1 text-start juridica">
+                            <label for="inscricao" class="form-label">
+                                Inscr. Estadual:
+                            </label>
+
+                            <input type="text" class="form-control form-control-sm" id="inscricao">
+                        </div>
+
+                       
+
+                        <div class="col-lg-4 mb-1 text-start">
+                            <label for="uf" class="form-label">
+                                UF:
+                            </label>
+                            <select class="form-control form-control-sm
+                                    carregarUf text-uppercase" id="uf"></select>
+                        </div>
+
+                        <div class="col-lg-9 mb-1 text-start">
+                            <label for="endereco" class="form-label">
+                                Endereço:
+                            </label>
+                            <input type="text" maxlength="50" class="form-control form-control-sm
+                                    text-uppercase" id="endereco">
+                        </div>
+
+                        <div class="col-lg-3 mb-1 text-start">
+                            <label for="telefone1" class="form-label">
+                                *Telefone1:
+                            </label>
+                            <input type="text" class="form-control form-control-sm
+                                    msk-celular" id="telefone1">
+                        </div>
+
+                        <div class="col-lg-9 mb-1 text-start">
+                            <label for="bairro" class="form-label">
+                                Bairro:
+                            </label>
+                            <input type="text" maxlength="50" class="form-control form-control-sm
+                                    text-uppercase" id="bairro">
+                        </div>
+
+                        <div class="col-lg-3 mb-1 text-start">
+                            <label for="telefone2" class="form-label">
+                                Telefone2:
+                            </label>
+                            <input type="text" class="form-control form-control-sm
+                            msk-celular" id="telefone2">
+                        </div>
+
+                        <div class="col-lg-9 mb-1 text-start">
+                            <label for="cidade" class="form-label">
+                                Cidade:
+                            </label>
+                            <input type="text" maxlength="50" class="form-control form-control-sm
+                                    text-uppercase" id="cidade">
+                        </div>
+
+                        <div class="col-lg-3 mb-1 text-start">
+                            <label for="cep" class="form-label">
+                                CEP:
+                            </label>
+                            <input type="text" class="form-control form-control-sm msk-cep" id="cep">
+                        </div>
+
+                        <div class="col-lg-6 mb-1 text-start">
+                            <label for="email1" class="form-label">
+                                *E-mail Principal (Login):
+                            </label>
+                            <input type="email" maxlength="50" class="form-control form-control-sm
+                                    text-lowercase" id="email1">
+                        </div>
+
+                        <div class="col-lg-6 mb-1 text-start">
+                            <label for="email2" class="form-label">
+                                E-mail Alternativo:
+                            </label>
+                            <input type="email" maxlength="50" class="form-control form-control-sm
+                                    text-lowercase" id="email2">
+                        </div>
+
+
+
+                        
+                        <!-- CONTROLES -->
+                        <div class="col-lg-12">
+                            <hr>
+                        </div>
+
+                        <div class="col-6 d-grid gap-2 px-1">
+                            <button id="btn-limpar" class="btn btn-lg btn-block btn-danger fs-2
+                                    py-4 py-lg-0" type="button">
+                                <i class="bi bi-eraser-fill fs-2"></i>
+                                &nbsp; Limpar
+                            </button>
+                        </div>
+
+                        <div class="col-6 d-grid gap-2 px-1">
+                            <button id="btn-gravar" class="btn btn-lg btn-success fs-2 py-4
+                                    py-lg-0" type="button">
+                                <i class="bi bi-save-fill fs-2"></i>
+                                &nbsp; Gravar
+                            </button>
+                        </div>
+
+                    </div>
+                </form>
+            </div><!-- COLUNA DIREITA -->
+
+
+        </div>
+    </div>
+
+    {{ template "link-js" . }}
+    <script src="/recursos/modulos/minha-empresa/gerenciar-cliente/gerenciar-cliente.js"></script>
+</body>
+{{ template "modalEmail"}}
+{{ template "modalArmarAlarme"}}
+</html>

@@ -1,0 +1,168 @@
+{{ define "navbar" }}
+<nav id="navbar" class="tech-nav relative z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+
+            <div class="w-full flex items-center gap-2">
+                <a id="navBarLink" href="/home" class="nav-brand shrink-0">
+                    <i class="{{ .NavbarIcon }}"></i>
+                    <span>{{ .NavbarTitulo }}</span>
+                </a>
+
+                <!-- Menu desktop -->
+                <div class="flex-1 hidden md:flex ml-2 items-center space-x-1">
+                    <a href="/home" class="nav-link px-3 py-2">Home</a>
+
+                    <div class="nav-dropdown relative">
+                        <button type="button" class="nav-drop-btn px-3 py-2 inline-flex items-center gap-1">
+                            Franqueado <i class="bi bi-chevron-down text-xs"></i>
+                        </button>
+                        <div class="nav-drop-panel hidden">
+                            <div class="nav-drop-caption">Franqueado</div>
+                            <a href="/franqueado" class="nav-link">
+                                Painel Franqueado
+                                <small>Cadastro e gestão</small>
+                            </a>
+                            <a href="/franqueado/os" class="nav-link">
+                                Ordem de Serviço
+                                <small>Tickets dos franqueados</small>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="nav-dropdown relative">
+                        <button type="button" class="nav-drop-btn px-3 py-2 inline-flex items-center gap-1">
+                            Financeiro <i class="bi bi-chevron-down text-xs"></i>
+                        </button>
+                        <div class="nav-drop-panel hidden">
+                            <div class="nav-drop-caption">Financeiro</div>
+                            <a href="/financeiro" class="nav-link">
+                                Painel Financeiro
+                                <small>Visão geral</small>
+                            </a>
+                            <a href="/financeiro/pacote" class="nav-link">
+                                Pacote
+                                <small>Planos e valores</small>
+                            </a>
+                            <a href="/financeiro/fechamento" class="nav-link">
+                                Fechamento
+                                <small>Receber faturas</small>
+                            </a>
+                            <a href="/financeiro/relatorio" class="nav-link">
+                                Relatório
+                                <small>Visão financeira</small>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="nav-dropdown relative">
+                        <button type="button" class="nav-drop-btn px-3 py-2 inline-flex items-center gap-1">
+                            Relatórios <i class="bi bi-chevron-down text-xs"></i>
+                        </button>
+                        <div class="nav-drop-panel hidden">
+                            <div class="nav-drop-caption">Relatórios</div>
+                            <a href="/relatorio" class="nav-link">
+                                Painel Relatório
+                                <small>Visão geral</small>
+                            </a>
+                            <a href="/relatorio/atendimento" class="nav-link">
+                                Atendimento
+                                <small>Indicadores operacionais</small>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <a href="/logout" class="nav-logout hidden md:flex shrink-0">Sair</a>
+            </div>
+
+            <div class="-mr-2 flex md:hidden">
+                <button onclick="navbarMenu()" type="button"
+                    class="inline-flex items-center justify-center p-2 rounded-md text-cyan-300 hover:bg-cyan-500/10 transition">
+                    <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="menuIntens" class="hidden md:hidden">
+        <div class="px-2 pt-2 pb-3 flex flex-col">
+            <a href="/home" class="nav-link px-3 py-2">Home</a>
+
+            <button type="button" class="nav-mobile-group text-left px-3 py-2 flex justify-between items-center" data-target="m-franqueado">
+                Franqueado <i class="bi bi-chevron-down text-xs"></i>
+            </button>
+            <div id="m-franqueado" class="hidden pl-3 flex flex-col">
+                <a href="/franqueado" class="nav-link px-3 py-2">Painel Franqueado</a>
+                <a href="/franqueado/os" class="nav-link px-3 py-2">Ordem de Serviço</a>
+            </div>
+
+            <button type="button" class="nav-mobile-group text-left px-3 py-2 flex justify-between items-center" data-target="m-financeiro">
+                Financeiro <i class="bi bi-chevron-down text-xs"></i>
+            </button>
+            <div id="m-financeiro" class="hidden pl-3 flex flex-col">
+                <a href="/financeiro" class="nav-link px-3 py-2">Painel Financeiro</a>
+                <a href="/financeiro/pacote" class="nav-link px-3 py-2">Pacote</a>
+                <a href="/financeiro/fechamento" class="nav-link px-3 py-2">Fechamento</a>
+                <a href="/financeiro/relatorio" class="nav-link px-3 py-2">Relatório</a>
+            </div>
+
+            <button type="button" class="nav-mobile-group text-left px-3 py-2 flex justify-between items-center" data-target="m-relatorios">
+                Relatórios <i class="bi bi-chevron-down text-xs"></i>
+            </button>
+            <div id="m-relatorios" class="hidden pl-3 flex flex-col">
+                <a href="/relatorio" class="nav-link px-3 py-2">Painel Relatório</a>
+                <a href="/relatorio/atendimento" class="nav-link px-3 py-2">Atendimento</a>
+            </div>
+
+            <a href="/logout" class="nav-logout text-center mt-3">Sair</a>
+        </div>
+    </div>
+</nav>
+
+<script>
+    function navbarMenu() { $('#menuIntens').toggleClass('hidden') }
+
+    $(function () {
+        $('a[href="/logout"]').on('click', function () {
+            sessionStorage.clear()
+        })
+
+        $('.nav-drop-btn').on('click', function (e) {
+            e.stopPropagation()
+            const panel = $(this).siblings('.nav-drop-panel')
+            $('.nav-drop-panel').not(panel).addClass('hidden')
+            panel.toggleClass('hidden')
+        })
+
+        $(document).on('click', function () {
+            $('.nav-drop-panel').addClass('hidden')
+        })
+
+        $('.nav-drop-panel').on('click', function (e) {
+            e.stopPropagation()
+        })
+
+        $('.nav-mobile-group').on('click', function () {
+            const id = $(this).data('target')
+            $('#' + id).toggleClass('hidden')
+        })
+
+        const path = window.location.pathname.replace(/\/$/, '') || '/home'
+        $('.nav-link').each(function () {
+            const href = ($(this).attr('href') || '').replace(/\/$/, '')
+            if (href && href === path) {
+                $(this).addClass('bg-green-700')
+                $(this).closest('.nav-dropdown').find('.nav-drop-btn').addClass('bg-green-800')
+                const mobileGroup = $(this).closest('[id^="m-"]')
+                if (mobileGroup.length) {
+                    mobileGroup.removeClass('hidden')
+                }
+            }
+        })
+    })
+</script>
+{{ end }}

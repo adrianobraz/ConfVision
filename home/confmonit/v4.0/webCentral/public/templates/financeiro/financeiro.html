@@ -1,0 +1,39 @@
+{{ template "pagina" . }}
+
+{{ define "body" }}
+<div class="tech-page">
+    {{ template "navbar" . }}
+
+    <div class="tech-workspace">
+        <section class="tech-col-list">
+            <div class="tech-panel">
+                <div class="tech-panel-head">
+                    <i class="bi bi-table"></i> Listagem · Financeiro
+                </div>
+                <div class="tech-panel-body">
+                    {{ template "tabela" }}
+                </div>
+            </div>
+        </section>
+
+        <section class="tech-col-form">
+            <div class="tech-panel">
+                <div class="tech-panel-head">
+                    <i class="bi bi-graph-up"></i> Painel Financeiro
+                </div>
+                <div class="tech-panel-body" style="padding:0;">
+                    <img class="w-full h-full object-cover opacity-80" src="/public/img/financeiro.jpg" alt="financeiro">
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+<script src="/public/templates/financeiro/financeiro.js"></script>
+{{ end }}
+
+
+{{ define "thead" }}
+<th class="py-2 w-3/12 text-sm">Cnpj</th>
+<th class="py-2 w-8/12 text-sm">Razão Social</th>
+<th class="py-2 w-1/12 text-sm" colspan="1">Ação</th>
+{{end}}

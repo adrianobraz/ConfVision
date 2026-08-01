@@ -1,0 +1,148 @@
+{{ template "pagina" . }}
+
+{{ define "body" }}
+<div class="h-full w-full">
+    {{ template "navbar" . }}
+    <div class="flex flex-col bg-zinc-500 md:flex-row gap-1 md:h-[calc(100%-4rem)]">
+
+        {{ template "fabricante"}}
+
+
+
+        {{ template "modelo"}}
+
+    </div>
+</div>
+<script src="/public/templates/configuracaoCentralAlarme/centralAlarme.js"></script>
+{{ end }}
+
+
+{{ define "fabricante" }}
+<div class="md:w-5/12 bg-zinc-400 flex flex-col gap-2 p-2">
+    <h1 class="text-center text-xl font-black border-b">Gerenciar Fabricante</h1>
+
+    <div class="w-full flex flex-col md:flex-row gap-2">
+        <div class="flex flex-col md:w-1/5">
+            <label class="ps-2 font-black" for="fabKeepVisivel">Keep Visivel</label>
+            <select id="fabKeepVisivel"
+                class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase">
+                <option value="N">Não</option>
+                <option value="S">Sim</option>
+            </select>
+
+        </div>
+
+        <div class="flex flex-col md:w-3/5">
+            <label class="ps-2 font-black" for="fabNome">Nome</label>
+            <input id="fabNome" type="text"
+                class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase">
+        </div>
+
+        <div class="h-full md:w-1/5 flex flex-col gap-1">
+            <button id="btnFabGravar" class="md:h-1/2 py-2 md:py-0 rounded-md text-white font-black text-xl bg-green-700 btn">Gravar</button>
+
+            <button id="btnFabLimpar" class="md:h-1/2 py-2 md:py-0 rounded-md text-white font-black text-xl bg-red-700 btn">Limpar</button>
+        </div>
+    </div>
+
+    <div class="overflow-x-auto">
+        <div class="min-w-[530px]">
+            <!--  -->
+            <table id="tabFabricante" class="w-full text-center border-separate bg-green-100">
+                <thead class="py-3 text-white font-black bg-green-950">
+                    <tr>
+                        <th style="width: 20%;">Keep Vis.</th>
+                        <th>Descricao</th>
+                        <th style="width: 20%;" colspan="3">Ação</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-green-200"></tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{{ end }}
+
+{{ define "modelo" }}
+<div class="md:w-7/12  bg-zinc-400 flex flex-col gap-2 p-2">
+    <h1 class="text-center text-xl font-black border-b">Gerenciar Modelo</h1>
+
+    <div class="w-full flex flex-col md:flex-row gap-2">
+        <div class="md:w-4/5 flex flex-col gap-2">
+
+            <div class="w-full flex flex-col md:flex-row gap-2">
+                <div class="md:w-2/5">
+                    <label class="ps-2 font-black" for="modIdFabricante">Fabricante</label>
+                    <select id="modIdFabricante"
+                        class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase">
+                    </select>
+                </div>
+
+                <div class="md:w-3/5">
+                    <label class="ps-2 font-black" for="modNome">Nome</label>
+                    <input id="modNome" type="text"
+                        class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase">
+                </div>
+
+            </div>
+
+            <div class="w-full flex flex-col md:flex-row gap-2">
+                <div class="md:w-1/4">
+                    <label class="ps-2 font-black" for="modQtdParticoes">Qtd. Partições</label>
+                    <input id="modQtdParticoes" type="text"
+                        class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 mskNum">
+                    
+                </div>
+                
+                <div class="md:w-1/4">
+                    <label class="ps-2 font-black" for="modQtdZonas">Qtd. Zonas</label>
+                    <input id="modQtdZonas" type="text"
+                        class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 mskNum">
+                </div>
+
+                <div class="md:w-1/4">
+                    <label class="ps-2 font-black" for="modQtdPgm">Qtd. Pgm</label>
+                    <input id="modQtdPgm"
+                        class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 mskNum">
+                    
+                </div>
+                
+                <div class="md:w-1/4">
+                    <label class="ps-2 font-black" for="modEletrificador">Eletrificador</label>
+                    <select id="modEletrificador"
+                        class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 uppercase">
+                        <option value="N">NÃO</option>
+                        <option value="S">SIM</option>
+                    </select>
+                </div>
+
+            </div>
+        </div>
+        <div class="h-full md:w-1/5 flex flex-col gap-1">
+            <button id="btnModGravar" class="md:h-1/2 py-2 md:py-0 rounded-md text-white font-black text-xl bg-green-700 btn">Gravar</button>
+
+            <button id="btnModLimpar" class="md:h-1/2 py-2 md:py-0 rounded-md text-white font-black text-xl bg-red-700 btn">Limpar</button>
+        </div>
+    </div>
+
+    <div class=" bg-red-500 overflow-x-auto">
+        <div class="min-w-[560px]">
+            <!--  -->
+            <table id="tabModelo" class="w-full text-center border-separate bg-green-100">
+                <thead class="py-3 text-white font-black bg-green-950">
+                    <tr>                        
+                        <th>Nome</th>
+                        <th style="width: 10%;">Q. Part.</th>
+                        <th style="width: 10%;">Q. Zonas</th>
+                        <th style="width: 10%;">Q. Pgm</th>
+                        <th style="width: 10%;">Eletr.</th>
+                        <th style="width: 12%;" colspan="3">Ação</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-green-200"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{{ end }}

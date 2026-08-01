@@ -1,0 +1,84 @@
+function modSetores_start(retorno) {
+    $('#boxDir').empty()
+    const uri = '/assets/modulos/modSetores/modSetores.html'
+    $('#boxDir').load(uri, () => {
+        
+        $('#modSetores_btnFechar').on('click', retorno)
+
+        modSetores_buscaDados()
+    })
+
+}
+
+function modSetores_buscaDados() {
+    const idDispositivo = sessionStorage.getItem('ateProDado_proc_idDispositivo')
+    $.ajax({
+        url: '/modSetores/buscarDados',
+        method: 'Post',
+        headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": "Bearer " + sessionStorage.getItem('token')
+        },
+        data: JSON.stringify({ idDispositivo: idDispositivo })
+    }).fail(function (e) {
+        console.log(e)
+    }).done(function (r) {
+        if (r.status != 'Vazio') {
+            $('#modSetores tbody').empty()
+            r.dados.forEach(i => {
+                modSetores_montaLinha(i)
+            });
+        }
+
+        $(`td[tipo=modSetores_btnCamera]`).on('click', function () {
+            const codFranq = $(this).attr('codFranq')
+            const particao = $(this).attr('particao')
+            const conta = $(this).attr('conta')
+            const setor = $(this).attr('setor')
+            
+            benuvem_visualizar(codFranq, particao, conta, setor) 
+           
+        })
+
+
+    })
+}
+
+function modSetores_montaLinha(item) {
+    
+    const corCam = (item.camera == "S") ? 'bg-success' : 'bg-secondary'
+    const click = (item.camera == "S") ? 'click' : ''
+    const imgCam = (item.camera == "S") ? '<i class="bi bi-camera-video-fill"></i> ': '<i class="bi bi-camera-video-off-fill"></i>'
+    const linkCam = (item.camera == "S") ? 'tipo="modSetores_btnCamera"' : ''
+    const tipoTexto = (item.tipo || '').toString()
+    const tipoUpper = tipoTexto.toUpperCase()
+    const tipoIcone = tipoUpper.includes('EXTERNA')
+        ? '<i class="bi bi-cloud-sun"></i> '
+        : tipoUpper.includes('INTERNA')
+            ? '<i class="bi bi-house-door"></i> '
+            : ''
+
+    $('#modSetores tbody').append(`        
+        <tr>
+            <td 
+                codFranq="${item.codFranq}" 
+                particao="${item.particao}" 
+                conta="${item.conta}" 
+                setor="${item.setor}" 
+                ${linkCam} 
+                class="${click} ${corCam} txt-tbody"
+            >${imgCam}</td>
+            
+            <td class="fmt-tbody">${item.setor}</td>
+            
+            <td class="fmt-tbody">${item.nome}</td>
+
+            <td class="fmt-tbody">${item.descricao}</td>
+
+            <td class="fmt-tbody text-center">${tipoIcone}</td>
+        </tr>                
+    `)
+
+}
+

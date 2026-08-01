@@ -1,0 +1,221 @@
+================================================================================
+FRANQUEADOPRO SAAS — DOMINIO AUTOMATICO
+Guia completo: onde esta cada coisa, Xano, compilar e subir no servidor
+================================================================================
+
+--------------------------------------------------------------------------------
+1. ONDE ESTA CADA COISA NO REPOSITORIO (core4)
+--------------------------------------------------------------------------------
+
+A) BACKEND XANO (push obrigatorio antes de usar)
+   core4\tables\126_fp_whitelabel.xs
+      -> tabela com campos: subdominio, dominio, fqdn, dominio_status,
+         dominio_erro, provisionado_em
+
+   core4\functions\454_fn_fp_whitelabel_montar_fqdn.xs
+      -> monta franqueado.exemplo.com.br a partir de sub + dominio
+
+   core4\apis\fp_franqueado_pro\2289_fp_whitelabel_get_POST.xs
+      -> leitura (nao mudou logica; retorna campos novos automaticamente)
+
+   core4\apis\fp_franqueado_pro\2290_fp_whitelabel_salvar_POST.xs
+      -> salvar: bloqueia edicao de dominio ja salvo; dispara provisionar
+
+   core4\apis\fp_franqueado_pro\2303_fp_whitelabel_dominio_remover_POST.xs
+      -> remove dominio do franqueado (botao X vermelho)
+
+   core4\apis\fp_franqueado_pro\2304_fp_whitelabel_dominio_status_POST.xs
+      -> atualiza status apos provisionamento (chamado pelo Go)
+
+B) FRANQUEADOPRO (app web porta 2005)
+   core4\home\confmonit\v4.0\franqueadopro\
+      app.go                          -> entrada
+      .env                            -> config (PORTA, XANO, PROVISIONER_*)
+      build.ps1                       -> build antigo (so franqueadopro)
+      build-fp-dominio-saas.ps1       -> build NOVO (franqueadopro + provisionador)
+
+      src\config\config.go            -> le PROVISIONER_URL e PROVISIONER_KEY
+      src\provisioner\client.go         -> cliente HTTP do provisionador
+      recursos\modulos\minha-empresa\whitelabel\
+         whitelabel.go                 -> salvar/remove/retentar SSL + Xano
+         whitelabel.html               -> tela com dominio bloqueado + X vermelho
+         whitelabel.js                 -> logica UI
+         whitelabel.css                -> estilos
+
+C) PROVISIONADOR DE DOMINIO (servico porta 2015, so localhost)
+   core4\home\confmonit\v4.0\fp-dominio-provision\
+      main.go                         -> entrada HTTP
+      .env.example                    -> modelo de config
+      config\config.go
+      handler\handler.go              -> rotas /provisionar /remover /retentar-ssl
+      apache\apache.go                -> cria vhost Apache + certbot
+
+D) SERVIDOR (scripts systemd — subir uma vez)
+   core4\home\confmonit\start\fp-dominio-provision.sh
+   core4\home\confmonit\service\confmonit4fp-dominio-provision.service
+
+--------------------------------------------------------------------------------
+2. O QUE FAZER NO XANO (passo a passo)
+--------------------------------------------------------------------------------
+
+1) Abra o VS Code no workspace core4 (ou painel XanoScript).
+
+2) Faca PUSH destes arquivos (todos de uma vez ou na ordem):
+   - tables/126_fp_whitelabel.xs
+   - functions/454_fn_fp_whitelabel_montar_fqdn.xs
+   - apis/fp_franqueado_pro/2290_fp_whitelabel_salvar_POST.xs
+   - apis/fp_franqueado_pro/2303_fp_whitelabel_dominio_remover_POST.xs
+   - apis/fp_franqueado_pro/2304_fp_whitelabel_dominio_status_POST.xs
+
+   Comando (se usar extensao Xano): push_all_changes_to_xano
+
+3) Confirme no Xano que a tabela fp_whitelabel tem as colunas novas:
+   fqdn, dominio_status, dominio_erro, provisionado_em
+
+4) Confirme que as APIs existem no grupo fp_franqueadoPro:
+   - fp_whitelabel_salvar        (POST) — alterada
+   - fp_whitelabel_dominio_remover (POST) — nova
+   - fp_whitelabel_dominio_status  (POST) — nova
+
+5) Plano necessario: franqueado precisa Pro+ com modulo franqueadopro.saas
+   para cadastrar dominio proprio.
+
+--------------------------------------------------------------------------------
+3. COMPILAR NO WINDOWS (PowerShell)
+--------------------------------------------------------------------------------
+
+Abra PowerShell e execute:
+
+   cd C:\sistemaconfmonit\core4\home\confmonit\v4.0
+   .\build-fp-dominio-saas.ps1 -ProvisionerKey "SuaChaveSecreta123"
+
+Isso gera a pasta:
+
+   deploy\fp-dominio-saas\
+      franqueadopro\              <- subir para o servidor
+         franqueadopro            (binario Linux)
+         .env
+         recursos\               (pasta inteira)
+      fp-dominio-provision\       <- subir para o servidor
+         fp-dominio-provision     (binario Linux)
+         .env
+      start\
+         fp-dominio-provision.sh
+      systemd\
+         confmonit4fp-dominio-provision.service
+      DEPLOY-DOMINIO-SAAS.txt     (esta copia do guia)
+
+Requisito: Go instalado (https://go.dev/dl/)
+
+--------------------------------------------------------------------------------
+4. O QUE SUBIR NO SERVIDOR (FileZilla / SCP)
+--------------------------------------------------------------------------------
+
+SERVIDOR: core-4 (185.130.61.4)
+USUARIO: root (ou confmonit, conforme seu padrao)
+
+A) FRANQUEADOPRO — substituir conteudo em:
+   DESTINO: /home/confmonit/v4.0/franqueadopro/
+
+   ARQUIVOS/PASTAS (do pacote deploy\fp-dominio-saas\franqueadopro\):
+   | Origem (Windows)              | Destino (servidor)                    |
+   |-------------------------------|---------------------------------------|
+   | franqueadopro                 | .../franqueadopro/franqueadopro       |
+   | .env                          | .../franqueadopro/.env                |
+   | recursos\ (pasta inteira)     | .../franqueadopro/recursos/           |
+
+   NAO subir: *.go, go.mod, build.ps1, deploy\
+
+B) PROVISIONADOR — criar pasta e subir:
+   DESTINO: /home/confmonit/v4.0/fp-dominio-provision/
+
+   | Origem                        | Destino                               |
+   |-------------------------------|---------------------------------------|
+   | fp-dominio-provision          | .../fp-dominio-provision/fp-dominio-provision |
+   | .env                          | .../fp-dominio-provision/.env         |
+
+C) SCRIPT DE START (uma vez, ou se mudou):
+   ORIGEM:  deploy\fp-dominio-saas\start\fp-dominio-provision.sh
+   DESTINO: /home/confmonit/start/fp-dominio-provision.sh
+
+D) SYSTEMD (uma vez, ou se mudou):
+   ORIGEM:  deploy\fp-dominio-saas\systemd\confmonit4fp-dominio-provision.service
+   DESTINO: /etc/systemd/system/confmonit4fp-dominio-provision.service
+
+--------------------------------------------------------------------------------
+5. COMANDOS NO SERVIDOR (SSH) — APOS SUBIR ARQUIVOS
+--------------------------------------------------------------------------------
+
+# Permissoes
+chmod +x /home/confmonit/v4.0/franqueadopro/franqueadopro
+chmod +x /home/confmonit/v4.0/fp-dominio-provision/fp-dominio-provision
+chmod +x /home/confmonit/start/fp-dominio-provision.sh
+
+# Conferir .env — MESMA chave nos dois:
+#   /home/confmonit/v4.0/franqueadopro/.env          -> PROVISIONER_KEY=...
+#   /home/confmonit/v4.0/fp-dominio-provision/.env   -> API_KEY=... (igual)
+
+# Ativar provisionador (primeira vez)
+systemctl daemon-reload
+systemctl enable confmonit4fp-dominio-provision
+systemctl start confmonit4fp-dominio-provision
+systemctl status confmonit4fp-dominio-provision
+
+# Teste provisionador
+curl http://127.0.0.1:2015/health
+# Esperado: {"ok":true}
+
+# Reiniciar FranqueadoPro
+systemctl restart confmonit4franqueadopro
+systemctl status confmonit4franqueadopro
+
+# Teste app
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:2005/login
+# Esperado: 200
+
+--------------------------------------------------------------------------------
+6. FLUXO DO CLIENTE (apos deploy)
+--------------------------------------------------------------------------------
+
+1) Franqueado acessa: Minha empresa -> White Label
+2) Preenche Subdominio (ex: franqueado) + Dominio (ex: redeconfinet.com.br)
+3) Clica "Salvar personalizacao"
+   -> Xano grava fqdn
+   -> Go chama provisionador (Apache + certbot automatico)
+   -> Campos de dominio ficam BLOQUEADOS
+4) Cliente cria DNS tipo A na hospedagem -> 185.130.61.4
+5) Se SSL pendente: clica "Verificar DNS e emitir SSL"
+6) Para trocar dominio: botao X vermelho (remove banco + servidor)
+
+--------------------------------------------------------------------------------
+7. TROUBLESHOOTING
+--------------------------------------------------------------------------------
+
+| Problema                         | Verificar                                      |
+|----------------------------------|------------------------------------------------|
+| Salvar dominio nao provisiona    | PROVISIONER_URL/KEY no .env do franqueadopro   |
+| 401 no provisionador             | API_KEY = PROVISIONER_KEY (mesmo valor)        |
+| SSL pendente                     | DNS A apontando para 185.130.61.4; botao SSL   |
+| Dominio ja em uso                | Outro franqueado ja usou esse fqdn no Xano     |
+| Erro "plano Pro+"                | Assinatura precisa franqueadopro.saas          |
+| Apache nao recarrega             | journalctl -u confmonit4fp-dominio-provision   |
+
+Logs:
+   journalctl -u confmonit4fp-dominio-provision -f
+   journalctl -u confmonit4franqueadopro -f
+
+--------------------------------------------------------------------------------
+8. RESUMO RAPIDO (checklist)
+--------------------------------------------------------------------------------
+
+[ ] Push Xano (tabela + 3 APIs + 1 function)
+[ ] .\build-fp-dominio-saas.ps1 -ProvisionerKey "sua-chave"
+[ ] Subir franqueadopro\ para /home/confmonit/v4.0/franqueadopro/
+[ ] Subir fp-dominio-provision\ para /home/confmonit/v4.0/fp-dominio-provision/
+[ ] Subir start\ e systemd\ (primeira vez)
+[ ] chmod +x nos binarios e script
+[ ] systemctl start confmonit4fp-dominio-provision
+[ ] systemctl restart confmonit4franqueadopro
+[ ] Testar White Label com dominio de teste
+
+================================================================================

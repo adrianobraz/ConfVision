@@ -1,0 +1,22 @@
+table co_cliente_config {
+  auth = false
+
+  schema {
+    int id
+    timestamp created_at?=now {
+      visibility = "private"
+    }
+  
+    text idCliente? filters=trim
+    text idFranqueado? filters=trim
+    text corAvatar? filters=trim
+    text iniciais? filters=trim
+  }
+
+  index = [
+    {type: "primary", field: [{name: "id"}]}
+    {type: "gin", field: [{name: "xdo", op: "jsonb_path_op"}]}
+    {type: "btree", field: [{name: "created_at", op: "desc"}]}
+    {type: "btree", field: [{name: "idCliente", op: "asc"}]}
+  ]
+}

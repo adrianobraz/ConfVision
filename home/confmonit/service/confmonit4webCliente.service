@@ -1,0 +1,14 @@
+[Unit]
+Description=Confmonit - Web site cliente  Versão 4
+After=network.target
+StartLimitIntervalSec=0
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=root
+ExecStart=/home/confmonit/start/webCliente.sh
+
+[Install]
+WantedBy=multi-user.target
+

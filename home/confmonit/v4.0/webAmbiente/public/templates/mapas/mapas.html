@@ -1,0 +1,20 @@
+{{ template "pagina" . }} {{ define "body" }}
+<div class="app-shell">
+    {{ template "navbar" . }}
+
+    <main class="app-main">
+        <header class="page-header">
+            <div class="page-header-left">
+                <a href="/home" class="btn btn-ghost btn-sm js-voltar">← Voltar</a>
+                <h2 id="tituloCliente" class="page-title"></h2>
+            </div>
+            <a id="btnNovoMapa" href="#" class="hidden btn btn-primary btn-sm">+ Novo mapa</a>
+        </header>
+
+        <div id="listaMapas" class="card-grid"></div>
+    </main>
+
+    <script src="/public/js/mapaUtil.js"></script>
+    <script src="/public/templates/mapas/mapas.js"></script>
+</div>
+{{ end }}

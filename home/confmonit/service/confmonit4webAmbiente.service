@@ -1,0 +1,13 @@
+[Unit]
+Description=Confmonit - Web site ambiente (mapa) Versao 4
+After=network.target
+StartLimitIntervalSec=0
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=root
+ExecStart=/home/confmonit/start/webAmbiente.sh
+
+[Install]
+WantedBy=multi-user.target

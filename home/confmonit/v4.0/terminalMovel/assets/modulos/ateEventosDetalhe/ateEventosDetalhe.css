@@ -1,0 +1,78 @@
+#ateEventosDetalhe {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+
+}
+
+#ateEventosDetalhe_tabEventos {
+    flex: 1 1 45%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 6px;
+    text-align: center;
+    font-size: 12px;
+}
+
+#ateEventosDetalhe_tabUltimos25 {
+    flex: 1 1 45%;
+    min-height: 0;
+    display: flex;
+    padding: 6px;
+    text-align: center;
+    font-size: 12px;
+
+}
+
+#ateEventosDetalhe_actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+#ateEventosDetalhe_actions .btn {
+    min-height: 44px;
+}
+
+.ateEvt-itemRow td {
+    vertical-align: top;
+    word-break: break-word;
+}
+
+.ateEvt-qtdCell {
+    text-align: center;
+    vertical-align: middle !important;
+    font-weight: 700;
+}
+
+.ateEvt-mainCell {
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+}
+
+.ateEvt-mainInfo {
+    margin-bottom: 6px;
+    text-align: left;
+}
+
+.ateEvt-actionCell {
+    text-align: left;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.ateEvt-actionBtn {
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    min-height: 40px;
+    color: #fff !important;
+}
+
+.ateEvt-actionBtn i {
+    margin-right: 3px;
+}

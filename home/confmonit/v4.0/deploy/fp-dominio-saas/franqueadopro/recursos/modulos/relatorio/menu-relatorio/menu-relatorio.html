@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-br">
+    <head>
+        {{ template "head" . }}
+    </head>
+    <body>
+        {{ template "variaveis-controle" . }}
+        {{ template "nav-bar" . }}
+
+        <div class="container-fluid container-principal">
+            <div class="row text-center g-3 py-3 justify-content-center">
+
+                <div class="col-6 col-lg-3">
+                    <a href="/carregar-relatorio-atendimento" class="fp-menu-card">
+                        <i class="bi bi-clipboard-check-fill"></i>
+                        <span>Relatório de Atendimento</span>
+                    </a>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <a href="/carregar-relatorio-ligacoes" class="fp-menu-card">
+                        <i class="bi bi-telephone-fill"></i>
+                        <span>Lista de Ligações</span>
+                    </a>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <a href="/carregar-menu-eventos" class="fp-menu-card">
+                        <i class="bi bi-card-list"></i>
+                        <span>Eventos</span>
+                    </a>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <a href="/carregar-menu-alarmes" class="fp-menu-card">
+                        <i class="bi bi-shield-fill"></i>
+                        <span>Alarmes</span>
+                    </a>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <a href="/carregar-menu-clientes" class="fp-menu-card">
+                        <i class="bi bi-people-fill"></i>
+                        <span>Clientes</span>
+                    </a>
+                </div>
+
+            </div>
+        </div><!-- container -->
+
+        {{ template "link-js" . }}
+        <script
+            src="/recursos/modulos/relatorio/menu-relatorio/menu-relatorio.js"></script>
+    </body>
+</html>

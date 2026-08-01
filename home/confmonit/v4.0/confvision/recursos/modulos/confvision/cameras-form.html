@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    {{ template "head" . }}
+    {{ template "confvision-head-extra" . }}
+</head>
+<body class="cv-app">
+    {{ template "variaveis-controle" . }}
+    {{ template "confvision-config" . }}
+    {{ template "confvision-nav" . }}
+
+    <main class="cv-main cv-main-form cv-main-wide">
+        <div class="cv-form-page-header">
+            <div>
+                <a href="/cameras" class="cv-btn-ghost cv-back-link mb-2">
+                    <i class="bi bi-arrow-left"></i> Voltar para câmeras
+                </a>
+                <h1 id="form-camera-titulo" class="cv-page-title mb-0">{{.NomeTela}}</h1>
+            </div>
+        </div>
+
+        <div class="cv-form-page cv-form-page-cameras">
+            <aside class="cv-form-clientes">
+                <label class="cv-label" for="busca-cliente">Clientes do franqueado</label>
+                <input type="search" id="busca-cliente" class="cv-input form-control mb-2" placeholder="Buscar por nome...">
+                <div id="lista-clientes" class="cv-lista-clientes"></div>
+            </aside>
+
+            <section class="cv-form-campos">
+                <div id="box-form-placeholder" class="cv-form-placeholder">
+                    <i class="bi bi-person-lines-fill"></i>
+                    <p>Selecione um cliente à esquerda para cadastrar a câmera</p>
+                </div>
+
+                <div id="box-form-camera" class="d-none">
+                <div class="cv-form-cliente-bloco">
+                <div class="cv-form-camera-header">
+                    <div class="cv-form-cliente-row">
+                        <p id="form-cliente-selecionado" class="cv-form-hint mb-0">
+                            <span id="lbl-cliente-nome">Cliente: —</span>
+                            <button type="button" id="btn-trocar-cliente" class="cv-btn-icon cv-btn-trocar-cliente d-none" title="Trocar cliente" aria-label="Trocar cliente">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                        </p>
+                    </div>
+                    <label class="cv-form-ativo-toggle cv-form-ativo-wrap" for="inp-ativo">
+                        <input id="inp-ativo" type="checkbox" class="cv-form-ativo-input">
+                        <span class="cv-form-ativo-badge cv-form-ativo-on">
+                            <i class="bi bi-play-fill"></i> Ativo
+                        </span>
+                        <span class="cv-form-ativo-badge cv-form-ativo-off">
+                            <i class="bi bi-exclamation-circle-fill"></i> Inativo
+                        </span>
+                    </label>
+                </div>
+                </div>
+
+                <ul class="nav nav-tabs cv-form-tabs mb-3" id="cv-form-tabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" type="button" data-tab="dados" id="tab-btn-dados">
+                            <i class="bi bi-camera-video"></i> Dados
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation" id="tab-item-snapshot">
+                        <button class="nav-link" type="button" data-tab="snapshot" id="tab-btn-snapshot">
+                            <i class="bi bi-camera"></i> Snapshot
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation" id="tab-item-area">
+                        <button class="nav-link" type="button" data-tab="area" id="tab-btn-area">
+                            <i class="bi bi-bounding-box"></i> Área de detecção
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation" id="tab-item-url">
+                        <button class="nav-link" type="button" data-tab="url" id="tab-btn-url">
+                            <i class="bi bi-broadcast"></i> URL de Transmissão
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" type="button" data-tab="licenca" id="tab-btn-licenca">
+                            <i class="bi bi-key"></i> Licença
+                        </button>
+                    </li>
+                    <li class="nav-item d-none" role="presentation" id="tab-item-gravacao">
+                        <button class="nav-link" type="button" data-tab="gravacao" id="tab-btn-gravacao">
+                            <i class="bi bi-record-circle"></i> Gravação
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation" id="tab-item-ao-vivo">
+                        <button class="nav-link" type="button" data-tab="ao-vivo" id="tab-btn-ao-vivo">
+                            <i class="bi bi-play-circle"></i> Ao vivo
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="cv-form-tab-panels">
+                    <div id="tab-panel-dados" class="cv-form-tab-panel" data-tab-panel="dados">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="cv-label">Dispositivo</label>
+                                <select id="sel-dispositivo" class="cv-select form-select" disabled>
+                                    <option value="">Selecione o cliente primeiro</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="cv-label">Setor</label>
+                                <select id="sel-setor" class="cv-select form-select" disabled>
+                                    <option value="">Selecione o dispositivo</option>
+                                </select>
+                                <p id="lbl-setor-vazio" class="cv-form-hint cv-licenca-vazia d-none">
+                                    Todos os setores deste dispositivo já possuem câmera.
+                                </p>
+                            </div>
+                            <div class="col-12">
+                                <label class="cv-label">Nome da câmera</label>
+                                <input id="inp-nome" type="text" class="cv-input form-control" placeholder="Ex: Entrada principal">
+                            </div>
+                            <div class="col-6 col-lg-3 cv-campo-yolo">
+                                <label class="cv-label">Confiança mín.</label>
+                                <input id="inp-confianca" type="number" class="cv-input form-control" value="0.5" step="0.05" min="0.1" max="1">
+                            </div>
+                            <div class="col-6 col-lg-3 cv-campo-yolo">
+                                <label class="cv-label">Cooldown (seg)</label>
+                                <input id="inp-cooldown" type="number" class="cv-input form-control" value="30" min="5">
+                            </div>
+                            <div class="col-6 col-lg-3">
+                                <label class="cv-label" for="sel-tipo-camera">Tipo <span class="cv-label-obrigatorio">*</span></label>
+                                <select id="sel-tipo-camera" class="cv-select form-select" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="dvr">Cabeado IP</option>
+                                    <option value="wifi">Wifi</option>
+                                </select>
+                            </div>
+                            <div class="col-6 col-lg-3">
+                                <label class="cv-label" for="inp-canal">Canal</label>
+                                <input id="inp-canal" type="text" class="cv-input form-control" placeholder="Ex: 1">
+                            </div>
+                            <div class="col-12 cv-campo-flags-plano">
+                                <div class="cv-form-checks-row">
+                                    <div class="form-check cv-campo-yolo">
+                                        <input id="inp-deteccao" type="checkbox" class="form-check-input" checked>
+                                        <label class="form-check-label" for="inp-deteccao">Detecção humano</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input id="inp-somente-armado" type="checkbox" class="form-check-input">
+                                        <label class="form-check-label" for="inp-somente-armado">Somente quando armado</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input id="inp-captura-analitico" type="checkbox" class="form-check-input" checked>
+                                        <label class="form-check-label" for="inp-captura-analitico">Captura analítico</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input id="inp-captura-sensor" type="checkbox" class="form-check-input">
+                                        <label class="form-check-label" for="inp-captura-sensor">Captura sensor</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tab-panel-url" class="cv-form-tab-panel d-none" data-tab-panel="url">
+                        <div id="box-url-conteudo" class="d-none">
+                            <div id="box-stream-link">
+                                <div class="cv-stream-link-box">
+                                    <div class="cv-stream-link-header">
+                                        <i class="bi bi-broadcast"></i>
+                                        <div class="cv-stream-link-header-text">
+                                            <div class="cv-stream-link-title-row">
+                                                <strong>URL para transmissão na câmera</strong>
+                                                <button type="button" id="btn-ajuda-encode-rtmp" class="cv-btn-ajuda-rtmp" title="Ajuda: encode e URL">
+                                                    <i class="bi bi-question-circle"></i> Ajuda
+                                                </button>
+                                            </div>
+                                            <p id="lbl-rtmp-instrucao">Cole no campo de publicação RTMP (Wifi — sem barra no final):</p>
+                                        </div>
+                                    </div>
+                                    <div class="cv-copy-row">
+                                        <input id="inp-rtmp-url" type="text" class="cv-input form-control" readonly>
+                                        <button type="button" id="btn-copiar-rtmp" class="cv-btn-copy">
+                                            <i class="bi bi-clipboard"></i> Copiar
+                                        </button>
+                                    </div>
+                                    <p class="cv-stream-link-hint mb-0">
+                                        Path: <code id="lbl-stream-path"></code>
+                                        · Tipo obrigatório (Wifi sem <code>/</code> · Cabeado IP com <code>/</code>)
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="box-url-indisponivel" class="cv-form-tab-empty">
+                            <i class="bi bi-info-circle"></i>
+                            <p>Salve a câmera e selecione o tipo (Cabeado IP ou Wifi) na aba Dados para gerar a URL.</p>
+                        </div>
+                    </div>
+
+                    <div id="tab-panel-snapshot" class="cv-form-tab-panel d-none" data-tab-panel="snapshot">
+                        <div id="box-snapshot-conteudo" class="d-none">
+                            <div id="box-snapshot" class="mb-3">
+                                <div class="cv-snapshot-box">
+                                    <div class="cv-snapshot-header">
+                                        <i class="bi bi-camera"></i>
+                                        <div>
+                                            <strong>Snapshot de identificação</strong>
+                                            <p id="lbl-snapshot-desc">Capture uma imagem de referência do stream da câmera.</p>
+                                        </div>
+                                    </div>
+                                    <div class="cv-snapshot-body">
+                                        <div id="box-snapshot-preview-tab" class="cv-snapshot-preview cv-snapshot-preview-readonly cv-snapshot-preview-tab d-none">
+                                            <img id="img-snapshot-tab" alt="Snapshot da câmera" class="cv-snapshot-img">
+                                        </div>
+                                        <div class="cv-snapshot-actions-col">
+                                            <div class="cv-snapshot-actions">
+                                                <button type="button" id="btn-remover-snapshot" class="cv-btn-ghost cv-snapshot-btn-remove d-none">
+                                                    <i class="bi bi-trash"></i> Remover snapshot
+                                                </button>
+                                                <button type="button" id="btn-tirar-snapshot" class="cv-btn-primary">
+                                                    <i class="bi bi-camera-fill"></i> Tirar snapshot
+                                                </button>
+                                            </div>
+                                            <span id="lbl-snapshot-status" class="cv-snapshot-status"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="box-snapshot-indisponivel" class="cv-form-tab-empty">
+                            <i class="bi bi-info-circle"></i>
+                            <p>Salve a câmera primeiro para capturar o snapshot.</p>
+                        </div>
+                    </div>
+
+                    <div id="tab-panel-area" class="cv-form-tab-panel d-none" data-tab-panel="area">
+                        <div id="box-area-conteudo" class="d-none">
+                            <div id="box-area-draw-panel" class="d-none">
+                                <p id="lbl-area-deteccao-desc" class="cv-area-draw-desc-full mb-3">
+                                    Escolha retângulo ou polígono e desenhe sobre o snapshot. O modo Detectar define se o evento dispara dentro, fora ou em qualquer lugar do frame.
+                                </p>
+                            </div>
+                            <div class="cv-area-tab-grid">
+                                <div class="cv-area-tab-col cv-area-tab-col-draw">
+                                    <div id="box-area-draw-ui" class="d-none">
+                                        <div class="cv-area-draw-toolbar-top">
+                                            <div class="cv-area-mode-toolbar cv-area-mode-toolbar-top mb-0">
+                                                <span class="cv-area-mode-label">Ferramenta:</span>
+                                                <div class="cv-area-mode-btns" role="group" aria-label="Tipo de desenho">
+                                                    <button type="button" id="btn-area-modo-rect" class="cv-area-mode-btn cv-area-mode-active" data-mode="rect">
+                                                        <i class="bi bi-square"></i> Retângulo
+                                                    </button>
+                                                    <button type="button" id="btn-area-modo-polygon" class="cv-area-mode-btn" data-mode="polygon">
+                                                        <i class="bi bi-pentagon"></i> Polígono
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="box-snapshot-preview" class="cv-snapshot-preview cv-snapshot-preview-area d-none">
+                                        <div class="cv-area-editor-stage" id="area-editor-stage">
+                                            <img id="img-snapshot" alt="Snapshot da câmera" class="cv-snapshot-img">
+                                            <canvas id="canvas-area" class="cv-area-canvas"></canvas>
+                                        </div>
+                                    </div>
+
+                                    <div id="box-area-draw-footer" class="cv-area-draw-footer d-none">
+                                        <p id="lbl-area-modo-hint" class="cv-area-draw-footer-hint mb-0">
+                                            Arraste sobre a imagem para desenhar um retângulo.
+                                        </p>
+                                        <div class="cv-area-draw-actions">
+                                            <button type="button" id="btn-area-fechar-poligono" class="cv-btn-ghost d-none">Fechar polígono</button>
+                                            <button type="button" id="btn-area-limpar" class="cv-btn-ghost">Limpar desenho</button>
+                                            <button type="button" id="btn-area-salvar" class="cv-btn-primary">
+                                                <i class="bi bi-check-lg"></i> Salvar área
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="cv-area-tab-col cv-area-tab-col-form">
+                                    <div id="box-snapshot-aviso-area" class="cv-form-tab-aviso cv-area-tab-aviso mb-3">
+                                        <i class="bi bi-exclamation-triangle-fill"></i>
+                                        <div>
+                                            <strong>Área de detecção obrigatória</strong>
+                                            <p>A câmera só detecta e gera eventos se existir ao menos uma área desenhada sobre o snapshot. Sem área, nenhum evento é disparado.</p>
+                                        </div>
+                                    </div>
+                                    <div id="box-area-editor" class="d-none">
+                                        <div class="cv-area-box">
+                                            <div class="cv-area-header cv-area-header-compact">
+                                                <i class="bi bi-bounding-box"></i>
+                                                <strong>Área de detecção</strong>
+                                            </div>
+                                            <div class="cv-area-modo-deteccao mb-3">
+                                                <label class="cv-label" for="sel-modo-deteccao">Detectar</label>
+                                                <select id="sel-modo-deteccao" class="cv-select form-select">
+                                                    <option value="dentro">Dentro da área</option>
+                                                    <option value="fora">Fora da área</option>
+                                                    <option value="ambos">Ambos (qualquer lugar do frame)</option>
+                                                </select>
+                                                <p id="lbl-modo-deteccao-hint" class="cv-form-hint mb-0 mt-1">
+                                                    Gera evento quando a pessoa está <strong>dentro</strong> da área desenhada.
+                                                </p>
+                                            </div>
+                                            <div id="box-area-aviso" class="cv-area-aviso d-none">
+                                                <i class="bi bi-exclamation-triangle"></i>
+                                                <span id="lbl-area-aviso-texto">Sem área cadastrada, esta câmera <strong>não gera eventos</strong>.</span>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="cv-label" for="inp-area-nome">Nome da área</label>
+                                                <input id="inp-area-nome" type="text" class="cv-input form-control" placeholder="Ex: Entrada principal">
+                                            </div>
+                                            <div id="lista-areas" class="cv-area-list"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="box-area-indisponivel" class="cv-form-tab-empty">
+                            <i class="bi bi-info-circle"></i>
+                            <p>Salve a câmera e capture um snapshot na aba Snapshot para desenhar a área de detecção.</p>
+                        </div>
+                    </div>
+
+                    <div id="tab-panel-ao-vivo" class="cv-form-tab-panel d-none" data-tab-panel="ao-vivo">
+                        <div id="box-ao-vivo-conteudo" class="d-none">
+                            <p id="cv-live-status-form" class="cv-live-status mb-2"></p>
+                            <div class="cv-form-live-wrap">
+                                <video id="player-hls-form" controls autoplay muted playsinline></video>
+                            </div>
+                        </div>
+                        <div id="box-ao-vivo-indisponivel" class="cv-form-tab-empty">
+                            <i class="bi bi-info-circle"></i>
+                            <p>Salve a câmera primeiro para assistir ao vivo.</p>
+                        </div>
+                    </div>
+
+                    <div id="tab-panel-licenca" class="cv-form-tab-panel d-none" data-tab-panel="licenca">
+                        <p class="cv-form-tab-hint">
+                            Plano (online / sensor / analítico) vem da licença e não pode ser alterado aqui.
+                        </p>
+
+                        <div id="box-selecionar-licenca" class="d-none">
+                            <label class="cv-label" for="sel-licenca">Licença disponível</label>
+                            <select id="sel-licenca" class="cv-select form-select">
+                                <option value="">Selecione uma licença…</option>
+                            </select>
+                            <p id="lbl-licenca-vazia" class="cv-form-hint cv-licenca-vazia d-none">
+                                Nenhuma licença disponível. Solicite a compra de licenças à central antes de cadastrar.
+                            </p>
+                        </div>
+
+                        <div id="box-licenca-painel" class="d-none cv-form-tab-card">
+                            <div id="box-licenca-atual" class="d-none cv-licenca-painel-em-uso">
+                                <span class="cv-licenca-secao-label">Em uso nesta câmera</span>
+                                <strong id="lbl-licenca-atual" class="cv-licenca-secao-valor">—</strong>
+                            </div>
+
+                            <div id="box-plano-licenca" class="d-none cv-licenca-painel-plano">
+                                <div class="cv-plano-info">
+                                    <span class="cv-plano-info-label">Plano</span>
+                                    <strong id="lbl-plano-nome">—</strong>
+                                    <span id="lbl-plano-valor" class="cv-plano-info-valor">—</span>
+                                    <p id="lbl-plano-online-hint" class="cv-form-hint mb-0 d-none"></p>
+                                    <span id="lbl-plano-travado" class="cv-plano-info-lock"><i class="bi bi-lock-fill"></i> Definido pela licença</span>
+                                </div>
+                            </div>
+
+                            <div id="box-trocar-licenca" class="d-none cv-licenca-painel-secao cv-licenca-painel-trocar">
+                                <p class="cv-licenca-trocar-hint">A licença atual volta para disponível; a selecionada passa a em uso nesta câmera.</p>
+                                <label class="cv-label" for="sel-trocar-licenca">Trocar licença</label>
+                                <select id="sel-trocar-licenca" class="cv-select form-select">
+                                    <option value="">Manter licença atual</option>
+                                </select>
+                                <p id="lbl-trocar-licenca-vazia" class="cv-form-hint cv-licenca-vazia d-none">
+                                    Nenhuma outra licença disponível para troca.
+                                </p>
+                            </div>
+
+                            <div id="box-liberar-licenca" class="d-none cv-licenca-painel-secao">
+                                <button type="button" id="btn-liberar-licenca-cam" class="cv-btn-ghost">
+                                    <i class="bi bi-key"></i> Retirar licença
+                                </button>
+                            </div>
+
+                            <div id="box-vincular-licenca" class="d-none cv-licenca-painel-secao">
+                                <span class="cv-licenca-secao-label">Status</span>
+                                <strong class="cv-licenca-secao-valor">Sem licença vinculada</strong>
+                                <p class="cv-licenca-trocar-hint">Selecione uma licença disponível e salve a câmera para vincular.</p>
+                                <label class="cv-label" for="sel-vincular-licenca">Licença disponível</label>
+                                <select id="sel-vincular-licenca" class="cv-select form-select">
+                                    <option value="">Selecione uma licença…</option>
+                                </select>
+                                <p id="lbl-vincular-licenca-vazia" class="cv-form-hint cv-licenca-vazia d-none">
+                                    Nenhuma licença disponível. Solicite a compra de licenças à central.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tab-panel-gravacao" class="cv-form-tab-panel d-none" data-tab-panel="gravacao">
+                        <div id="box-gravacao-painel" class="d-none">
+                            <p class="cv-form-tab-hint">
+                                Mesma função da página <a href="/gravacoes">Gravações</a> — só que já fixada nesta câmera.
+                                Requer storage Contabo ativo e licença de gravação com status disponível.
+                            </p>
+
+                            <div class="cv-form-tab-card">
+                                <div id="box-gravacao-ativa" class="d-none cv-licenca-painel-em-uso">
+                                    <span class="cv-licenca-secao-label">Em uso nesta câmera</span>
+                                    <strong id="lbl-gravacao-atual" class="cv-licenca-secao-valor">—</strong>
+                                    <p id="lbl-gravacao-detalhe" class="cv-form-hint mb-0 mt-1">—</p>
+                                </div>
+
+                                <div id="box-gravacao-inativa" class="d-none cv-licenca-painel-em-uso">
+                                    <span class="cv-licenca-secao-label">Status</span>
+                                    <strong class="cv-licenca-secao-valor">Sem licença de gravação</strong>
+                                </div>
+
+                                <div id="box-gravacao-ativar" class="d-none cv-licenca-painel-secao">
+                                    <p class="cv-licenca-trocar-hint">Selecione uma licença disponível e confirme a ativação.</p>
+                                    <label class="cv-label" for="sel-gravacao-licenca">Licença disponível</label>
+                                    <select id="sel-gravacao-licenca" class="cv-select form-select">
+                                        <option value="">Selecione…</option>
+                                    </select>
+                                    <p id="lbl-gravacao-licenca-vazia" class="cv-form-hint cv-licenca-vazia d-none">
+                                        Nenhuma licença de gravação disponível.
+                                    </p>
+                                    <button type="button" id="btn-ativar-gravacao-cam" class="cv-btn-primary mt-3" disabled>
+                                        Ativar gravação
+                                    </button>
+                                </div>
+
+                                <div id="box-gravacao-trocar" class="d-none cv-licenca-painel-secao cv-licenca-painel-trocar">
+                                    <div id="box-gravacao-trocar-select" class="d-none">
+                                        <p class="cv-licenca-trocar-hint">A licença atual volta para disponível; a selecionada passa a em uso nesta câmera.</p>
+                                        <label class="cv-label" for="sel-trocar-gravacao-licenca">Trocar licença</label>
+                                        <select id="sel-trocar-gravacao-licenca" class="cv-select form-select">
+                                            <option value="">Selecione…</option>
+                                        </select>
+                                    </div>
+                                    <div class="cv-gravacao-btns-row">
+                                        <button type="button" id="btn-trocar-gravacao-cam" class="cv-btn-primary" disabled>
+                                            Trocar licença
+                                        </button>
+                                        <button type="button" id="btn-desativar-gravacao-cam" class="cv-btn-ghost">
+                                            <i class="bi bi-key"></i> Retirar licença
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="box-gravacao-indisponivel" class="cv-form-tab-empty d-none">
+                            <i class="bi bi-info-circle"></i>
+                            <p>Salve a câmera primeiro para gerenciar a licença de gravação.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="box-form-actions" class="cv-form-actions d-none">
+                    <button type="button" id="btn-ajuda-encode-rtmp-acoes" class="cv-btn-ajuda-rtmp d-none" title="Ajuda: encode e URL">
+                        <i class="bi bi-question-circle"></i> Ajuda
+                    </button>
+                    <a href="/cameras" class="cv-btn-ghost">Cancelar</a>
+                    <button type="button" id="btn-salvar-camera" class="cv-btn-primary">
+                        <i class="bi bi-check-lg"></i> Salvar
+                    </button>
+                </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    {{ template "link-js" . }}
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7"></script>
+    <script src="/recursos/modulos/confvision/urls.js?v=20260727mob4"></script>
+    <script src="/recursos/modulos/confvision/live-player.js?v=20260729live1"></script>
+    <script src="/recursos/modulos/confvision/cameras-area-editor.js?v=20260729area3"></script>
+    <script src="/recursos/modulos/confvision/cameras-form.js?v=20260730grav2"></script>
+</body>
+</html>

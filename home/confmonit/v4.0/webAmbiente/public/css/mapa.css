@@ -1,0 +1,299 @@
+.mapa-container {
+  position: relative;
+  overflow: hidden;
+  border: 2px solid #52525b;
+  border-radius: 0.5rem;
+  background: #18181b;
+  min-height: 200px;
+  width: 100%;
+}
+
+.mapa-container.flex-1 {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.mapa-container.mapa-sem-imagem {
+  background: repeating-linear-gradient(
+    45deg,
+    #27272a,
+    #27272a 10px,
+    #3f3f46 10px,
+    #3f3f46 20px
+  );
+}
+
+.mapa-imagem {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+  pointer-events: none;
+}
+
+.mapa-camada {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.mapa-rastro-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 4;
+  overflow: visible;
+}
+
+.mapa-rastro-linhas {
+  /* linhas/setas abaixo dos pontos, mas acima da planta */
+}
+
+.mapa-rastro-marcadores {
+  /* números e dots acima das setas */
+}
+
+.mapa-rastro-traco {
+  fill: none;
+  pointer-events: none;
+}
+
+.mapa-rastro-chevron {
+  pointer-events: none;
+  stroke: rgba(0, 0, 0, 0.35);
+  stroke-width: 0.35;
+  stroke-linejoin: round;
+}
+
+.mapa-rastro-linha {
+  display: none;
+}
+
+.mapa-rastro-linha-predita {
+  display: none;
+}
+
+.mapa-rastro-dot {
+  fill: #991b1b;
+  stroke: rgba(255, 255, 255, 0.55);
+  stroke-width: 1.5;
+}
+
+.mapa-rastro-dot-atual {
+  fill: #ef4444;
+}
+
+.mapa-rastro-dot-antigo {
+  fill: #7f1d1d;
+}
+
+.mapa-rastro-seq {
+  fill: #fecaca;
+  font-size: 10px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.65);
+  stroke-width: 2px;
+}
+
+.mapa-ponto-rastro-antigo {
+  background: #7f1d1d !important;
+  box-shadow: 0 0 0 2px rgba(127, 29, 29, 0.45);
+}
+
+.mapa-ponto-rastro-atual {
+  background: #dc2626 !important;
+  animation: mapa-nucleo-alarme 0.55s ease-in-out infinite;
+}
+
+.mapa-ponto-rastro-predito {
+  background: #ea580c !important;
+  color: #fff;
+  animation: mapa-predito-pisca 0.7s ease-in-out infinite;
+}
+
+@keyframes mapa-predito-pisca {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 14px 4px rgba(249, 115, 22, 0.55);
+  }
+}
+
+.mapa-ponto {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: clamp(1.75rem, 4vw, 2.5rem);
+  height: clamp(1.75rem, 4vw, 2.5rem);
+  border-radius: 0.375rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(0.875rem, 2.5vw, 1.25rem);
+  cursor: grab;
+  pointer-events: auto;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  z-index: 2;
+  touch-action: none;
+}
+
+.mapa-ponto-label {
+  font-size: 0.65rem;
+  max-width: 5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapa-ponto-normal {
+  background: #16a34a;
+  color: #fff;
+}
+
+.mapa-ponto-alarme {
+  background: #dc2626;
+  color: #fff;
+}
+
+.mapa-ponto-falha {
+  background: #ca8a04;
+  color: #fff;
+}
+
+.mapa-ponto-monitor {
+  cursor: pointer;
+  overflow: visible;
+}
+
+.mapa-ponto-monitor > i {
+  position: relative;
+  z-index: 1;
+}
+
+.mapa-ponto-monitor .mapa-ponto-label {
+  display: none;
+}
+
+/* Efeito “enviando sinal” — só na tela de monitoramento (/monitor/page) */
+.monitor-page .mapa-ponto-monitor::before,
+.monitor-page .mapa-ponto-monitor::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.monitor-page .mapa-ponto-monitor.mapa-ponto-normal::before {
+  border: 2px solid rgba(34, 197, 94, 0.85);
+  animation: mapa-sinal-verde 3.2s ease-out infinite;
+}
+
+.monitor-page .mapa-ponto-monitor.mapa-ponto-falha::before {
+  border: 2px solid rgba(250, 204, 21, 0.9);
+  animation: mapa-sinal-amarelo 1.6s ease-out infinite;
+}
+
+.monitor-page .mapa-ponto-monitor.mapa-ponto-falha::after {
+  border: 2px solid rgba(250, 204, 21, 0.55);
+  animation: mapa-sinal-amarelo 1.6s ease-out infinite;
+  animation-delay: 0.8s;
+}
+
+.monitor-page .mapa-ponto-monitor.mapa-ponto-alarme::before {
+  border: 2px solid rgba(248, 113, 113, 0.95);
+  animation: mapa-sinal-vermelho 0.55s ease-out infinite;
+}
+
+.monitor-page .mapa-ponto-monitor.mapa-ponto-alarme::after {
+  border: 2px solid rgba(248, 113, 113, 0.6);
+  animation: mapa-sinal-vermelho 0.55s ease-out infinite;
+  animation-delay: 0.275s;
+}
+
+.monitor-page .mapa-ponto-monitor.mapa-ponto-alarme {
+  animation: mapa-nucleo-alarme 0.55s ease-in-out infinite;
+}
+
+@keyframes mapa-sinal-verde {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  70%,
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
+}
+
+@keyframes mapa-sinal-amarelo {
+  0% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  65%,
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+@keyframes mapa-sinal-vermelho {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  60%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes mapa-nucleo-alarme {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.65);
+  }
+  50% {
+    box-shadow: 0 0 14px 4px rgba(220, 38, 38, 0.45);
+  }
+}
+
+.setor-item:active {
+  cursor: grabbing;
+}
+
+.mapa-ponto-editor {
+  cursor: pointer;
+}
+
+.mapa-ponto-editor .mapa-ponto-label {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mapa-ponto-label {
+    display: none;
+  }
+
+  .editor-layout {
+    flex-direction: column;
+  }
+
+  .editor-sidebar {
+    width: 100%;
+    max-height: 35vh;
+    border-right: none;
+    border-bottom: 1px solid var(--amb-border);
+  }
+}

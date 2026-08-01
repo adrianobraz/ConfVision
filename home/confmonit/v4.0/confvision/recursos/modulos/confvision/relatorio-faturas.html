@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    {{ template "head" . }}
+    {{ template "confvision-head-extra" . }}
+</head>
+<body class="cv-app">
+    {{ template "variaveis-controle" . }}
+    {{ template "confvision-config" . }}
+    {{ template "confvision-nav" . }}
+
+    <main class="cv-main">
+        <div class="cv-panel">
+            <div class="cv-panel-toolbar">
+                <h1 class="cv-page-title mb-0">Faturas</h1>
+                <div class="d-flex gap-2 align-items-center">
+                    <a href="/minhas-licencas?tab=comprar" class="cv-btn-ghost">
+                        <i class="bi bi-cart-plus"></i> Comprar
+                    </a>
+                    <button type="button" id="btn-atualizar-faturas" class="cv-btn-ghost" title="Atualizar">
+                        <i class="bi bi-arrow-clockwise"></i> Atualizar
+                    </button>
+                </div>
+            </div>
+
+            <div class="cv-armado-resumo" id="box-fat-resumo">
+                <div class="cv-armado-resumo-item">
+                    <span class="cv-armado-resumo-num" id="lbl-fat-total">0</span>
+                    <span class="cv-armado-resumo-label">Total</span>
+                </div>
+                <div class="cv-armado-resumo-item cv-armado-resumo-off">
+                    <span class="cv-armado-resumo-num" id="lbl-fat-abertas">0</span>
+                    <span class="cv-armado-resumo-label">Em aberto</span>
+                </div>
+                <div class="cv-armado-resumo-item cv-armado-resumo-on">
+                    <span class="cv-armado-resumo-num" id="lbl-fat-pagas">0</span>
+                    <span class="cv-armado-resumo-label">Pagas</span>
+                </div>
+                <div class="cv-armado-resumo-item">
+                    <span class="cv-armado-resumo-num" id="lbl-fat-valor-aberto">R$ 0</span>
+                    <span class="cv-armado-resumo-label">Valor em aberto</span>
+                </div>
+            </div>
+
+            <div class="cv-cameras-filtros">
+                <div class="cv-cameras-filtro-busca">
+                    <label class="cv-label" for="busca-faturas">Pesquisar</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="search" id="busca-faturas" class="form-control"
+                            placeholder="Referência ou tipo..." autocomplete="off">
+                    </div>
+                </div>
+                <div class="cv-cameras-filtro-status">
+                    <label class="cv-label" for="filtro-status-faturas">Status</label>
+                    <select id="filtro-status-faturas" class="form-select form-select-sm">
+                        <option value="">Todas</option>
+                        <option value="aberta">Em aberto</option>
+                        <option value="paga">Pagas</option>
+                        <option value="cancelada">Canceladas</option>
+                    </select>
+                </div>
+                <div class="cv-cameras-filtro-status">
+                    <label class="cv-label" for="filtro-tipo-faturas">Tipo</label>
+                    <select id="filtro-tipo-faturas" class="form-select form-select-sm">
+                        <option value="">Todos</option>
+                        <option value="confvision_venda">Compra</option>
+                        <option value="confvision_renovacao">Renovação</option>
+                    </select>
+                </div>
+                <p id="lbl-faturas-total" class="cv-cameras-filtro-total mb-0"></p>
+            </div>
+
+            <div class="cv-panel-body table-responsive">
+                <table class="cv-table cv-table-cards">
+                    <thead>
+                        <tr>
+                            <th>Referência</th>
+                            <th>Tipo</th>
+                            <th>Status</th>
+                            <th>Valor</th>
+                            <th>Vencimento</th>
+                            <th>Observação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tab-faturas"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    {{ template "link-js" . }}
+    <script src="/recursos/modulos/confvision/urls.js?v=20260727mob4"></script>
+    <script src="/recursos/modulos/confvision/relatorio-faturas.js?v=20260714fat1"></script>
+</body>
+</html>

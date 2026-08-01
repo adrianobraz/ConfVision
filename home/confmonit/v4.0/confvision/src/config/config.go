@@ -1,0 +1,174 @@
+package config
+
+import (
+	"fmt"
+	"log"
+	"os"
+	"strconv"
+	"strings"
+
+	"github.com/joho/godotenv"
+)
+
+var (
+	TituloSite            string
+	ApiUrl                string
+	ApiUrlSetor           string
+	XanoBaseUrl             string
+	XanoCvgBaseUrl          string
+	XanoApiPro              string
+	ProvisionerURL          string
+	ProvisionerKey          string
+	MediamtxHlsBase         string
+	MediamtxRtmpPublishBase string
+	MediamtxRtspBase        string
+	MediamtxHlsPublic       string
+	MediamtxRtmpPublic      string
+	RtmpWatchURL            string
+	RtmpGuardURL            string
+	RtmpGuardAdminKey       string
+	RtmpPublishSecret       string
+	AdministratorUser       string
+	AdministratorPass       string
+	WebPorta                string
+	BindHost                string
+	CookieSecure            bool
+	HashKey                 []byte
+	BlockKey                []byte
+	SiteHttps               bool
+	Certificado             string
+	Chave                   string
+	UrlReceptor             string
+	UrlComando              string
+
+	ContaboS3AccessKey string
+	ContaboS3SecretKey string
+	ContaboS3Endpoint  string
+	ContaboS3Bucket    string
+	ContaboS3Region    string
+	ContaboS3TenantId  string
+	CadSnapshotMaxBytes int
+	CadSnapshotMaxWidth int
+
+	Manual struct {
+		GeradorEvento string
+	}
+
+	ConexaoMySQL string
+)
+
+func ConfigurarApp() {
+	if erro := godotenv.Load(); erro != nil {
+		log.Fatal(erro)
+	}
+
+	TituloSite = os.Getenv("TITULO_SITE")
+	ApiUrl = os.Getenv("URL_API")
+	ApiUrlSetor = os.Getenv("URL_API_SETOR")
+	XanoBaseUrl = os.Getenv("XANO_BASE_URL")
+	XanoCvgBaseUrl = os.Getenv("XANO_CVG_BASE_URL")
+	if XanoCvgBaseUrl == "" {
+		XanoCvgBaseUrl = XanoBaseUrl
+	}
+	XanoApiPro = os.Getenv("XANO_API_FRANQUEADO_PRO")
+	ProvisionerURL = strings.TrimSpace(os.Getenv("PROVISIONER_URL"))
+	ProvisionerKey = strings.TrimSpace(os.Getenv("PROVISIONER_KEY"))
+	MediamtxHlsBase = os.Getenv("MEDIAMTX_HLS_BASE")
+	MediamtxRtmpPublishBase = os.Getenv("MEDIAMTX_RTMP_PUBLISH_BASE")
+	MediamtxRtspBase = os.Getenv("MEDIAMTX_RTSP_BASE")
+	if MediamtxRtspBase == "" {
+		MediamtxRtspBase = "rtsp://127.0.0.1:8554"
+	}
+	MediamtxHlsPublic = os.Getenv("MEDIAMTX_HLS_PUBLIC")
+	if MediamtxHlsPublic == "" {
+		MediamtxHlsPublic = MediamtxHlsBase
+	}
+	MediamtxRtmpPublic = os.Getenv("MEDIAMTX_RTMP_PUBLIC")
+	if MediamtxRtmpPublic == "" {
+		MediamtxRtmpPublic = MediamtxRtmpPublishBase
+	}
+	RtmpWatchURL = strings.TrimRight(strings.TrimSpace(os.Getenv("RTMP_WATCH_URL")), "/")
+	RtmpGuardURL = strings.TrimRight(strings.TrimSpace(os.Getenv("RTMP_GUARD_URL")), "/")
+	RtmpGuardAdminKey = strings.TrimSpace(os.Getenv("RTMP_GUARD_ADMIN_KEY"))
+	RtmpPublishSecret = strings.TrimSpace(os.Getenv("RTMP_PUBLISH_SECRET"))
+	AdministratorUser = strings.TrimSpace(os.Getenv("ADMINISTRATOR_USER"))
+	AdministratorPass = strings.TrimSpace(os.Getenv("ADMINISTRATOR_PASS"))
+	WebPorta = os.Getenv("PORTA")
+	BindHost = os.Getenv("BIND_HOST")
+	CookieSecure = os.Getenv("COOKIE_SECURE") == "SIM"
+	HashKey = []byte(os.Getenv("HASHKEY"))
+	BlockKey = []byte(os.Getenv("BLOCKKEY"))
+
+	UrlReceptor = os.Getenv("URL_RECEPTOR")
+	UrlComando = os.Getenv("URL_COMANDO")
+
+	if os.Getenv("HTTPS") == "SIM" {
+		SiteHttps = true
+		Certificado = os.Getenv("CERTIFICADO")
+		Chave = os.Getenv("CHAVE")
+	} else {
+		SiteHttps = false
+	}
+
+	Manual.GeradorEvento = os.Getenv("GERADOR_EVENTO")
+
+	ContaboS3AccessKey = os.Getenv("CONTABO_S3_ACCESS_KEY")
+	ContaboS3SecretKey = os.Getenv("CONTABO_S3_SECRET_KEY")
+	ContaboS3Endpoint = os.Getenv("CONTABO_S3_ENDPOINT")
+	if ContaboS3Endpoint == "" {
+		ContaboS3Endpoint = "https://usc1.contabostorage.com"
+	}
+	ContaboS3Bucket = os.Getenv("CONTABO_S3_BUCKET")
+	if ContaboS3Bucket == "" {
+		ContaboS3Bucket = "confvision"
+	}
+	ContaboS3Region = os.Getenv("CONTABO_S3_REGION")
+	if ContaboS3Region == "" {
+		ContaboS3Region = "us-east-1"
+	}
+	ContaboS3TenantId = strings.TrimSpace(os.Getenv("CONTABO_S3_TENANT_ID"))
+	CadSnapshotMaxBytes = envInt("CAD_SNAPSHOT_MAX_BYTES", 51200)
+	CadSnapshotMaxWidth = envInt("CAD_SNAPSHOT_MAX_WIDTH", 1280)
+
+	ConexaoMySQL = montarConexaoMySQL()
+}
+
+func montarConexaoMySQL() string {
+	user := envOu("BD_USER", "BD_USER_MV4")
+	pass := envOu("BD_PASS", "BD_PASS_MV4")
+	host := envOu("BD_HOST", "BD_HOST_MV4")
+	port := envOu("BD_PORT", "BD_PORT_MV4")
+	base := envOu("BD_BASE", "BD_BASE_MV4")
+
+	if user == "" || host == "" || base == "" {
+		return ""
+	}
+
+	if port == "" {
+		port = "3306"
+	}
+
+	return fmt.Sprintf(
+		"%s:%s@tcp(%s:%s)/%s?charset=utf8&parseTime=True&loc=Local",
+		user, pass, host, port, base,
+	)
+}
+
+func envOu(principal, alternativa string) string {
+	if v := strings.TrimSpace(os.Getenv(principal)); v != "" {
+		return v
+	}
+	return strings.TrimSpace(os.Getenv(alternativa))
+}
+
+func envInt(name string, fallback int) int {
+	v := strings.TrimSpace(os.Getenv(name))
+	if v == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return fallback
+	}
+	return n
+}

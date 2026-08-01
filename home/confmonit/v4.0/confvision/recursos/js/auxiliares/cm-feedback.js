@@ -1,0 +1,142 @@
+/* Feedback — icone bug/melhoria/ideia na navbar */
+var CmFeedback = (function () {
+  var SOFTWARE = 'franqueadopro'
+  var URL_ENVIAR = '/feedback/enviar'
+  var tipoSel = 'bug'
+  var enviando = false
+
+  function garantirUI() {
+    if ($('#cmFeedbackBtn').length) return
+    var $mount = $('#cmFeedbackMount').first()
+    if (!$mount.length) $mount = $('#cmNotifMount').first()
+    if (!$mount.length) $mount = $('.cv-header-user, .cv-dvr-bar-user').first()
+    if (!$mount.length) $mount = $('.fp-navbar-actions').first()
+    if (!$mount.length) $mount = $('.amb-navbar-actions').first()
+    if (!$mount.length) return
+
+    var btnClass = 'btn cm-feedback-btn'
+    if ($('.cv-header, .cv-dvr-bar').length || $mount.closest('.cv-header-user, .cv-dvr-bar-user, .navbar').length) {
+      btnClass += ' cv-btn-ghost'
+    } else {
+      btnClass += ' fp-icon-btn'
+    }
+
+    var $wrap = $(
+      '<span class="cm-feedback-wrap">' +
+        '<button type="button" id="cmFeedbackBtn" class="' +
+        btnClass +
+        '" title="Reportar bug, melhoria ou ideia" aria-label="Feedback">' +
+        '<i class="bi bi-bug-fill"></i>' +
+        '</button>' +
+        '</span>'
+    )
+
+    if ($mount.is('#cmNotifMount') || $mount.is('#cmFeedbackMount') || $mount.hasClass('cv-notif-mount')) {
+      $mount.before($wrap)
+    } else if ($mount.hasClass('cv-header-user') || $mount.hasClass('cv-dvr-bar-user')) {
+      $mount.prepend($wrap)
+    } else {
+      $mount.prepend($wrap)
+    }
+
+    $('#cmFeedbackBtn').on('click', function (e) {
+      e.preventDefault()
+      e.stopPropagation()
+      abrirModal()
+    })
+  }
+
+  function garantirModal() {
+    if ($('#cmFeedbackModal').length) return
+    $('body').append(
+      '<div id="cmFeedbackModal" class="cm-feedback-modal cm-feedback-hide" role="dialog" aria-modal="true">' +
+        '<div class="cm-feedback-card">' +
+        '<h5>Enviar feedback</h5>' +
+        '<span class="cm-feedback-label">Tipo</span>' +
+        '<div class="cm-feedback-tipos">' +
+        '<button type="button" class="cm-feedback-tipo active" data-tipo="bug">Bug</button>' +
+        '<button type="button" class="cm-feedback-tipo" data-tipo="melhoria">Melhoria</button>' +
+        '<button type="button" class="cm-feedback-tipo" data-tipo="ideia">Ideia</button>' +
+        '</div>' +
+        '<span class="cm-feedback-label">Descricao</span>' +
+        '<textarea id="cmFeedbackDesc" placeholder="Descreva o bug, melhoria ou ideia..." maxlength="4000"></textarea>' +
+        '<div class="cm-feedback-foot">' +
+        '<button type="button" id="cmFeedbackCancelar">Cancelar</button>' +
+        '<button type="button" class="cm-feedback-enviar" id="cmFeedbackEnviar">Enviar</button>' +
+        '</div>' +
+        '</div>' +
+        '</div>'
+    )
+
+    $('#cmFeedbackModal').on('click', function (e) {
+      if (e.target === this) fecharModal()
+    })
+    $('#cmFeedbackCancelar').on('click', fecharModal)
+    $('#cmFeedbackEnviar').on('click', enviar)
+    $(document).on('click', '.cm-feedback-tipo', function () {
+      tipoSel = $(this).data('tipo')
+      $('.cm-feedback-tipo').removeClass('active')
+      $(this).addClass('active')
+    })
+  }
+
+  function abrirModal() {
+    garantirModal()
+    tipoSel = 'bug'
+    $('.cm-feedback-tipo').removeClass('active')
+    $('.cm-feedback-tipo[data-tipo="bug"]').addClass('active')
+    $('#cmFeedbackDesc').val('')
+    $('#cmFeedbackModal').removeClass('cm-feedback-hide')
+    setTimeout(function () {
+      $('#cmFeedbackDesc').focus()
+    }, 50)
+  }
+
+  function fecharModal() {
+    $('#cmFeedbackModal').addClass('cm-feedback-hide')
+  }
+
+  function enviar() {
+    if (enviando) return
+    var desc = String($('#cmFeedbackDesc').val() || '').trim()
+    if (desc.length < 5) {
+      CvMsg.aviso('Escreva pelo menos 5 caracteres.', 'Descrição curta')
+      return
+    }
+
+    enviando = true
+    $('#cmFeedbackEnviar').prop('disabled', true)
+
+    $.ajax({
+      url: URL_ENVIAR,
+      method: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({
+        tipo: tipoSel,
+        descricao: desc,
+        urlPagina: location.pathname + location.search,
+      }),
+    })
+      .done(function () {
+        fecharModal()
+        CvMsg.sucesso('Recebemos seu feedback.', 'Obrigado!')
+      })
+      .fail(function () {
+        CvMsg.erro('Não foi possível enviar. Tente novamente.')
+      })
+      .always(function () {
+        enviando = false
+        $('#cmFeedbackEnviar').prop('disabled', false)
+      })
+  }
+
+  function init(opts) {
+    opts = opts || {}
+    if (opts.software) SOFTWARE = opts.software
+    if (opts.url) URL_ENVIAR = opts.url
+    garantirUI()
+    garantirModal()
+  }
+
+  return { init: init }
+})()

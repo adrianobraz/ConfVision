@@ -1,0 +1,15 @@
+[Unit]
+Description=Confmonit - ConfService (parceiros monitoramento / webhook)
+After=network.target mysql.service mariadb.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=2
+User=root
+WorkingDirectory=/home/confmonit/v4.0/confservice
+ExecStart=/home/confmonit/start/confservice.sh
+
+[Install]
+WantedBy=multi-user.target

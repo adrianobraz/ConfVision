@@ -1,0 +1,7 @@
+api/.env
+api/confservice.exe
+api/confservice
+web/.env
+web/node_modules
+web/dist
+*.log

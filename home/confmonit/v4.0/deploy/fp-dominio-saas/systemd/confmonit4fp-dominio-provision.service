@@ -1,0 +1,14 @@
+[Unit]
+Description=Confmonit - Provisionador de dominios FranqueadoPro SaaS
+After=network.target apache2.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=2
+User=root
+ExecStart=/home/confmonit/start/fp-dominio-provision.sh
+
+[Install]
+WantedBy=multi-user.target

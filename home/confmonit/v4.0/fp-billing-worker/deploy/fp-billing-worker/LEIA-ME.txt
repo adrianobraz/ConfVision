@@ -1,0 +1,18 @@
+﻿fp-billing-worker â€” pacote pronto para subir
+============================================
+
+SUBA os 2 arquivos desta pasta para:
+  /home/confmonit/v4.0/fp-billing-worker/
+
+Arquivos:
+  - fp-billing-worker   (binario)
+  - .env                (ja configurado â€” nao editar)
+
+No servidor (uma vez apos subir):
+  chmod +x fp-billing-worker
+  systemctl restart confmonit4fpbillingworker
+
+IMPORTANTE â€” antes do worker funcionar:
+  Abra o admConfmonit -> Financeiro -> "Seed catalogo"
+  (cria worker_secret no Xano igual ao .env desta pasta)
+

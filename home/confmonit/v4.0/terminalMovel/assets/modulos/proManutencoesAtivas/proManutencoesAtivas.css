@@ -1,0 +1,40 @@
+#proManutencoesAtivas .proManutencoesAtivas_table {
+    font-size: 0.86rem;
+    margin-bottom: 0;
+}
+
+#proManutencoesAtivas .proManutencoesAtivas_table td,
+#proManutencoesAtivas .proManutencoesAtivas_table th {
+    vertical-align: middle;
+}
+
+#proManutencoesAtivas .proManutencoesAtivas_colAcao {
+    width: 92px;
+}
+
+#proManutencoesAtivas .proManutencoesAtivas_alvo {
+    text-align: left;
+    line-height: 1.2;
+}
+
+#proManutencoesAtivas .proManutencoesAtivas_alvoTitulo {
+    font-weight: 700;
+    display: block;
+}
+
+#proManutencoesAtivas .proManutencoesAtivas_alvoInfo {
+    display: block;
+    font-size: 0.78rem;
+}
+
+#proManutencoesAtivas .proManutencoesAtivas_periodo {
+    text-align: left;
+    line-height: 1.2;
+    font-size: 0.78rem;
+}
+
+#proManutencoesAtivas .proManutencoesAtivas_btnRemover {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
+}

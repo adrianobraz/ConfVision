@@ -1,0 +1,7 @@
+#proClienteResumo_conteudo {
+    min-height: 0;
+}
+
+#proClienteResumo .fmt-campo {
+    min-height: 2rem;
+}

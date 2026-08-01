@@ -1,0 +1,165 @@
+<link rel="stylesheet" href="/assets/modulos/cliDados/cliDados.css">
+
+<div id="cliDados" class="h-100 text-center fmt-color">
+    <div id="cliDados_titulo" class="fmt-titulo">
+        <div class="py-2 bg-black">Dados Cliente</div>
+    </div>
+
+    <div id="cliDados_responsivo" class="table-responsive altura mb-2 pt-1 d-flex flex-wrap align-items-start px-2">
+
+        <div class="col-12 mb-2 px-1">
+            <div class="input-group">
+                <span class="input-group-text fmt-painel">Nome</span>
+
+                <input id="cliDados_cpNome" type="text" class="form-control form-control-sm fmt-campo" disabled>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6 mb-2 px-1">
+            <div class="input-group">
+                <span class="input-group-text fmt-painel">Telefone</span>
+
+                <input id="cliDados_cpTelefone" type="text" class="form-control form-control-sm fmt-campo" disabled>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6 mb-2 px-1">
+            <div class="input-group">
+                <span class="input-group-text fmt-painel">Celular</span>
+
+                <input id="cliDados_cpCelular" type="text" class="form-control form-control-sm fmt-campo" disabled>
+            </div>
+        </div>
+
+        <div class="col-12 mb-2 px-1">
+            <div class="input-group">
+                <span class="input-group-text fmt-painel">Endereço</span>
+
+                <input id="cliDados_cpEndereco" type="text" class="form-control form-control-sm fmt-campo" disabled>
+            </div>
+        </div>
+
+        <div class="col-12 mb-2 px-1">
+            <div class="input-group">
+                <span class="input-group-text fmt-painel">Complemento</span>
+
+                <input id="cliDados_cpComplemento" type="text" class="form-control form-control-sm fmt-campo" disabled>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6 mb-2 px-1">
+            <div class="input-group">
+                <span class="input-group-text fmt-painel">Bairro</span>
+
+                <input id="cliDados_cpBairo" type="text" class="form-control form-control-sm fmt-campo" disabled>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6 mb-2 px-1">
+            <div class="input-group">
+                <span class="input-group-text fmt-painel">Cidade</span>
+
+                <input id="cliDados_cpCidade" type="text" class="form-control form-control-sm fmt-campo" disabled>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-7 mb-2 px-1">
+            <div class="input-group">
+                <span class="input-group-text fmt-painel">Dispositivo</span>
+                
+               
+                <select id="cliDados_cpDispositivo" class="form-control form-control-sm fmt-campo">
+                    <option value="0">SELECIOE </option>
+                </select>
+
+            </div>
+        </div>
+
+         <div class="col-6 col-md-3 mb-2 px-1 ">
+            <div class="input-group">
+                <span class="input-group-text fmt-painel">Conta</span>
+                <input id="cliDados_cpConta" type="text" class="form-control form-control-sm fmt-campo">
+            </div>
+        </div>
+
+        <div class="col-6 col-md-2 mb-2 px-1 d-grid">
+            <button id="cliDados_btnArmar" class="btn btn-secondary" type="button" >ARMAR</button>
+        </div>
+                
+
+        <div class="col-6 d-grid gap-2 px-1 py-2">
+            <button class="btn btn-primary btn-dispositivo" type="button" data-bs-toggle="modal" data-bs-target="#usuariosAlarme">
+                USUARIOS ALARME
+            </button>
+        </div>
+
+        <div class="col-6 d-grid gap-2 px-1 py-2" >
+            <button class="btn btn-primary btn-dispositivo" type="button" data-bs-toggle="modal" data-bs-target="#setoresAlarme">
+                SETORES ALARME
+            </button>
+        </div>
+    </div><!-- table-responsive -->
+
+    <div class="d-flex h-60 justify-content-evenly px-2">
+
+        <div class="h-60 col-6 mb-1 d-flex">
+            <button id="cliDados_btnVoltar" class="flex-fill btn btn-warning text-bg-warning fs-3">
+                <i class="bi bi-x-circle"></i>
+                &nbsp; Voltar
+            </button>
+        </div>
+
+        <div class="col-6 mb-1 d-flex h-60 mx-1">
+
+            <button id="cliDados_btnFechar" class="flex-fill btn btn-primary text-bg-primary fs-3">
+                <i class="bi bi-x-circle"></i>
+                &nbsp; Fechar
+            </button>
+
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="usuariosAlarme" tabindex="-1" aria-labelledby="usuariosAlarme" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header fmt-painel">
+                <h5 class="modal-title" id="usuariosAlarme">USUARIOS DO ALARME</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table id="cliDados_tabUsuario" class="table table-sm table-bordered table-striped align-middle">
+                    <thead>
+                        <tr>
+                            <th class="fmt-thead">Código</th>
+                            <th class="fmt-thead">Nome</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="setoresAlarme" tabindex="-1" aria-labelledby="setoresAlarme" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header fmt-painel">
+                <h5 class="modal-title" id="setoresAlarme">SETORES DO ALARME</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table id="cliDados_tabSetores" class="table table-sm table-bordered table-striped align-middle">
+                    <thead>
+                        <tr>
+                            <th class="fmt-thead" colspan="2">Numero</th>
+                            <th class="fmt-thead">Nome</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

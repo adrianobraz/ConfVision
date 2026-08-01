@@ -1,0 +1,24 @@
+{{ define "navbar" }}
+<nav id="navbar" class="amb-navbar">
+    <div class="amb-navbar-inner">
+        <div class="amb-navbar-left">
+            <a id="navBarLink" href="/home" class="amb-navbar-brand">
+                <i class="bi bi-geo-alt-fill"></i>
+                <span>ConfMonit</span>
+            </a>
+            <nav class="home-nav-abas">
+                <a href="/home?view=mapas" class="home-nav-aba"><i class="bi bi-map"></i> Mapas</a>
+                <a href="/home?view=clientes" class="home-nav-aba"><i class="bi bi-people"></i> Clientes</a>
+            </nav>
+        </div>
+        <div class="amb-navbar-title">{{ .NavbarTitulo }}</div>
+        <div class="amb-navbar-actions">
+            <span id="cmNotifMount"></span>
+            <a href="/logout" class="btn btn-outline btn-sm">Sair</a>
+        </div>
+    </div>
+</nav>
+{{ end }}
+
+{{ block "menuIntes" . }}
+{{ end }}

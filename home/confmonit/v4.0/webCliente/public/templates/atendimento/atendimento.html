@@ -1,0 +1,16 @@
+{{ template "pagina" . }}
+
+{{ define "body" }}
+<div class="min-h-full w-full flex-col">
+    {{ template "navbar" . }}
+
+    {{ template "tabela" }}
+
+</div>
+<script src="/public/templates/atendimento/atendimento.js"></script>
+{{ end }}
+
+{{ define "thead" }}
+<th colspan="2">Dispositivo</th>
+<th style="width: 20%;" colspan="2">Ação</th>
+{{ end }}

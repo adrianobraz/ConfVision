@@ -1,0 +1,21 @@
+{{ define "page-header" }}
+{{ if .LinkRetorno }}
+<div class="container-fluid fp-page-header-wrap px-3">
+    <div class="row align-items-center fp-page-header">
+        <div class="col min-w-0">
+            <h5 class="mb-0 fp-page-header-title">
+                <i class="bi {{ if .IconePagina }}{{ .IconePagina }}{{ else }}bi-file-earmark-text{{ end }}" id="fp-page-header-icon"></i>
+                <span id="fp-page-header-text" data-fallback="{{ .NomeTela }}">{{ .NomeTela }}</span>
+            </h5>
+            <small class="fp-page-header-sub text-muted d-block" id="fp-page-header-sub">{{ .SubtituloPagina }}</small>
+        </div>
+        <div class="col-auto flex-shrink-0">
+            <a href="{{ .LinkRetorno }}" class="btn btn-outline-light btn-sm fp-page-header-back">
+                <i class="bi bi-arrow-left"></i>
+                {{ if eq .LinkRetorno "/carregar-menu-principal" }}Voltar ao início{{ else }}Voltar{{ end }}
+            </a>
+        </div>
+    </div>
+</div>
+{{ end }}
+{{ end }}

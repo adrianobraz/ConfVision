@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-br">
+    <head>
+        {{ template "head" . }}
+        <link rel="stylesheet" href="/recursos/modulos/minha-empresa/whitelabel/whitelabel.css">
+    </head>
+    <body>
+        {{ template "variaveis-controle" . }}
+        {{ template "nav-bar" . }}
+
+        <div class="container-fluid container-principal">
+            <div class="row justify-content-center py-4">
+                <div class="col-12 col-lg-8">
+                    <div class="fp-wl-card">
+                        <h4>White Label — sua marca</h4>
+                        <p class="text-muted">Personalize cores e logotipo (plano Pro). Tamanho recomendado do logo: 150×48 px.</p>
+                        <div id="wl-alerta" class="alert alert-warning d-none"></div>
+
+                        <h6 class="mt-3">Cores do tema</h6>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-4"><label class="form-label">Cor primária</label><input type="color" class="form-control form-control-color" id="wl-primary"></div>
+                            <div class="col-md-4"><label class="form-label">Navbar</label><input type="color" class="form-control form-control-color" id="wl-navbar"></div>
+                            <div class="col-md-4"><label class="form-label">Fundo</label><input type="color" class="form-control form-control-color" id="wl-bg"></div>
+                            <div class="col-md-4"><label class="form-label">Superfície</label><input type="color" class="form-control form-control-color" id="wl-surface"></div>
+                            <div class="col-md-4"><label class="form-label">Texto</label><input type="color" class="form-control form-control-color" id="wl-text"></div>
+                        </div>
+
+                        <h6>Logotipo</h6>
+                        <div class="mb-3">
+                            <input type="file" class="form-control" id="wl-logo-file" accept="image/png,image/jpeg,image/webp">
+                            <div class="mt-2">
+                                <img id="wl-logo-preview" class="fp-wl-logo-preview d-none" alt="Preview logo">
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn btn-primary" id="wl-salvar">Salvar personalização</button>
+                        <button type="button" class="btn btn-outline-secondary ms-2" id="wl-reset">Restaurar padrão</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{ template "link-js" . }}
+        <script src="/recursos/modulos/minha-empresa/whitelabel/whitelabel.js?v=20260715a"></script>
+    </body>
+</html>

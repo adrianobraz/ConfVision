@@ -1,0 +1,1343 @@
+package evento
+
+import (
+	"database/sql"
+	"errors"
+	"fmt"
+	"net/smtp"
+	"receptorWeb/src/benuvem"
+	"strconv"
+	"strings"
+	"time"
+
+	"math/rand"
+)
+
+type Receptor struct {
+	// IdDispositivo string `json:"idDispositivo"`
+	// Evento        string `json:"evento"`
+}
+
+type Evento struct {
+	idEvento       string
+	idProcesso     string
+	codigo         string
+	particao       string
+	zonaUser       string
+	nivel          string
+	img            string
+	dataEntrada    string
+	conn           *sql.DB
+	idFranqueado   string
+	nomeFranqueado string
+	emailFranqeado string
+	idDispositivo  string
+	idCliente      string
+	emailCliente   string
+	nomeCliente    string
+	codigoBenuvem  string
+	msg            string
+	ativo          string
+	conta          string
+	grupo          string
+	descricao      string
+	emailRep       string
+	emailFra       string
+	emailCli       string
+	emailDis       string
+	email          mail
+}
+
+type SEvento struct {
+	ID_Evento   sql.NullString
+	ID_Processo sql.NullString
+	Codigo      sql.NullString
+	Particao    sql.NullString
+	ZonaUser    sql.NullString
+	Nivel       sql.NullString
+	Img         sql.NullString
+	DataEntrada sql.NullTime
+}
+
+type mail struct {
+	Servidor         string
+	Credenciais      smtp.Auth
+	Remetente        string
+	GrupoEmailEvento struct {
+		Alarme       string
+		Arme         string
+		Desarme      string
+		Emergencia   string
+		Falhas       string
+		Geral        string
+		Medico       string
+		Panico       string
+		Restaure     string
+		Setup        string
+		Teste        string
+		SemComunicar string
+	}
+}
+
+var setupMail mail
+
+func Configurar(host, porta, usuario, senha, remetente string) {
+
+	setupMail.Servidor = fmt.Sprintf("%s:%s", host, porta)
+
+	setupMail.Credenciais = smtp.PlainAuth("", usuario, senha, host) //autenticação
+
+	setupMail.Remetente = remetente
+}
+
+func RecebeEvento(conn *sql.DB, idFraqIn, eventoIn string) error {
+
+	var objEvt Evento
+	// Carrega a conexao
+	objEvt.conn = conn
+
+	// carrega config email
+	objEvt.email = setupMail
+
+	// fmt.Println(idFraqIn, eventoIn)
+
+	objEvt.idFranqueado = idFraqIn
+
+	// Verifica se é teste periodico ================================
+	var periodico bool
+	if err := testePeriodico(&objEvt, eventoIn, &periodico); err != nil {
+		return err
+	}
+
+	if periodico {
+		return nil
+	}
+
+	// Decondifica o evento recebido ================================
+	if err := decodeEvento(eventoIn, &objEvt); err != nil {
+		return err
+	}
+
+	if objEvt.ativo == "S" {
+
+		// Pego id processo =========================================
+		if err := getIdProcesso(&objEvt); err != nil {
+			return err
+		}
+
+		// Arma ou desarma o alarme se for do grupo ARME ou DESARME =
+		if err := armarAlarme(&objEvt); err != nil {
+			return err
+		}
+
+		// Verifica Grade Horario se for do grupo DESARME ===========
+		if err := verificaGrade(&objEvt); err != nil {
+			return err
+		}
+
+		// Atualiza o nivel do processo =============================
+		if err := atualizaNivelById(&objEvt); err != nil {
+			return err
+		}
+
+		// Gera ou finaliza evento benuvem ==========================
+		if err := gerarEventoBenuvem(&objEvt); err != nil {
+			return err
+		}
+
+		// Insere o evento no sistema ===============================
+		if err := insere(objEvt); err != nil {
+			return err
+		}
+
+		// Grava ultimo evento no dispositivo =======================
+		if err := gravarUltimoEventoById(&objEvt); err != nil {
+			return err
+		}
+
+		// Envia Email ==============================================
+		if err := enviaEmail(&objEvt); err != nil {
+			return err
+		}
+
+		fmt.Printf("%s -> Evento[ %s ]\n", objEvt.msg, objEvt.codigo)
+	} else {
+		fmt.Printf("%s -> Bloqueado\n", objEvt.msg)
+	}
+
+	return nil
+}
+
+func insere(objEvt Evento) error {
+	if objEvt.idEvento == "" {
+		objEvt.idEvento = geradorDeId()
+	}
+
+	if objEvt.idProcesso == "" {
+		return errors.New("um id de processo deve ser informado")
+	}
+
+	stm, err := objEvt.conn.Prepare(`
+		INSERT INTO evento(
+			evento.ID_Evento, 
+			evento.ID_Processo, 
+			evento.Codigo, 
+			evento.Particao, 
+			evento.ZonaUser, 
+			evento.Nivel, 
+			evento.Img, 
+			evento.DataEntrada
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`)
+	if err != nil {
+		return err
+	}
+	defer stm.Close()
+
+	if _, err := stm.Exec(
+		objEvt.idEvento,
+		objEvt.idProcesso,
+		objEvt.codigo,
+		objEvt.particao,
+		objEvt.zonaUser,
+		objEvt.nivel,
+		objEvt.img,
+		objEvt.dataEntrada,
+	); err != nil {
+		return err
+	}
+	return nil
+}
+
+// funcoes internas =================================================
+
+func getIdProcesso(objEvt *Evento) error {
+
+	if err := getIdProcessoByIdDispositivo(objEvt); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func decodeEvento(evento string, objEvt *Evento) error {
+
+	// Carrega os dados no objeto ===================================
+	objEvt.conta = evento[0:4]
+	objEvt.codigo = formataCodigo(evento[4:8])
+	objEvt.particao = evento[8:10]
+	objEvt.zonaUser = evento[10:]
+	objEvt.dataEntrada = time.Now().Format("2006-01-02 15:04:05")
+	// Busca id do dispositivo
+	if err := getIdDispositivo(objEvt); err != nil {
+		return err
+	}
+
+	objEvt.msg = fmt.Sprintf("[ ID Disp: %s ]", objEvt.idDispositivo)
+	// Busca dados do contactid =====================================
+	if err := getDadosCtiByCodigo(objEvt); err != nil {
+		return err
+	}
+
+	// Verifica manutencao por setor (quando houver setor real) =====
+	if err := processaManutencaoSetor(objEvt); err != nil {
+		return err
+	}
+
+	// Verifica panico  =============================================
+	if objEvt.grupo == "PANICO" {
+		objEvt.nivel = "6"
+	}
+
+	return nil
+}
+
+func processaManutencaoSetor(objEvt *Evento) error {
+	if objEvt.grupo == "DESARME" {
+		return removeSetoresDaManutencaoWebByDispositivo(objEvt)
+	}
+
+	tab, err := objEvt.conn.Query(`
+		SELECT listaManutencao.ID_Alvo
+		FROM setorAlarme
+		LEFT JOIN listaManutencao
+		ON setorAlarme.ID_Setor = listaManutencao.ID_Alvo
+		WHERE setorAlarme.ID_Dispositivo = ?
+		AND setorAlarme.Particao = ?
+		AND setorAlarme.Numero = ?
+		LIMIT 1
+	`, objEvt.idDispositivo, objEvt.particao, objEvt.zonaUser)
+	if err != nil {
+		return err
+	}
+	defer tab.Close()
+
+	if tab.Next() {
+		var idAlvo sql.NullString
+		if err := tab.Scan(&idAlvo); err != nil {
+			return err
+		}
+
+		// Sem manutenção ativa para esse setor
+		if !idAlvo.Valid {
+			return nil
+		}
+
+		// Para os demais grupos, setor em manutenção bloqueia evento
+		objEvt.ativo = "N"
+	}
+
+	return nil
+}
+
+func removeSetoresDaManutencaoWebByDispositivo(objEvt *Evento) error {
+	if objEvt.idDispositivo == "" {
+		return nil
+	}
+
+	stm, err := objEvt.conn.Prepare(`
+		DELETE listaManutencao
+		FROM listaManutencao
+		INNER JOIN setorAlarme
+		ON setorAlarme.ID_Setor = listaManutencao.ID_Alvo
+		WHERE setorAlarme.ID_Dispositivo = ?
+	`)
+	if err != nil {
+		return err
+	}
+	defer stm.Close()
+
+	if _, err := stm.Exec(objEvt.idDispositivo); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// formataCodigo recebe um codigo com 4 digitos e converte o primeiro
+// digito se for letra para numero
+func formataCodigo(codIn string) (codOut string) {
+
+	switch string(codIn[0]) {
+
+	case "E", "e":
+		// Converte E ou e para 1 para compatibilidade
+		// pois o metodo evento so pode receber numero
+		codOut = "1" + codIn[1:4]
+	case "R", "r":
+		// Convewrte R ou r para 3 para compatibilidade
+		// pois o metodo evento so pode receber numero
+		codOut = "3" + codIn[1:4]
+	default:
+		// Caso o codigo full vier no formato compativel ele c
+		// arrega o valor no objeto Receptor representado por r
+		codOut = codIn
+	}
+	return
+}
+
+// Grava arme ou desarme na tabela dispositivo
+func armarAlarme(objEvt *Evento) error {
+	if objEvt.grupo == "ARME" {
+		if err := setArmadoById(objEvt, "S"); err != nil {
+			return err
+		}
+
+	} else if objEvt.grupo == "DESARME" {
+		if err := setArmadoById(objEvt, "N"); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Verefica se o evento é um teste periodico e caso seja ele grava
+// ultimo evento no dispositivo e retorna seta periodico para true
+func testePeriodico(objEvt *Evento, evento string, periodico *bool) error {
+
+	*periodico = false
+
+	if string(evento[4]) == "@" {
+		*periodico = true
+	} else if evento[5:8] == "602" {
+		*periodico = true
+	}
+
+	if *periodico {
+		objEvt.codigo = "1602"
+		objEvt.dataEntrada = time.Now().Format("2006-01-02 15:04:05")
+		if err := gravarUltimoEventoById(objEvt); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// gerarEventoBenuvem Gera ou finaliza um evento benuvem baseado no grupo do evento
+// ALARME  ou PANICO - Gera um evento benuvem
+// RESTAURE - Finaliza um evento benuvem
+func gerarEventoBenuvem(objEvt *Evento) error {
+	var cameraAtiva bool
+	var be benuvem.BeNuvem
+
+	if objEvt.grupo == "ALARME" || objEvt.grupo == "PANICO" {
+
+		if err := getCameraAtiva(objEvt, &cameraAtiva); err != nil {
+			return err
+		}
+
+		if cameraAtiva {
+
+			if err := be.GerarEvento(); err != nil {
+				objEvt.img = "SEM IMAGEM"
+			} else {
+				var url string
+				var expira int
+
+				be.Evento.CodCliente = objEvt.conta
+				be.Evento.CodFranqueado = objEvt.codigoBenuvem
+				be.Evento.Particao = objEvt.particao
+				be.Evento.Canais = []string{objEvt.zonaUser}
+
+				if err := be.GetUrlCamera(&url, &expira); err != nil {
+					objEvt.img = "SEM IMAGEM"
+				} else {
+					objEvt.img = url
+				}
+			}
+
+		}
+	} else if objEvt.grupo == "RESTAURE" {
+
+		if err := getCameraAtiva(objEvt, &cameraAtiva); err != nil {
+			return err
+		}
+
+		if cameraAtiva {
+			var be benuvem.BeNuvem
+			be.Evento.CodFranqueado = objEvt.codigoBenuvem
+			be.Evento.CodCliente = objEvt.conta
+			be.Evento.Particao = objEvt.particao
+			be.Evento.Canais = []string{objEvt.zonaUser}
+
+			be.FinalizarEvento()
+		}
+	}
+
+	return nil
+}
+
+// envia email para franqueado e cliente conforme cofiguraracao
+func enviaEmail(objEvt *Evento) error {
+
+	agora := time.Now().Format("02/01/2006 15:04:05")
+
+	msgFranqueado := fmt.Sprintf(`
+			<h1><b><i>Sistema monitoramento informa</i></b><h1>
+			<br><br>
+			<p>Evento <b>%s</b> com codigo %s recebido pelo sistma para o cliente <b>%s</b> em %s <p>`,
+		objEvt.descricao,
+		objEvt.codigo,
+		objEvt.nomeCliente,
+		agora,
+	)
+
+	msgCliente := fmt.Sprintf(`
+			<h1><b><i>
+				Sistema monitoramento informa
+			</i></b><h1>
+			<br><br>			
+			<h2>Sr.(a) <b>%s</b></h2>			
+			<p>Um evento %s com codigo %s foi recebido pelo sistma em %s <p>`,
+		objEvt.nomeCliente,
+		objEvt.descricao,
+		objEvt.codigo,
+		agora,
+	)
+
+	// Envia Franqueado =============================================
+	if getEmailAtivoFra(objEvt) {
+		if err := sendEmailEmviar(objEvt, objEvt.emailFranqeado, msgFranqueado); err != nil {
+			return err
+		}
+	}
+
+	// Envia Cliente ================================================
+	if getEmailAtivoCli(objEvt) {
+		if err := sendEmailEmviar(objEvt, objEvt.emailCliente, msgCliente); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getMsgAtendenteDispById(objEvt *Evento, msg *string) error {
+	if objEvt.idDispositivo == "" {
+		return errors.New("um id de dispositivo deve ser informado")
+	}
+
+	tab, err := objEvt.conn.Query(`
+		SELECT dispositivo.MsgAtendente
+		FROM dispositivo
+		WHERE dispositivo.ID_Dispositivo = ?
+	`, objEvt.idDispositivo)
+	if err != nil {
+		return err
+	}
+	defer tab.Close()
+
+	if tab.Next() {
+		var resp sql.NullString
+		if err := tab.Scan(&resp); err != nil {
+			return err
+		}
+		*msg = resp.String
+
+		return nil
+	}
+
+	return errors.New("dispositivo não encontrado no banco de dados")
+}
+
+func getDadosCtiByCodigo(objEvt *Evento) error {
+
+	if objEvt.codigo == "" {
+		return errors.New(`um código de contactid deve ser informado`)
+	}
+
+	// Consulta codigo Personalizado
+	tab, err := objEvt.conn.Query(`
+	SELECT 			
+			contactId.Grupo, 
+			contactId.Descricao, 
+			contactId.Nivel 
+		FROM contactId
+		WHERE contactId.Codigo = ?
+		AND contactId.ID_Vinculo = ?
+	`, objEvt.codigo, objEvt.idFranqueado)
+	if err != nil {
+		return err
+	}
+	defer tab.Close()
+
+	if tab.Next() {
+		if err := tab.Scan(
+			&objEvt.grupo,
+			&objEvt.descricao,
+			&objEvt.nivel,
+		); err != nil {
+			return err
+		}
+
+		return nil
+	} else {
+		// Consulta codigo base
+		tab, err := objEvt.conn.Query(`
+			SELECT 			
+					contactId.Grupo, 
+					contactId.Descricao, 
+					contactId.Nivel 
+				FROM contactId
+				WHERE contactId.Codigo = ?
+				AND contactId.ID_Vinculo = "CENTRAL"
+			`, objEvt.codigo)
+		if err != nil {
+			return err
+		}
+		defer tab.Close()
+
+		if tab.Next() {
+			if err := tab.Scan(
+				&objEvt.grupo,
+				&objEvt.descricao,
+				&objEvt.nivel,
+			); err != nil {
+				return err
+			}
+
+			return nil
+		}
+	}
+	return errors.New("codigo nao encontrado na base de dados")
+}
+
+// Funções para manipular dispositivo ===============================
+func gravarUltimoEventoById(objEvt *Evento) error {
+	if objEvt.idDispositivo == "" {
+		return errors.New("um id de dispositivo deve ser informado")
+	}
+
+	stm, err := objEvt.conn.Prepare(`
+		UPDATE dispositivo SET 
+			dispositivo.DataUltimoEvento = ?,
+			dispositivo.CodgioUltimoEvento = ?
+		WHERE dispositivo.ID_Dispositivo = ?
+	`)
+	if err != nil {
+		return err
+	}
+	defer stm.Close()
+
+	if _, err := stm.Exec(
+		objEvt.dataEntrada,
+		objEvt.codigo,
+		objEvt.idDispositivo,
+	); err != nil {
+		return err
+	}
+	return nil
+}
+
+func setArmadoById(objEvt *Evento, estado string) error {
+	if objEvt.idDispositivo == "" {
+		return errors.New("um id de dispositivo deve ser informado")
+	}
+
+	stm, err := objEvt.conn.Prepare(`
+		UPDATE dispositivo 
+		SET dispositivo.Armado = ?
+		WHERE dispositivo.ID_Dispositivo = ?
+	`)
+	if err != nil {
+		return err
+	}
+	defer stm.Close()
+
+	if _, err := stm.Exec(
+		estado,
+		objEvt.idDispositivo,
+	); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Funcoes para manipular o processo ================================
+func getIdProcessoByIdDispositivo(objEvt *Evento) error {
+	if objEvt.idDispositivo == "" {
+		return errors.New("um id de despositivo deve ser informado")
+	}
+
+	// Verifica se existe um processo aberto ========================
+
+	tab, err := objEvt.conn.Query(`
+		SELECT processo.ID_Processo 
+		FROM processo
+		WHERE processo.ID_Dispositivo = ?
+		AND processo.DataAtenFim IS NULL
+	`, objEvt.idDispositivo)
+	if err != nil {
+		return err
+	}
+	defer tab.Close()
+
+	if tab.Next() {
+		var id sql.NullString
+		if err := tab.Scan(&id); err != nil {
+			return err
+		}
+
+		objEvt.idProcesso = id.String
+		return nil
+	}
+
+	// Caso nao exista gera um novo processo ========================
+	if err := insereProcesso(objEvt); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func insereProcesso(objEvt *Evento) error {
+	// Carrega menssagem atendente ==================================
+	var msgAtendente string
+	if err := getMsgAtendenteDispById(
+		objEvt,
+		&msgAtendente,
+	); err != nil {
+		return err
+	}
+
+	stm, err := objEvt.conn.Prepare(`
+		INSERT INTO processo(
+		processo.ID_Processo, 
+		processo.ID_Dispositivo, 
+		processo.Nivel,
+		processo.MsgAtendente
+		) VALUES ( ?, ?, ?, ? )
+	`)
+	if err != nil {
+		return err
+	}
+	defer stm.Close()
+
+	// Gera um id para o novo processo
+	objEvt.idProcesso = geradorDeId()
+
+	if _, err := stm.Exec(
+		objEvt.idProcesso,
+		objEvt.idDispositivo,
+		"0",
+		msgAtendente,
+	); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func atualizaNivelById(objEvt *Evento) error {
+
+	if objEvt.idProcesso == "" {
+		return errors.New("um id de processo deve ser informado")
+	}
+
+	var nivelBanco int
+	if err := getNivelProcById(objEvt, &nivelBanco); err != nil {
+		return err
+	}
+
+	// Converte o nivel recebido em inteiro para calculo
+	nivelIn, err := strconv.Atoi(objEvt.nivel)
+	if err != nil {
+		return err
+	}
+
+	if nivelIn > nivelBanco {
+		if err := setNivelById(objEvt); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getNivelProcById(objEvt *Evento, nivel *int) error {
+	if objEvt.idProcesso == "" {
+		return errors.New("um id de processo deve ser informado")
+	}
+
+	tab, err := objEvt.conn.Query(`
+		SELECT processo.Nivel
+		FROM processo		
+		WHERE processo.ID_Processo = ?
+
+	`, objEvt.idProcesso)
+	if err != nil {
+		return err
+	}
+	defer tab.Close()
+
+	if tab.Next() {
+		var nivelBanco sql.NullString
+		if err := tab.Scan(&nivelBanco); err != nil {
+			return err
+		}
+
+		// Coverte o nivel consultado no banco para inteiro para calculo
+		n, err := strconv.Atoi(nivelBanco.String)
+		if err != nil {
+			return err
+		}
+
+		*nivel = n
+
+		return nil
+	}
+
+	return errors.New("processo não encontrado no banco de dados")
+}
+
+func setNivelById(objEvt *Evento) error {
+	if objEvt.idProcesso == "" {
+		return errors.New("um id de processo deve ser informado")
+	}
+
+	stm, err := objEvt.conn.Prepare(`
+		UPDATE processo 
+		SET processo.Nivel = ?
+		WHERE processo.ID_Processo = ?
+	`)
+	if err != nil {
+		return err
+	}
+	defer stm.Close()
+
+	if _, err := stm.Exec(objEvt.nivel, objEvt.idProcesso); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Funcoes para verificar desarme fora do horario ===================
+func verificaGrade(objEvt *Evento) error {
+	// Verifica fora do horario =====================================
+	if objEvt.grupo == "DESARME" {
+		if err := desarmeForaHorarioByIdCliente(objEvt); err != nil {
+			return err
+		}
+
+		// Busca os dados do codigo 1M01 ============================
+		if objEvt.codigo == "1M01" {
+			// Busca dados do contactid =============================
+			if err := getDadosCtiByCodigo(objEvt); err != nil {
+				return err
+			}
+		}
+
+	}
+	return nil
+}
+
+func desarmeForaHorarioByIdCliente(objEvt *Evento) error {
+
+	var txt string
+	switch int(time.Now().Weekday()) {
+	case 0:
+		txt = `
+			SELECT DomEam, DomSam, DomEpm, DomSpm, Tolerancia
+			FROM grade 
+			WHERE ID_Dispositivo = ? AND Ativo = 'S'`
+	case 1:
+		txt = `
+			SELECT SegEam, SegSam, SegEpm, SegSpm, Tolerancia
+			FROM grade
+			WHERE ID_Dispositivo = ? AND Ativo = 'S'`
+	case 2:
+		txt = `
+			SELECT TerEam, TerSam, TerEpm, TerSpm, Tolerancia
+			FROM grade 
+			WHERE ID_Dispositivo = ? AND Ativo = 'S'`
+	case 3:
+		txt = `
+			SELECT QuaEam, QuaSam, QuaEpm, QuaSpm, Tolerancia
+			FROM grade 
+			WHERE ID_Dispositivo = ? AND Ativo = 'S'`
+	case 4:
+		txt = `
+			SELECT QuiEam, QuiSam, QuiEpm, QuiSpm, Tolerancia
+			FROM grade 
+			WHERE ID_Dispositivo = ? AND Ativo = 'S'`
+	case 5:
+		txt = `
+			SELECT SexEam, SexSam, SexEpm, SexSpm, Tolerancia
+			FROM grade 
+			WHERE ID_Dispositivo = ? AND Ativo = 'S'`
+	case 6:
+		txt = `
+			SELECT SabEam, SabSam, SabEpm, SabSpm, Tolerancia
+			FROM grade 
+			WHERE ID_Dispositivo = ? AND Ativo = 'S'`
+	}
+
+	tab, erro := objEvt.conn.Query(txt, objEvt.idDispositivo)
+	if erro != nil {
+		return erro
+	}
+	defer tab.Close()
+
+	// Caso temha uma grade para processar
+	if tab.Next() {
+		var desarme, armeIntervalo, desarmeIntervalo, arme, tol string
+		if erro := tab.Scan(
+			&desarme,
+			&armeIntervalo,
+			&desarmeIntervalo,
+			&arme,
+			&tol,
+		); erro != nil {
+			return erro
+		}
+
+		//
+		//
+		// Verifica se o evento esta fora do horario caso o cliente tenha uma grade
+		// de horario e casso a variavel Alarme esteja seta em true e caso esteja ele
+		// atera o evento para 1M01
+
+		foraEntrada := false
+		foraIntervalo := false
+		foraSaida := false
+		agora := time.Now()
+
+		if desarme != "" && desarme != "00:00" {
+			var entradaAm time.Time
+			if erro := calculaGrade(desarme, tol, "SUB", &entradaAm); erro != nil {
+				return erro
+			}
+			if agora.Before(entradaAm) {
+				foraEntrada = true
+			}
+		}
+
+		if armeIntervalo != "" && armeIntervalo != "00:00" &&
+			desarmeIntervalo != "" && desarmeIntervalo != "00:00" {
+			var saidaAm time.Time
+			if erro := calculaGrade(armeIntervalo, tol, "ADD", &saidaAm); erro != nil {
+				return erro
+			}
+
+			var entradaPm time.Time
+			if erro := calculaGrade(desarmeIntervalo, tol, "SUB", &entradaPm); erro != nil {
+				return erro
+			}
+
+			if agora.After(saidaAm) && agora.Before(entradaPm) {
+				foraIntervalo = true
+			}
+		}
+
+		if arme != "" && arme != "00:00" {
+			var saidaPm time.Time
+			if erro := calculaGrade(arme, tol, "ADD", &saidaPm); erro != nil {
+				return erro
+			}
+
+			if agora.After(saidaPm) {
+				foraSaida = true
+			}
+		}
+
+		if foraEntrada || foraIntervalo || foraSaida {
+			objEvt.codigo = "1M01"
+			return nil
+		}
+	}
+
+	return nil
+}
+
+func calculaGrade(inTime, tol, tipo string, outTime *time.Time) error {
+
+	// Converte tolerancia para duração
+	tolerancia, erro := time.ParseDuration(tol + "m")
+	if erro != nil {
+		return erro
+	}
+
+	var temp = strings.Split(inTime, ":")
+	// Hora da grade
+	hora, erro := strconv.Atoi(temp[0])
+	if erro != nil {
+		return erro
+	}
+
+	minuto, erro := strconv.Atoi(temp[1])
+	if erro != nil {
+		return erro
+	}
+
+	t := time.Now()
+	gradeHora := time.Date(
+		t.Year(), t.Month(), t.Day(),
+		hora, minuto, t.Second(),
+		t.Nanosecond(), t.Location(),
+	)
+	if tipo == "ADD" {
+		*outTime = gradeHora.Add(tolerancia)
+	} else {
+		*outTime = gradeHora.Add(-tolerancia)
+	}
+
+	return nil
+}
+
+func getCameraAtiva(objEvt *Evento, ativa *bool) error {
+
+	tab, err := objEvt.conn.Query(`
+		SELECT setorAlarme.Camera
+
+		FROM setorAlarme
+		
+		WHERE setorAlarme.ID_Dispositivo = ?
+		AND setorAlarme.Particao = ?
+		AND setorAlarme.Numero = ?
+	`, objEvt.idDispositivo, objEvt.particao, objEvt.zonaUser)
+	if err != nil {
+		return err
+	}
+	defer tab.Close()
+
+	if tab.Next() {
+		var tmp sql.NullString
+
+		if err := tab.Scan(&tmp); err != nil {
+			return err
+		}
+
+		if tmp.String == "S" {
+			*ativa = true
+		} else {
+			*ativa = false
+		}
+
+		return nil
+	} else {
+		*ativa = false
+
+		return nil
+	}
+}
+
+func getIdDispositivo(objEvt *Evento) error {
+
+	if objEvt.idFranqueado == "" {
+		return errors.New("id franqueado invalido")
+	}
+
+	if objEvt.conta == "" {
+		return errors.New("conta invalida")
+	}
+
+	tab, erro := objEvt.conn.Query(`
+	
+		SELECT 
+			dispositivo.ID_Dispositivo,		
+			
+			dispositivo.ID_Cliente,
+			cliente.Nome,
+			cliente.Email1,
+
+			franqueado.RazaoSocial,
+			usuarios.Email1,
+			franqueado.CodBenuvem,
+			
+			listaBloqueio.ID_Alvo,
+
+			emailBloqRep.ID_Alvo,
+			emailBloqFra.ID_Alvo,
+			emailBloqCli.ID_Alvo,
+			emailBloqDis.ID_Alvo,
+
+			setupEnvioEvento.EmailAlarme,
+			setupEnvioEvento.EmailArme,
+			setupEnvioEvento.EmailDesarme,
+			setupEnvioEvento.EmailEmergencia,
+			setupEnvioEvento.EmailFalhas,
+			setupEnvioEvento.EmailGeral,
+			setupEnvioEvento.EmailMedico,
+			setupEnvioEvento.EmailPanico,
+			setupEnvioEvento.EmailRestaure,
+			setupEnvioEvento.EmailSetup,
+			setupEnvioEvento.EmailTeste,
+			setupEnvioEvento.EmailSemComunicar 
+		FROM dispositivo
+		
+		LEFT JOIN cliente
+		ON  dispositivo.ID_Cliente = cliente.ID_Cliente
+		
+		LEFT JOIN franqueado
+		ON cliente.ID_Franqueado = franqueado.ID_Franqueado
+
+		LEFT JOIN usuarios
+		ON franqueado.ID_UsuarioMaster = usuarios.ID_Usuario
+
+		LEFT JOIN listaBloqueio 
+		ON dispositivo.ID_Dispositivo = listaBloqueio.ID_Alvo
+
+		LEFT JOIN listaEnvio AS emailBloqRep
+		ON franqueado.ID_Representante = emailBloqRep.ID_Alvo
+		
+		LEFT JOIN listaEnvio AS emailBloqFra
+ 		ON franqueado.ID_Franqueado = emailBloqFra.ID_Alvo
+
+		LEFT JOIN listaEnvio AS emailBloqCli
+		ON dispositivo.ID_Cliente = emailBloqCli.ID_Alvo
+
+		LEFT JOIN listaEnvio AS emailBloqDis
+		ON dispositivo.ID_Dispositivo = emailBloqDis.ID_Alvo
+		
+		LEFT JOIN setupEnvioEvento 
+		ON dispositivo.ID_Dispositivo = setupEnvioEvento.ID_Dispositivo
+
+		WHERE franqueado.ID_Franqueado = ?
+		AND dispositivo.Conta = ?
+	`, objEvt.idFranqueado, objEvt.conta)
+	if erro != nil {
+		return erro
+	}
+	defer tab.Close()
+	if tab.Next() {
+		var (
+			ativo  sql.NullString
+			alarme sql.NullString
+
+			emailBloqRep sql.NullString
+			emailBloqFra sql.NullString
+			emailBloqCli sql.NullString
+			emailBloqDis sql.NullString
+
+			// Grupos de eventos
+			arme         sql.NullString
+			desarme      sql.NullString
+			emergencia   sql.NullString
+			falhas       sql.NullString
+			geral        sql.NullString
+			medico       sql.NullString
+			panico       sql.NullString
+			restaure     sql.NullString
+			setup        sql.NullString
+			teste        sql.NullString
+			semComunicar sql.NullString
+		)
+		if erro := tab.Scan(
+			&objEvt.idDispositivo,
+
+			&objEvt.idCliente,
+			&objEvt.nomeCliente,
+			&objEvt.emailCliente,
+
+			&objEvt.nomeFranqueado,
+			&objEvt.emailFranqeado,
+			&objEvt.codigoBenuvem,
+
+			&ativo,
+			&emailBloqRep,
+			&emailBloqFra,
+			&emailBloqCli,
+			&emailBloqDis,
+
+			&alarme,
+			&arme,
+			&desarme,
+			&emergencia,
+			&falhas,
+			&geral,
+			&medico,
+			&panico,
+			&restaure,
+			&setup,
+			&teste,
+			&semComunicar,
+		); erro != nil {
+			return erro
+		}
+
+		if ativo.Valid {
+			objEvt.ativo = "N"
+			return nil
+		} else {
+			objEvt.ativo = "S"
+		}
+
+		if emailBloqRep.Valid {
+			objEvt.emailRep = emailBloqRep.String
+		} else {
+			objEvt.emailRep = "N"
+		}
+
+		if emailBloqFra.Valid {
+			objEvt.emailFra = emailBloqFra.String
+		} else {
+			objEvt.emailFra = "N"
+		}
+
+		if emailBloqCli.Valid {
+			objEvt.emailCli = emailBloqCli.String
+		} else {
+			objEvt.emailCli = "N"
+		}
+
+		if emailBloqDis.Valid {
+			objEvt.emailDis = emailBloqDis.String
+		} else {
+			objEvt.emailDis = "N"
+		}
+
+		if alarme.Valid {
+			objEvt.email.GrupoEmailEvento.Alarme = alarme.String
+			objEvt.email.GrupoEmailEvento.Arme = arme.String
+			objEvt.email.GrupoEmailEvento.Desarme = desarme.String
+			objEvt.email.GrupoEmailEvento.Emergencia = emergencia.String
+			objEvt.email.GrupoEmailEvento.Falhas = falhas.String
+			objEvt.email.GrupoEmailEvento.Geral = geral.String
+			objEvt.email.GrupoEmailEvento.Medico = medico.String
+			objEvt.email.GrupoEmailEvento.Panico = panico.String
+			objEvt.email.GrupoEmailEvento.Restaure = restaure.String
+			objEvt.email.GrupoEmailEvento.Setup = setup.String
+			objEvt.email.GrupoEmailEvento.Teste = teste.String
+			objEvt.email.GrupoEmailEvento.SemComunicar = semComunicar.String
+		} else {
+			objEvt.email.GrupoEmailEvento.Alarme = "N"
+			objEvt.email.GrupoEmailEvento.Arme = "N"
+			objEvt.email.GrupoEmailEvento.Desarme = "N"
+			objEvt.email.GrupoEmailEvento.Emergencia = "N"
+			objEvt.email.GrupoEmailEvento.Falhas = "N"
+			objEvt.email.GrupoEmailEvento.Geral = "N"
+			objEvt.email.GrupoEmailEvento.Medico = "N"
+			objEvt.email.GrupoEmailEvento.Panico = "N"
+			objEvt.email.GrupoEmailEvento.Restaure = "N"
+			objEvt.email.GrupoEmailEvento.Setup = "N"
+			objEvt.email.GrupoEmailEvento.Teste = "N"
+			objEvt.email.GrupoEmailEvento.SemComunicar = "N"
+		}
+
+		return nil
+	}
+	return errors.New("dispositivo não encontrado")
+}
+
+func sendEmailEmviar(objEvt *Evento, destinatario, messagem string) error {
+	if destinatario == "" {
+		fmt.Println("faltando email de destinatario")
+		return nil
+	}
+
+	if messagem == "" {
+		fmt.Println("faltando a menssagem do email")
+		return nil
+	}
+
+	if getEmailAtivo(objEvt) && getGrupoEmailAtivo(objEvt) {
+		//Conecta com o servidor SMTP
+		if err := smtp.SendMail(
+			objEvt.email.Servidor,
+			objEvt.email.Credenciais,
+			objEvt.email.Remetente,
+			[]string{destinatario},
+			[]byte(messagem),
+		); err != nil {
+			fmt.Println(err)
+		}
+	}
+
+	return nil
+}
+
+func getEmailAtivo(objEvt *Evento) bool {
+
+	if objEvt.emailRep == "N" {
+		return false
+	} else if objEvt.emailFra == "N" {
+		return false
+	} else if objEvt.emailCli == "N" {
+		return false
+	} else if objEvt.emailDis == "N" {
+		return false
+	} else {
+		return true
+	}
+}
+
+func getEmailAtivoRep(objEvt *Evento) bool {
+
+	if objEvt.emailRep == "N" {
+		return false
+	} else {
+		return true
+	}
+}
+
+func getEmailAtivoFra(objEvt *Evento) bool {
+
+	if objEvt.emailRep == "N" {
+		return false
+	} else if objEvt.emailFra == "N" {
+		return false
+	} else {
+		return true
+	}
+}
+
+func getEmailAtivoCli(objEvt *Evento) bool {
+
+	if objEvt.emailRep == "N" {
+		return false
+	} else if objEvt.emailFra == "N" {
+		return false
+	} else if objEvt.emailCli == "N" {
+		return false
+	} else {
+		return true
+	}
+}
+
+func getGrupoEmailAtivo(objEvt *Evento) bool {
+
+	switch objEvt.grupo {
+	case "ALARME":
+		if objEvt.email.GrupoEmailEvento.Alarme == "S" {
+			return true
+		} else {
+			return false
+		}
+	case "ARME":
+		if objEvt.email.GrupoEmailEvento.Arme == "S" {
+			return true
+		} else {
+			return false
+		}
+	case "DESARME":
+		if objEvt.email.GrupoEmailEvento.Desarme == "S" {
+			return true
+		} else {
+			return false
+		}
+	case "EMERGENCIA":
+		if objEvt.email.GrupoEmailEvento.Emergencia == "S" {
+			return true
+		} else {
+			return false
+		}
+	case "FALHAS":
+		if objEvt.email.GrupoEmailEvento.Falhas == "S" {
+			return true
+		} else {
+			return false
+		}
+	case "GERAL":
+		if objEvt.email.GrupoEmailEvento.Geral == "S" {
+			return true
+		} else {
+			return false
+		}
+	case "MEDICO":
+		if objEvt.email.GrupoEmailEvento.Medico == "S" {
+			return true
+		} else {
+			return false
+		}
+	case "PANICO":
+		if objEvt.email.GrupoEmailEvento.Panico == "S" {
+			return true
+		} else {
+			return false
+		}
+	case "RESTAURE":
+		if objEvt.email.GrupoEmailEvento.Restaure == "S" {
+			return true
+		} else {
+			return false
+		}
+	case "SETUP":
+		if objEvt.email.GrupoEmailEvento.Setup == "S" {
+			return true
+		} else {
+			return false
+		}
+	case "TESTE":
+		if objEvt.email.GrupoEmailEvento.Teste == "S" {
+			return true
+		} else {
+			return false
+		}
+	default:
+		return false
+	}
+}
+
+// GeradorId gera um hash de id para inserção no banco
+func geradorDeId() string {
+	agora := time.Now()
+	//rand.Intn(9999999999999)
+	numero1 := rand.Intn(999999-100000) + 100000
+	numero2 := rand.Intn(99999-10000) + 10000
+	parte1 := agora.Format("20060102030405")
+	parte2 := strconv.Itoa(numero1) + strconv.Itoa(numero2)
+	ret := parte1 + parte2
+	return fmt.Sprintf("%025s", ret)
+}

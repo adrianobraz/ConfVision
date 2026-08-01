@@ -1,0 +1,32 @@
+{{ template "pagina" . }} {{ define "body" }}
+<link rel="stylesheet" href="/public/css/mapa.css">
+<div class="app-shell-full monitor-page">
+    {{ template "navbar" . }}
+
+    <div class="app-main-fill">
+        <div class="toolbar">
+            <a id="linkVoltarMapas" href="/home" class="btn btn-ghost btn-sm js-voltar">← Voltar</a>
+            <h2 id="nomeMapa" class="page-title" style="font-size:1.1rem;margin:0;">Monitoramento</h2>
+            <span id="nomeCliente" class="toolbar-muted"></span>
+            <div class="toolbar-spacer legend">
+                <span><span class="legend-dot mapa-ponto-normal"></span>Normal</span>
+                <span><span class="legend-dot mapa-ponto-alarme"></span>Disparo</span>
+                <span><span class="legend-dot mapa-ponto-falha"></span>Sem comunicação</span>
+            </div>
+            <a href="/home" class="btn btn-ghost btn-sm">Clientes</a>
+        </div>
+
+        <div id="mapaContainer" class="mapa-container flex-1 relative">
+            <img id="mapaImagem" class="mapa-imagem" alt="Planta" />
+            <div id="mapaCamada" class="mapa-camada"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js"></script>
+    <script src="/public/js/mapaUtil.js"></script>
+    <script src="/public/js/mapaLayout.js"></script>
+    <script src="/public/js/mapaCameraLive.js"></script>
+    <script src="/public/js/mapaSetorPopup.js"></script>
+    <script src="/public/templates/monitor/monitor.js"></script>
+</div>
+{{ end }}

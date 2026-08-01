@@ -1,0 +1,449 @@
+{{ template "pagina" . }}
+
+{{ define "body" }}
+<div class="tech-page">
+    {{ template "navbar" . }}
+
+    <div class="tech-workspace">
+        <!-- Listagem (esquerda) -->
+        <section class="tech-col-list">
+            <div class="tech-panel">
+                <div class="tech-panel-head">
+                    <i class="bi bi-table"></i> Listagem · Pacotes
+                </div>
+                <div class="tech-panel-body">
+                    {{ template "tabela" }}
+                </div>
+            </div>
+        </section>
+
+        <!-- Cadastro (direita) -->
+        <section class="tech-col-form">
+            <div class="tech-panel">
+                <div class="tech-panel-head">
+                    <i class="bi bi-box-seam"></i> Cadastro · Pacote
+                </div>
+                <div class="tech-panel-body">
+                    <div class="tech-form-block">
+                        <div class="flex flex-col md:flex-row gap-2">
+                            <div class="w-full md:w-9/12">
+                                <label for="pacoteNome" class="ps-1">Nome Pacote</label>
+                                <input id="pacoteNome" type="text"
+                                    class="w-full px-3 py-2 text-center">
+                            </div>
+                            <div class="w-full md:w-3/12">
+                                <label for="periodo" class="ps-1">Periodicidade</label>
+                                <select id="periodo" class="w-full px-3 py-2 text-center">
+                                    <option value="15">Quizenal</option>
+                                    <option value="30">Mensal</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row gap-2">
+                        {{ template "pacote"}}
+                        {{ template "adicionais"}}
+                    </div>
+
+                    <div class="flex flex-col md:flex-row gap-2">
+                        {{ template "atendimento"}}
+                        {{ template "sms"}}
+                    </div>
+
+                    <div class="flex flex-col md:flex-row gap-2">
+                        {{ template "ligacao"}}
+                        {{ template "email"}}
+                    </div>
+
+                    <div class="w-full flex flex-col md:flex-row gap-2">
+                        <button id="btnLimpar" class="py-2 w-full rounded-md text-white font-black text-xl bg-red-700">
+                            <i class="bi bi-eraser-fill"></i> &nbsp; Limpar
+                        </button>
+                        <button id="btnGravar" class="py-2 w-full rounded-md text-white font-black text-xl bg-green-700">
+                            <i class="bi bi-floppy-fill"></i> &nbsp; Gravar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+<script src="/public/templates/financeiroPacote/financeiroPacote.js"></script>
+{{ end }}
+
+
+{{ define "thead" }}
+
+<th class="py-2 w-10/12 text-sm">
+    Pacote
+</th>
+
+<th class="py-2 w-2/12 text-sm" colspan="3">
+    Ação
+</th>
+
+{{end}}
+
+{{ define "tbody" }}
+
+{{ end }}
+
+
+{{ define "pacote"}}
+<div class="md:w-2/3 flex flex-col gap-2 border rounded-md border-zinc-700">
+    
+    <div 
+        class="p-1 text-center bg-zinc-700 text-white">
+        Dados Pacote
+    </div>
+
+    <div class="p-1 md:w1/2 flex  gap-2">
+
+        <div class="w-1/4">
+            <label 
+                for="pacoteValor" 
+                class="ps-2 font-black">
+                Valor:
+            </label>
+            
+            <input 
+                id="pacoteValor" 
+                type="text" 
+                placeholder="0,00"
+                class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 mskReal">
+        </div>
+
+        <div class="w-1/4">
+            <label 
+                for="pacoteQtdConta" 
+                class="ps-2 font-black">
+                Qtd Contas:
+            </label>
+            
+            <input 
+                id="pacoteQtdConta" 
+                type="number"
+                class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700">
+        </div>
+
+        <div class="w-1/4">
+            <label 
+                for="pacoteAdicional" 
+                class="ps-2 font-black">
+                Adicional:
+            </label>
+
+            <input 
+                id="pacoteAdicional" 
+                type="text" 
+                placeholder="0,00"
+                class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 mskReal">
+        </div>
+
+        <div class="w-1/4">
+        
+            <label 
+                for="pacoteComissao" 
+                class="ps-2 font-black">
+                Comissão %:
+            </label>
+            
+            <input 
+                id="pacoteComissao" 
+                type="number"
+                max="100"
+                class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700">
+
+        </div>
+
+    </div>
+
+</div>
+{{ end }}
+
+
+{{ define "adicionais"}}
+<div class="md:w-1/3 flex flex-col gap-2 border rounded-md border-zinc-700">
+    
+    <div 
+        class="p-1 text-center bg-zinc-700 text-white">
+        Adicionais
+    </div>
+
+    <div class="p-1 md:w1/2 flex  gap-2">
+
+        <div class="w-1/3">
+            <label 
+                for="adicionaisTerminal" 
+                class="ps-2 font-black">
+                Terminal:
+            </label>
+
+            <select 
+                id="adicionaisTerminal" 
+                type="text"
+                class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700">
+                
+                <option value="N">Não</option>
+                <option value="S">Sim</option>
+
+            </select>
+        </div>
+
+        <div class="w-1/3">
+            
+            <label 
+                for="adicionaisGrade" 
+                class="ps-2 font-black">
+                Grade:
+            </label>
+            
+            <select 
+                id="adicionaisGrade" 
+                type="text"
+                class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700">
+                
+                <option value="N">Não</option>
+                <option value="S">Sim</option>
+
+            </select>
+
+        </div>
+
+        <div class="w-1/3">
+            <label 
+                for="adicionaisGradeValor" 
+                class="ps-2 font-black">
+                Grade:
+            </label>
+
+            <input 
+                id="adicionaisGradeValor" 
+                type="text" 
+                placeholder="0,00"
+                class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 mskReal">
+
+        </div>
+
+    </div>
+
+</div>
+{{ end }}
+
+{{ define "atendimento"}}
+<div class="md:w-1/2 flex flex-col gap-2 border rounded-md border-zinc-700">
+    <div 
+        class="p-1 text-center bg-zinc-700 text-white">
+        Atendimento
+    </div>
+
+    <div class="p-1 md:w1/2 flex  gap-2">
+
+        <div class="w-1/2">
+            <label 
+                for="atendimentoQtd" 
+                class="ps-2 font-black">
+                Quantidade:
+            </label>
+
+            <input 
+                id="atendimentoQtd" 
+                type="number"
+                class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700">
+        </div>
+
+        <div class="w-1/2">
+            <label 
+                for="atendimentoAdicional" 
+                class="ps-2 font-black">
+                Adicional:
+            </label>
+            
+            <input 
+                id="atendimentoAdicional" 
+                type="text" 
+                placeholder="0,00"
+                class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 mskReal">
+        </div>
+    </div>
+
+</div>
+{{ end }}
+
+{{ define "email"}}
+<div class="md:w-1/2 flex flex-col gap-2 border rounded-md border-zinc-700">
+
+    <div class="p-1 text-center  bg-zinc-700 text-white">Email</div>
+
+    <div class="p-1 md:w1/2 flex gap-2">
+
+        <div class="w-1/3">
+            <label 
+                for="emailQtd" 
+                class="ps-2 font-black">
+                Email:
+            </label>
+            
+            <input 
+                id="emailQtd" 
+                type="number"
+                class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700">
+        </div>
+
+        <div class="w-1/3">
+            <label 
+                for="emailAdicional" 
+                class="ps-2 font-black">
+                Adicional:
+            </label>
+            
+            <input 
+                id="emailAdicional" 
+                type="text" 
+                placeholder="0,00"
+                class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 mskReal">
+        </div>
+
+        <div class="w-1/3">
+            
+            <label 
+                for="emailBloquear" 
+                class="ps-2 font-black">
+                Bloquear:
+            </label>
+            
+            <select 
+                id="emailBloquear"
+                class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700">
+                
+                <option value="N">Não</option>
+                <option value="S">Sim</option>
+
+            </select>
+
+        </div>
+
+    </div>
+
+</div>
+{{ end }}
+
+{{ define "sms"}}
+<div class="md:w-1/2 flex flex-col gap-2 border rounded-md border-zinc-700">
+
+    <div 
+        class="p-1 text-center  bg-zinc-700 text-white">
+        Sms
+    </div>
+
+    <div class="p-1 md:w1/2 flex gap-2">
+
+        <div class="w-1/3">
+            <label 
+                for="smsQtd" 
+                class="ps-2 font-black">
+                Qtd:
+            </label>
+            
+            <input 
+                id="smsQtd" 
+                type="number"
+                class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700">
+        </div>
+
+        <div class="w-1/3">
+            <label 
+                for="smsAdicional" 
+                class="ps-2 font-black">
+                Adicional:
+            </label>
+            
+            <input 
+                id="smsAdicional" 
+                type="text" 
+                placeholder="0,00"
+                class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 mskReal">
+        </div>
+
+        <div class="w-1/3">
+            
+            <label 
+                for="smsBloquear" 
+                class="ps-2 font-black">
+                Bloquear:
+            </label>
+            
+            <select 
+                id="smsBloquear" 
+                class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700">
+                
+                <option value="N">Não</option>
+                <option value="S">Sim</option>
+            </select>
+
+        </div>
+
+    </div>
+
+</div>
+{{ end }}
+
+
+{{ define "ligacao"}}
+<div class="md:w-1/2 flex flex-col gap-2 border rounded-md border-zinc-700">
+    
+    <div 
+        class="p-1 text-center bg-zinc-700 text-white">
+        Ligações
+    </div>
+
+    <div class="p-1 md:w1/2 flex  gap-2">
+
+        <div class="w-1/3">
+            <label 
+                for="ligacaoQtd" 
+                class="ps-2 font-black">
+                Qtd:
+            </label>
+            
+            <input 
+                id="ligacaoQtd" 
+                type="number"
+                class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700">
+        </div>
+
+        <div class="w-1/3">
+            <label 
+                for="ligacaoAdicional" 
+                class="ps-2 font-black">
+                Adicional:
+            </label>
+            
+            <input 
+                id="ligacaoAdicional" 
+                type="text" 
+                placeholder="0,00"
+                class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700 mskReal">
+        </div>
+
+        <div class="w-1/3">
+            
+            <label 
+                for="ligacaoBloquear" 
+                class="ps-2 font-black">
+                Bloquear:
+            </label>
+            
+            <select 
+                id="ligacaoBloquear"
+                class="w-full px-3 py-2 rounded-md text-center focus:outline-none text-slate-700">
+                
+                <option value="N">Não</option>
+                <option value="S">Sim</option>
+            </select>
+        </div>
+    </div>
+
+</div>
+{{ end }}

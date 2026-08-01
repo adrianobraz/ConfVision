@@ -1,0 +1,77 @@
+function ateControles_start() {
+    fetch(`/assets/modulos/ateControles/ateControles.html`).then((res) => res.text()).then((html) => {
+        const box = document.getElementById('boxTop')
+        box.innerHTML = html
+        ateControles_setup(() => {
+
+        })
+    })
+}
+
+function ateControles_setup(next){
+    next()
+}
+
+function ateControles_timer(start) {
+    if (sessionStorage.getItem('gSetupTela') == 'atendimento') {
+
+        if (flags.ateControles_gTimer < 0) {
+            flags.ateControles_gTimer = start
+        }
+
+        // Se o tempo não for zerado
+        if (flags.ateControles_gTimer > 0) {
+            flags.ateControles_gTimer--
+            // Imprime a hora no display do terminal
+            ateControles_imprimeHora(flags.ateControles_gTimer)
+
+        } else { // Quando o contador chegar a zero faz esta ação
+
+            Swal.fire({
+                position: 'top',
+                icon: 'warning',
+                title: 'Atenção !!!',
+                text: 'Tempo de atendimento acima do ideal, penalizações podem ser aplicadas',
+                confirmButtonColor: '#242343;',
+            })
+
+            // Resta a variavel para um novo ciclo
+            flags.ateControles_gTimer = start
+
+            // Aplica penalidade no atendente e volta para tela PROCESSO
+            ateControles_punir()
+            // setupTelaProcesso()
+            if (sessionStorage.getItem('gTempoAtendimentoFechar') == 'ON') {
+                ateProDado_aguardar(
+                    sessionStorage.getItem('ateProDado_proc_idProcesso')
+                )
+            }
+        }
+
+    }
+}
+
+function ateControles_imprimeHora(tempo) {
+    // Pega a parte inteira dos minutos
+    var min = parseInt(tempo / 60);
+
+    // Calcula os segundos restantes
+    var seg = tempo % 60;
+
+    // Formata o número menor que dez, ex: 08, 07, ...
+    if (min < 10) {
+        min = "0" + min;
+        min = min.substr(0, 2)
+    }
+
+    if (seg <= 9) seg = "0" + seg
+
+    // Cria a variável para formatar no estilo hora/cronômetro
+    $("#ateControles_cpTimer").html(min + ':' + seg);
+
+}
+
+function ateControles_punir() {
+
+}
+

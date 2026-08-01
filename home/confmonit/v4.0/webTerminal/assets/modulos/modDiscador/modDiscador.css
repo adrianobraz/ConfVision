@@ -1,0 +1,55 @@
+#modDiscador {
+    box-sizing: border-box;
+    height: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    background-color: #212529;
+    opacity: 1;
+}
+
+#modDiscador_titulo {
+    height: 40px;
+    flex: 1 1 100%;
+    text-align: center;
+    background-color: black;
+}
+
+#modDiscador_responsivo {
+    height: calc(100% - 100px);
+    display: flex;
+    flex-wrap: wrap;
+    padding: 10px 5px;
+    flex: 1 1 100%;
+    background-color: inherit;
+    
+}
+
+.box-tel-texto {
+    width: 32%;
+}
+
+.box-tel-botao button {
+    width: 22%;
+}
+
+/* #modDiscador_responsivo span {
+    width: 28%;
+   
+}
+
+#modDiscador_responsivo button {
+    width: 22%;
+} */
+
+#modDiscador_boxBtn {
+    padding: 5px;
+    height: 60px;
+    flex: 1 1 100%;
+    background-color: inherit;
+}
+
+    #modDiscador_boxBtn button {
+        height: 100%;
+        width: 100%;
+        flex: 1 1 100%;
+    }
