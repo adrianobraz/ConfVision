@@ -3,7 +3,7 @@ from typing import Any, Optional
 
 import requests
 
-from config import WORKER_ID, WORKER_VERSION, XANO_BASE_URL
+from config import WORKER_ID, WORKER_VERSION, XANO_BASE_URL, MEDIAMTX_NODE_ID
 from sharding import filter_cameras, query_params
 
 
@@ -141,6 +141,8 @@ def post_ping(cameras_ativas: int, extra: Optional[dict[str, Any]] = None):
         "ultimo_ping_em": datetime.now(timezone.utc).isoformat(),
         "ativo": True,
     }
+    if MEDIAMTX_NODE_ID > 0:
+        payload["vis_mediamtx_node_id"] = MEDIAMTX_NODE_ID
     if extra:
         payload.update(extra)
     response = requests.post(url, json=payload, timeout=15)

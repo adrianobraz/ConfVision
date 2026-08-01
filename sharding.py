@@ -1,5 +1,6 @@
 from config import (
     MAX_CAMERAS,
+    MEDIAMTX_NODE_ID,
     SHARD_MODE,
     WORKER_ID,
     WORKER_SHARD_INDEX,
@@ -45,16 +46,21 @@ def filter_cameras(cameras: list) -> list:
 
 def shard_label() -> str:
     parts = [f"mode={SHARD_MODE}", f"worker_id={WORKER_ID}", f"max={MAX_CAMERAS}"]
+    if MEDIAMTX_NODE_ID > 0:
+        parts.append(f"mtx_node={MEDIAMTX_NODE_ID}")
     if WORKER_SHARD_TOTAL > 0 and WORKER_SHARD_INDEX >= 0:
         parts.append(f"shard={WORKER_SHARD_INDEX}/{WORKER_SHARD_TOTAL}")
     return " ".join(parts)
 
 
 def query_params() -> dict:
-    # API 2210 aceita só worker_id opcional; hash filtra no Python (filter_cameras)
+    # API aceita worker_id e vis_mediamtx_node_id; hash filtra no Python
+    params: dict = {}
     if SHARD_MODE == "worker_id" and WORKER_ID:
-        return {"worker_id": WORKER_ID}
-    return {}
+        params["worker_id"] = WORKER_ID
+    if MEDIAMTX_NODE_ID > 0:
+        params["vis_mediamtx_node_id"] = MEDIAMTX_NODE_ID
+    return params
 
 
 def is_motion_camera(camera: dict) -> bool:

@@ -28,11 +28,12 @@ def stream_path_for_camera(camera) -> str:
     return stream_path(camera.get("id"), camera.get("id_franqueado"))
 
 
-def rtsp_url(camera_id, id_franqueado=None) -> str:
+def rtsp_url(camera_id, id_franqueado=None, rtsp_base: str | None = None) -> str:
     path = stream_path(camera_id, id_franqueado)
+    base = (rtsp_base or MEDIAMTX_RTSP_BASE or "").strip().rstrip("/")
     if not path:
-        return MEDIAMTX_RTSP_BASE
-    return f"{MEDIAMTX_RTSP_BASE}/{path}"
+        return base or MEDIAMTX_RTSP_BASE
+    return f"{base}/{path}"
 
 
 def rtsp_url_for_camera(camera) -> str:
@@ -47,8 +48,9 @@ def rtsp_url_for_camera(camera) -> str:
                 )
             else:
                 return sec
+        per_node = str(camera.get("mediamtx_rtsp_base") or "").strip().rstrip("/")
         if cam_id is not None:
-            return rtsp_url(cam_id, camera.get("id_franqueado"))
+            return rtsp_url(cam_id, camera.get("id_franqueado"), rtsp_base=per_node or None)
     return rtsp_url(None)
 
 
