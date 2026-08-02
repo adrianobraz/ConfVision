@@ -20,8 +20,8 @@ MEDIAMTX_HLS_BASE = os.getenv(
 ).rstrip("/")
 
 WORKER_ID = os.getenv("WORKER_ID", "worker-01")
-WORKER_VERSION = os.getenv("WORKER_VERSION", "0.3.1")
-SYNC_INTERVAL_SEC = int(os.getenv("SYNC_INTERVAL_SEC", "30"))
+WORKER_VERSION = os.getenv("WORKER_VERSION", "0.4.0")
+SYNC_INTERVAL_SEC = int(os.getenv("SYNC_INTERVAL_SEC", "60"))
 FRAME_SKIP = int(os.getenv("FRAME_SKIP", "5"))
 YOLO_MODEL = os.getenv("YOLO_MODEL", "yolov8n.pt")
 YOLO_CONF_DEFAULT = float(os.getenv("YOLO_CONF_DEFAULT", "0.5"))
@@ -46,6 +46,28 @@ REDIS_URL = os.getenv("REDIS_URL", "").strip()
 EVENT_QUEUE_KEY = os.getenv("EVENT_QUEUE_KEY", "confvision:eventos").strip()
 EVENT_QUEUE_MAX_SIZE = int(os.getenv("EVENT_QUEUE_MAX_SIZE", "1000"))
 CAPTURE_WORKERS = int(os.getenv("CAPTURE_WORKERS", "8"))
+
+# Cache Redis de config (sync agent → workers)
+CONFIG_CACHE_BACKEND = os.getenv("CONFIG_CACHE_BACKEND", "memory").strip().lower()
+CONFIG_CACHE_TTL_SEC = int(os.getenv("CONFIG_CACHE_TTL_SEC", "120"))
+SYNC_USE_UNIFIED_API = os.getenv("SYNC_USE_UNIFIED_API", "true").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
+
+# Postgres edge — eventos locais + sync opcional para Xano
+POSTGRES_URL = os.getenv("POSTGRES_URL", "").strip()
+EVENT_STORE = os.getenv("EVENT_STORE", "xano").strip().lower()
+EVENT_SYNC_INTERVAL_SEC = int(os.getenv("EVENT_SYNC_INTERVAL_SEC", "30"))
+EVENT_SYNC_BATCH_SIZE = int(os.getenv("EVENT_SYNC_BATCH_SIZE", "20"))
+
+# RTMP auth cache longo (guard)
+RTMP_AUTH_CACHE_SEC = int(os.getenv("RTMP_AUTH_CACHE_SEC", "300"))
+
+# Sensor poll (menos carga Xano)
+SENSOR_POLL_INTERVAL_SEC = int(os.getenv("SENSOR_POLL_INTERVAL_SEC", "10"))
 
 # Notifica terminal (receptorWeb) apos deteccao analitica — assincrono, sem Xano
 RECEPTOR_WEB_URL = os.getenv("RECEPTOR_WEB_URL", "").rstrip("/")
@@ -74,7 +96,7 @@ MEDIAMTX_API_BASE = os.getenv(
 MEDIAMTX_API_USER = os.getenv("MEDIAMTX_API_USER", "").strip()
 MEDIAMTX_API_PASS = os.getenv("MEDIAMTX_API_PASS", "").strip()
 DVR_RECORD_DIR = os.getenv("DVR_RECORD_DIR", "/recordings").rstrip("/")
-DVR_SYNC_INTERVAL_SEC = int(os.getenv("DVR_SYNC_INTERVAL_SEC", "30"))
+DVR_SYNC_INTERVAL_SEC = int(os.getenv("DVR_SYNC_INTERVAL_SEC", "60"))
 DVR_SEGMENTO_MINUTOS_DEFAULT = int(os.getenv("DVR_SEGMENTO_MINUTOS_DEFAULT", "5"))
 DVR_STABLE_SEC = int(os.getenv("DVR_STABLE_SEC", "3"))
 DVR_STORAGE_CACHE_TTL_SEC = int(os.getenv("DVR_STORAGE_CACHE_TTL_SEC", "300"))
@@ -88,7 +110,7 @@ DVR_MTX_SYNC_API = os.getenv("DVR_MTX_SYNC_API", "true").strip().lower() in (
 )
 
 # Gravacao por movimento (worker separado: python -u motion_main.py)
-MOTION_SYNC_INTERVAL_SEC = int(os.getenv("MOTION_SYNC_INTERVAL_SEC", "30"))
+MOTION_SYNC_INTERVAL_SEC = int(os.getenv("MOTION_SYNC_INTERVAL_SEC", "60"))
 MOTION_WORKER_VERSION = os.getenv("MOTION_WORKER_VERSION", "0.1.0")
 MOTION_RECORD_DIR = os.getenv("MOTION_RECORD_DIR", "/tmp/confvision/motion").rstrip("/")
 MOTION_CLIP_MAX_SEC = int(os.getenv("MOTION_CLIP_MAX_SEC", "300"))

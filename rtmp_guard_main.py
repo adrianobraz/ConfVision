@@ -18,6 +18,7 @@ from urllib.parse import parse_qs, urlparse
 from rtmp_ban import BanStore
 from rtmp_guard import RtmpGuard
 from rtmp_online import listar_online
+from rtmp_publish_health import PublishHealthStore
 from rtmp_token import publish_secret
 from rtmp_watch import RtmpLogParser, RtmpWatchStore, follow_file
 
@@ -26,32 +27,74 @@ def _env(name: str, default: str = "") -> str:
     return (os.getenv(name) or default).strip()
 
 
+def _env_bool(name: str, default: str = "1") -> bool:
+    v = _env(name, default).lower()
+    return v in ("1", "true", "yes", "sim")
+
+
 BANS = BanStore(
     _env("RTMP_BAN_JSON", "/recordings/rtmp_bans.json"),
     max_fails=int(_env("RTMP_BAN_MAX_FAILS", "3") or "3"),
     window_sec=int(_env("RTMP_BAN_WINDOW_SEC", "60") or "60"),
     ban_ttl_sec=int(_env("RTMP_BAN_TTL_SEC", "3600") or "3600"),
+    soft_max_fails=int(_env("RTMP_BAN_SOFT_MAX_FAILS", "0") or "0"),
+    soft_window_sec=int(_env("RTMP_BAN_SOFT_WINDOW_SEC", "300") or "300"),
+    soft_ban_ttl_sec=int(_env("RTMP_BAN_SOFT_TTL_SEC", "600") or "600"),
+    auto_unban_on_publish=_env_bool("RTMP_BAN_AUTO_UNBAN", "1"),
 )
 GUARD = RtmpGuard(BANS)
 STORE = RtmpWatchStore(
     max_items=int(_env("RTMP_WATCH_MAX", "500") or "500"),
     dedupe_sec=int(_env("RTMP_WATCH_DEDUPE_SEC", "60") or "60"),
 )
+HEALTH = PublishHealthStore(_env("RTMP_PUBLISH_HEALTH_JSON", "/recordings/rtmp_publish_health.json"))
 ADMIN_KEY = _env("RTMP_GUARD_ADMIN_KEY")
 
 
+def _online_paths() -> set[str]:
+    data = listar_online(fallback_publishers=PARSER.publishers)
+    out: set[str] = set()
+    for item in data.get("dados") or []:
+        if isinstance(item, dict):
+            p = str(item.get("path") or "").strip().rstrip("/")
+            if p:
+                out.add(p)
+    return out
+
+
 class _WatchWithBan(RtmpLogParser):
-    """Ao detectar falha EOF sem publish, conta para auto-ban."""
+    """Falhas → auto-ban (limiar por motivo); publish OK → health + desban."""
 
     def _handle_rtmp_conn(self, ts: str, sub: str, msg: str):
+        from rtmp_watch import RE_CONN, RE_PUBLISH
+
+        cm = RE_CONN.match(sub) if sub else None
+        if cm:
+            pub = RE_PUBLISH.search(msg or "")
+            if pub:
+                HEALTH.registrar_publish(
+                    pub.group(1).rstrip("/"),
+                    ip=cm.group("ip"),
+                    fonte="log",
+                )
+                BANS.registrar_sucesso(cm.group("ip"))
+
         falha = super()._handle_rtmp_conn(ts, sub, msg)
         if falha and falha.motivo_codigo in (
             "eof_sem_publish",
             "path_barra_final",
             "auth_falhou",
             "path_invalido",
+            "chave_invalida",
         ):
-            BANS.registrar_falha(falha.ip, motivo=falha.motivo_codigo)
+            motivo = falha.motivo_codigo
+            if motivo == "auth_falhou":
+                raw = (falha.motivo_raw or "").lower()
+                if "chave_invalida" in raw or "invalid credentials" in raw:
+                    motivo = "chave_invalida"
+                elif "path_invalido" in raw or "invalid path" in raw:
+                    motivo = "path_invalido"
+            BANS.registrar_falha(falha.ip, motivo=motivo)
         return falha
 
 
@@ -156,6 +199,23 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, listar_online(fallback_publishers=PARSER.publishers))
             return
 
+        if path == "/health/publishers":
+            if not _admin_ok(self):
+                self._json(401, {"status": "nao autorizado"})
+                return
+            offline_apos = int((qs.get("offline_apos") or ["300"])[0] or "300")
+            online = _online_paths()
+            self._json(
+                200,
+                {
+                    "status": "ok",
+                    "dados": HEALTH.listar(online_paths=online, offline_apos_sec=offline_apos),
+                    "resumo": HEALTH.resumo(online_paths=online),
+                    "online_paths": sorted(online),
+                },
+            )
+            return
+
         self._json(404, {"status": "nao encontrado"})
 
     def do_POST(self):
@@ -198,6 +258,16 @@ class Handler(BaseHTTPRequestHandler):
                     f"hash={hash_v} camera_id={cam_v} plano={plano_v} motivo={motivo}",
                     flush=True,
                 )
+                if action == "publish" and code < 300 and ip and ip != "-":
+                    p = str(path_v or "").strip().rstrip("/")
+                    if p:
+                        HEALTH.registrar_publish(
+                            p,
+                            ip=ip,
+                            camera_id=meta.get("camera_id"),
+                            fonte="auth",
+                        )
+                    BANS.registrar_sucesso(ip)
             return
 
         if path == "/ban":
@@ -243,6 +313,12 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(400, {"status": "vis_camera_id obrigatorio"})
                 return
             GUARD.cache.invalidate(int(cid))
+            try:
+                from config_cache import invalidate_rtmp_auth
+
+                invalidate_rtmp_auth(int(cid))
+            except Exception:
+                pass
             self._json(200, {"status": "ok"})
             return
 
@@ -258,6 +334,11 @@ def main():
         f"[RTMP-GUARD] START | auth+ban+watch | log={log_file} | http=:{port} | secret={'sim' if publish_secret() else 'NAO'}",
         flush=True,
     )
+    print(
+        f"[RTMP-GUARD] ban hard={BANS.hard.max_fails}/{BANS.hard.window_sec}s "
+        f"soft_eof={BANS.soft.max_fails}/{BANS.soft.window_sec}s auto_unban={'sim' if BANS.auto_unban_on_publish else 'nao'}",
+        flush=True,
+    )
 
     t = threading.Thread(
         target=follow_file,
@@ -269,7 +350,8 @@ def main():
 
     server = ThreadingHTTPServer(("0.0.0.0", port), Handler)
     print(
-        f"[RTMP-GUARD] HTTP 0.0.0.0:{port}  POST /auth /ban /unban  GET /falhas /bans /online /health",
+        f"[RTMP-GUARD] HTTP 0.0.0.0:{port}  POST /auth /ban /unban  "
+        f"GET /falhas /bans /online /health/publishers /health",
         flush=True,
     )
     server.serve_forever()

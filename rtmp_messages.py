@@ -7,12 +7,12 @@ MOTIVOS = {
     "eof_sem_publish": (
         "Conectou, mas não publicou o stream",
         "A câmera abriu a porta 1935 e fechou sem enviar vídeo. "
-        "Confira a URL (WIFI sem / no fim; DVR com /), path cam/{hash12} e codec H.264.",
+        "Confira a URL (Wifi sem / no fim; Cabeado IP com /), path cam/{hash12} e codec H.264.",
         "error",
     ),
     "path_barra_final": (
         "Path inválido: barra no final",
-        "MediaMTX rejeita barra no fim do path. WIFI: sem /; DVR: / só no campo do aparelho.",
+        "MediaMTX rejeita barra no fim do path. Wifi: sem /; Cabeado IP: / só no campo do aparelho.",
         "error",
     ),
     "auth_falhou": (

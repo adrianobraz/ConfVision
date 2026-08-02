@@ -137,6 +137,17 @@ def main():
     )
     validate_config()
 
+    from config import CONFIG_CACHE_BACKEND, EVENT_STORE, POSTGRES_URL
+
+    if EVENT_STORE in ("postgres", "dual") and POSTGRES_URL:
+        import postgres_store
+
+        postgres_store.init_schema()
+        postgres_store.start_sync_worker()
+
+    if CONFIG_CACHE_BACKEND == "redis":
+        print("[START] modo cache Redis — sync via sync_agent_main ou fallback inline")
+
     event_queue = get_event_queue()
     start_capture_workers(CAPTURE_WORKERS, event_queue)
 

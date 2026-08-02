@@ -146,6 +146,15 @@ class RtmpGuard:
         cached = self.cache.get(camera_id)
         if cached is not None:
             return cached
+        try:
+            from config_cache import read_rtmp_auth, write_rtmp_auth
+
+            redis_cam = read_rtmp_auth(camera_id)
+            if redis_cam is not None:
+                self.cache.set(camera_id, redis_cam)
+                return redis_cam
+        except Exception:
+            pass
         if not self.xano:
             print("[RTMP-GUARD] XANO_BASE_URL vazio", flush=True)
             return None
@@ -162,6 +171,12 @@ class RtmpGuard:
             if not cam or cam.get("id") is None:
                 return None
             self.cache.set(camera_id, cam)
+            try:
+                from config_cache import write_rtmp_auth
+
+                write_rtmp_auth(camera_id, cam, self.cache.ttl)
+            except Exception:
+                pass
             return cam
         except Exception as exc:
             print(f"[RTMP-GUARD] xano falhou camera={camera_id}: {exc}", flush=True)

@@ -4,11 +4,14 @@ from config import (
     CAPTURE_DIR,
     CAPTURE_WORKERS,
     CLIP_DURACAO_SEG,
+    CONFIG_CACHE_BACKEND,
     CONTABO_S3_ACCESS_KEY,
     CONTABO_S3_BUCKET,
     EVENT_QUEUE_BACKEND,
+    EVENT_STORE,
     MAX_CAMERAS,
     MEDIAMTX_RTSP_BASE,
+    POSTGRES_URL,
     REDIS_URL,
     SHARD_MODE,
     UPLOAD_WORKERS,
@@ -60,6 +63,10 @@ def validate_config():
         print("[CONFIG] AVISO: CONTABO_S3_BUCKET vazio, usando confvision")
     if EVENT_QUEUE_BACKEND == "redis" and not REDIS_URL:
         print("[CONFIG] AVISO: EVENT_QUEUE_BACKEND=redis sem REDIS_URL — fila cai para memory")
+    if CONFIG_CACHE_BACKEND == "redis" and not REDIS_URL:
+        print("[CONFIG] AVISO: CONFIG_CACHE_BACKEND=redis sem REDIS_URL — cache cai para memory")
+    if EVENT_STORE in ("postgres", "dual") and not POSTGRES_URL:
+        print("[CONFIG] AVISO: EVENT_STORE=postgres/dual sem POSTGRES_URL — usando xano")
     if SHARD_MODE == "hash" and (WORKER_SHARD_TOTAL <= 0 or WORKER_SHARD_INDEX < 0):
         print("[CONFIG] AVISO: SHARD_MODE=hash requer WORKER_SHARD_INDEX e WORKER_SHARD_TOTAL")
     try:
@@ -71,6 +78,7 @@ def validate_config():
         print(
             f"[CONFIG] OK | xano={XANO_BASE_URL} | rtsp={MEDIAMTX_RTSP_BASE} "
             f"| clip={CLIP_DURACAO_SEG}s | contabo=sim | upload_workers={UPLOAD_WORKERS} "
-            f"| capture_workers={CAPTURE_WORKERS} | {shard_label()} | capture_dir={CAPTURE_DIR}"
+            f"| capture_workers={CAPTURE_WORKERS} | {shard_label()} | capture_dir={CAPTURE_DIR} "
+            f"| cache={CONFIG_CACHE_BACKEND} | event_store={EVENT_STORE}"
         )
     return ok

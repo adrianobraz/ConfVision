@@ -3,7 +3,15 @@ from typing import Any, Optional
 
 import requests
 
-from config import WORKER_ID, WORKER_VERSION, XANO_BASE_URL, MEDIAMTX_NODE_ID
+from config import (
+    CONFIG_CACHE_BACKEND,
+    MEDIAMTX_NODE_ID,
+    REDIS_URL,
+    SYNC_USE_UNIFIED_API,
+    WORKER_ID,
+    WORKER_VERSION,
+    XANO_BASE_URL,
+)
 from sharding import filter_cameras, query_params
 
 
@@ -20,6 +28,10 @@ def _as_list(data):
         if isinstance(payload, list):
             return payload
     return []
+
+
+def _cache_enabled() -> bool:
+    return CONFIG_CACHE_BACKEND == "redis" and bool(REDIS_URL)
 
 
 def get_areas_ativas():
@@ -48,17 +60,34 @@ def _attach_areas(cameras, areas):
     return cameras
 
 
-def get_cameras_ativas():
+def get_cameras_ativas_direct():
+    """Busca direta no Xano (legacy — preferir cache/sync unificado)."""
+    if SYNC_USE_UNIFIED_API:
+        url = f"{XANO_BASE_URL}/vis_camera_sync_ativas"
+        params = dict(query_params())
+        response = requests.get(url, params=params, timeout=45)
+        data = _parse_json(response)
+        if isinstance(data, dict) and data.get("dados"):
+            data = data["dados"]
+        cameras = data.get("cameras") or []
+        areas = data.get("areas") or []
+        return filter_cameras(_attach_areas(cameras, areas))
+
     url = f"{XANO_BASE_URL}/vis_camera_query_ativas"
     params = query_params()
     response = requests.get(url, params=params, timeout=30)
     data = _parse_json(response)
-
     cameras = _as_list(data)
     areas = get_areas_ativas()
-    cameras = _attach_areas(cameras, areas)
+    return filter_cameras(_attach_areas(cameras, areas))
 
-    return filter_cameras(cameras)
+
+def get_cameras_ativas():
+    if _cache_enabled():
+        from sync_agent import get_cameras_ativas_cached
+
+        return get_cameras_ativas_cached()
+    return get_cameras_ativas_direct()
 
 
 def create_evento(camera, confianca, tipo="humano", status="capturando", extra=None):
@@ -90,6 +119,57 @@ def put_evento(evento_id: int, campos: dict[str, Any], base: Optional[dict[str, 
     params = {"id": evento_id}
     response = requests.put(url, params=params, json=payload, timeout=15)
     return _parse_json(response)
+
+
+def finalizar_evento(
+    evento_id: int,
+    *,
+    snapshot_url: Optional[str] = None,
+    video_url: Optional[str] = None,
+    status: str = "pronto",
+    clip_count: int = 0,
+    clip_duracao_seg: Optional[int] = None,
+    processado: bool = False,
+):
+    """1 request: atualiza evento + cria clip (API 2400). Fallback legacy se 404."""
+    url = f"{XANO_BASE_URL}/vis_evento_finalizar"
+    payload = {
+        "vis_evento_id": evento_id,
+        "snapshot_url": snapshot_url,
+        "video_url": video_url,
+        "status": status,
+        "clip_count": clip_count,
+        "processado": processado,
+        "clip_seq": 1,
+        "clip_duracao_seg": clip_duracao_seg,
+        "clip_snapshot_url": snapshot_url,
+    }
+    try:
+        response = requests.post(url, json=payload, timeout=20)
+        if response.status_code == 404:
+            raise requests.HTTPError("404")
+        return _parse_json(response)
+    except requests.HTTPError:
+        if video_url:
+            post_evento_clip(
+                {
+                    "vis_evento_id": evento_id,
+                    "seq": 1,
+                    "video_url": video_url,
+                    "duracao_seg": clip_duracao_seg,
+                    "snapshot_url": snapshot_url,
+                }
+            )
+        return put_evento(
+            evento_id,
+            {
+                "snapshot_url": snapshot_url,
+                "video_url": video_url,
+                "clip_count": clip_count,
+                "status": status,
+                "processado": processado,
+            },
+        )
 
 
 def _merge_evento_payload(base: dict[str, Any], campos: dict[str, Any]) -> dict[str, Any]:
@@ -135,6 +215,7 @@ def post_ping(cameras_ativas: int, extra: Optional[dict[str, Any]] = None):
     url = f"{XANO_BASE_URL}/vis_worker_ping"
     payload = {
         "worker_id": WORKER_ID,
+        "worker_tipo": "analitico",
         "hostname": WORKER_ID,
         "versao": WORKER_VERSION,
         "cameras_ativas": cameras_ativas,
@@ -145,6 +226,8 @@ def post_ping(cameras_ativas: int, extra: Optional[dict[str, Any]] = None):
         payload["vis_mediamtx_node_id"] = MEDIAMTX_NODE_ID
     if extra:
         payload.update(extra)
+    if not payload.get("worker_tipo"):
+        payload["worker_tipo"] = "analitico"
     response = requests.post(url, json=payload, timeout=15)
     return _parse_json(response)
 
@@ -154,11 +237,19 @@ def post_evento(camera, confianca, tipo="humano"):
     return create_evento(camera, confianca, tipo=tipo, status="capturando")
 
 
-def get_cameras_gravacao_ativas():
+def get_cameras_gravacao_ativas_direct():
     url = f"{XANO_BASE_URL}/vis_camera_query_gravacao_ativas"
     params = query_params()
     response = requests.get(url, params=params, timeout=30)
     return _as_list(_parse_json(response))
+
+
+def get_cameras_gravacao_ativas():
+    if _cache_enabled():
+        from sync_agent import get_cameras_gravacao_ativas_cached
+
+        return get_cameras_gravacao_ativas_cached()
+    return get_cameras_gravacao_ativas_direct()
 
 
 def get_gravacao_storage_credenciais(id_franqueado: str):
@@ -176,10 +267,7 @@ def post_gravacao_segmento(payload: dict[str, Any]):
 
 
 def ack_flush_pedido(camera_id: int) -> bool:
-    """Limpa o flag gravacao_flush_pedido após o worker executar o flush."""
     try:
-        url = f"{XANO_BASE_URL}/vis_camera/gravacao/flush/{camera_id}"
-        # Chama a mesma API de flush com ack=true para limpar o flag
         url_ack = f"{XANO_BASE_URL}/vis_camera/gravacao/flush/ack/{camera_id}?vis_camera_id={camera_id}"
         response = requests.post(url_ack, json={}, timeout=15)
         return response.ok

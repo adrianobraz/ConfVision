@@ -9,6 +9,9 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Optional
 
+# Falhas de config/rede do cliente — ban mais tolerante (ou desligado).
+MOTIVOS_SOFT = frozenset({"eof_sem_publish", "path_barra_final", "closed_outro"})
+
 
 @dataclass
 class BanEntry:
@@ -26,6 +29,13 @@ class BanEntry:
         return d
 
 
+@dataclass(frozen=True)
+class _Limites:
+    max_fails: int
+    window_sec: int
+    ban_ttl_sec: int
+
+
 class BanStore:
     def __init__(
         self,
@@ -34,15 +44,33 @@ class BanStore:
         max_fails: int = 20,
         window_sec: int = 60,
         ban_ttl_sec: int = 3600,
+        soft_max_fails: int = 0,
+        soft_window_sec: int = 300,
+        soft_ban_ttl_sec: int = 600,
+        auto_unban_on_publish: bool = True,
     ):
         self.path = Path(path)
-        self.max_fails = max(1, max_fails)
-        self.window_sec = max(10, window_sec)
-        self.ban_ttl_sec = max(60, ban_ttl_sec)
+        self.hard = _Limites(
+            max_fails=max(1, max_fails),
+            window_sec=max(10, window_sec),
+            ban_ttl_sec=max(60, ban_ttl_sec),
+        )
+        self.soft = _Limites(
+            max_fails=max(0, soft_max_fails),
+            window_sec=max(10, soft_window_sec),
+            ban_ttl_sec=max(60, soft_ban_ttl_sec),
+        )
+        self.auto_unban_on_publish = auto_unban_on_publish
         self._lock = threading.Lock()
         self._bans: dict[str, BanEntry] = {}
-        self._fails: dict[str, list[float]] = {}
+        # ip -> motivo -> timestamps
+        self._fails: dict[str, dict[str, list[float]]] = {}
         self._load()
+
+    def _limites(self, motivo: str) -> _Limites:
+        if (motivo or "").strip() in MOTIVOS_SOFT:
+            return self.soft
+        return self.hard
 
     def _load(self) -> None:
         if not self.path.exists():
@@ -64,7 +92,7 @@ class BanStore:
                     ip=ip,
                     motivo=str(it.get("motivo") or "ban"),
                     criado_em=float(it.get("criado_em") or now),
-                    expira_em=exp or (now + self.ban_ttl_sec),
+                    expira_em=exp or (now + self.hard.ban_ttl_sec),
                     falhas=int(it.get("falhas") or 0),
                     manual=bool(it.get("manual")),
                 )
@@ -83,11 +111,15 @@ class BanStore:
         expired = [ip for ip, b in self._bans.items() if b.expira_em <= now]
         for ip in expired:
             del self._bans[ip]
-        # limpa falhas antigas
-        for ip, times in list(self._fails.items()):
-            kept = [t for t in times if now - t <= self.window_sec]
-            if kept:
-                self._fails[ip] = kept
+        for ip, por_motivo in list(self._fails.items()):
+            kept_m: dict[str, list[float]] = {}
+            for motivo, times in por_motivo.items():
+                lim = self._limites(motivo)
+                kept = [t for t in times if now - t <= lim.window_sec]
+                if kept:
+                    kept_m[motivo] = kept
+            if kept_m:
+                self._fails[ip] = kept_m
             else:
                 del self._fails[ip]
 
@@ -120,7 +152,7 @@ class BanStore:
     ) -> BanEntry:
         ip = (ip or "").strip()
         now = time.time()
-        ttl = self.ban_ttl_sec if ttl_sec is None else max(60, int(ttl_sec))
+        ttl = self.hard.ban_ttl_sec if ttl_sec is None else max(60, int(ttl_sec))
         entry = BanEntry(
             ip=ip,
             motivo=motivo,
@@ -148,39 +180,65 @@ class BanStore:
         print(f"[RTMP-BAN] UNBAN ip={ip}", flush=True)
         return True
 
-    def registrar_falha(self, ip: str, motivo: str = "auth_falhou") -> Optional[BanEntry]:
-        """Conta falha; se estourar limiar, bane e retorna o ban."""
+    def registrar_sucesso(self, ip: str) -> bool:
+        """Limpa falhas; remove auto-ban (mantém ban manual)."""
         ip = (ip or "").strip()
+        if not ip or not self.auto_unban_on_publish:
+            return False
+        with self._lock:
+            self._purge_locked()
+            self._fails.pop(ip, None)
+            entry = self._bans.get(ip)
+            if entry and entry.manual:
+                return False
+            if entry:
+                del self._bans[ip]
+                self._save()
+                print(f"[RTMP-BAN] AUTO-UNBAN ip={ip} motivo=publish_ok", flush=True)
+                return True
+        return False
+
+    def registrar_falha(self, ip: str, motivo: str = "auth_falhou") -> Optional[BanEntry]:
+        """Conta falha por motivo; se estourar limiar, bane e retorna o ban."""
+        ip = (ip or "").strip()
+        motivo = (motivo or "auth_falhou").strip() or "auth_falhou"
         if not ip or ip in ("127.0.0.1", "::1"):
+            return None
+        lim = self._limites(motivo)
+        if lim.max_fails < 1:
             return None
         now = time.time()
         with self._lock:
             self._purge_locked()
             if ip in self._bans:
                 return self._bans[ip]
-            times = [t for t in self._fails.get(ip, []) if now - t <= self.window_sec]
+            por_motivo = self._fails.setdefault(ip, {})
+            times = [t for t in por_motivo.get(motivo, []) if now - t <= lim.window_sec]
             times.append(now)
-            self._fails[ip] = times
-            if len(times) < self.max_fails:
+            por_motivo[motivo] = times
+            if len(times) < lim.max_fails:
                 print(
-                    f"[RTMP-BAN] falha ip={ip} tentativa={len(times)}/{self.max_fails} motivo={motivo}",
+                    f"[RTMP-BAN] falha ip={ip} tentativa={len(times)}/{lim.max_fails} "
+                    f"motivo={motivo} ({'soft' if motivo in MOTIVOS_SOFT else 'hard'})",
                     flush=True,
                 )
                 return None
             entry = BanEntry(
                 ip=ip,
-                motivo=f"auto:{motivo} ({len(times)} falhas/{self.window_sec}s)",
+                motivo=f"auto:{motivo} ({len(times)} falhas/{lim.window_sec}s)",
                 criado_em=now,
-                expira_em=now + self.ban_ttl_sec,
+                expira_em=now + lim.ban_ttl_sec,
                 falhas=len(times),
                 manual=False,
             )
             self._bans[ip] = entry
-            self._fails.pop(ip, None)
+            por_motivo.pop(motivo, None)
+            if not por_motivo:
+                self._fails.pop(ip, None)
             self._save()
         print(
-            f"[RTMP-BAN] AUTO-BAN ip={ip} falhas={entry.falhas}/{self.max_fails} motivo={motivo} "
-            f"ttl={self.ban_ttl_sec}s — próximas tentativas bloqueadas",
+            f"[RTMP-BAN] AUTO-BAN ip={ip} falhas={entry.falhas}/{lim.max_fails} motivo={motivo} "
+            f"ttl={lim.ban_ttl_sec}s — próximas tentativas bloqueadas",
             flush=True,
         )
         return entry

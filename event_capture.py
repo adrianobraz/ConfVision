@@ -14,11 +14,17 @@ from capture import (
     try_iniciar_captura,
 )
 from camera_state import is_camera_active
-from config import CLIP_DURACAO_SEG
+from config import CLIP_DURACAO_SEG, EVENT_STORE
 from storage import evento_clip_key, evento_snapshot_key
 from upload_queue import submit_upload
 from urls import rtsp_url_for_camera
-from xano_client import create_evento, post_evento_clip, put_evento
+from event_sink import (
+    create_evento,
+    evento_id_from_response,
+    finalizar_evento,
+    is_edge_evento,
+    put_evento,
+)
 from terminal_notify import submit_terminal_notify
 
 
@@ -39,15 +45,15 @@ def plan_grava_video(camera) -> bool:
     return bool(camera.get("captura_analitico") or camera.get("captura_sensor"))
 
 
-def _finalizar_somente_evento(evento_id, evento):
-    put_evento(
+def _finalizar_somente_evento(evento_id, evento, edge: bool = False):
+    finalizar_evento(
         evento_id,
-        {
-            "status": "pronto",
-            "clip_count": 0,
-            "processado": False,
-        },
-        base=evento,
+        snapshot_url=None,
+        video_url=None,
+        status="pronto",
+        clip_count=0,
+        processado=False,
+        edge=edge,
     )
     print(f"[CAPTURA] evento={evento_id} pronto (somente registro, sem midia)")
 
@@ -96,12 +102,13 @@ def processar_deteccao(
             return
         try:
             evento = create_evento(camera, confianca, status="capturando")
-            evento_id = _evento_id(evento)
+            evento_id = evento_id_from_response(evento)
+            edge = is_edge_evento(evento)
             if not evento_id:
-                raise RuntimeError(f"Xano nao retornou id do evento: {evento}")
-            if not for_sensor:
+                raise RuntimeError(f"Store nao retornou id do evento: {evento}")
+            if not for_sensor and EVENT_STORE != "postgres":
                 submit_terminal_notify(camera, evento_id, evento)
-            _finalizar_somente_evento(evento_id, evento)
+            _finalizar_somente_evento(evento_id, evento, edge=edge)
         except Exception as exc:
             print(f"[ERRO] evento sem midia camera={camera_id}: {exc}")
             traceback.print_exc()
@@ -119,6 +126,7 @@ def processar_deteccao(
     clip_errors: dict[str, Exception] = {}
     evento_id_local = evento_id
     terminal_notificado = False
+    edge = False
 
     if not try_iniciar_captura(camera_id):
         print(f"[CAPTURA] camera={camera_id} captura ja em andamento, evento ignorado")
@@ -134,14 +142,16 @@ def processar_deteccao(
         if evento_id_local:
             evento = evento_base or {"id": evento_id_local}
             evento_id = evento_id_local
+            edge = bool(evento.get("edge"))
         else:
             evento = create_evento(camera, confianca, status="capturando")
-            evento_id = _evento_id(evento)
+            evento_id = evento_id_from_response(evento)
+            edge = is_edge_evento(evento)
         if not evento_id:
-            raise RuntimeError(f"Xano nao retornou id do evento: {evento}")
+            raise RuntimeError(f"Store nao retornou id do evento: {evento}")
 
         # Sem foto na licenca: abre terminal ja; com foto, notifica apos snapshot.
-        if not for_sensor and not grava_foto:
+        if not for_sensor and not grava_foto and EVENT_STORE != "postgres":
             submit_terminal_notify(camera, evento_id, evento)
             terminal_notificado = True
 
@@ -213,7 +223,7 @@ def processar_deteccao(
                 pass
         if evento_id:
             try:
-                put_evento(evento_id, {"status": "erro", "clip_count": 0}, base=evento)
+                put_evento(evento_id, {"status": "erro", "clip_count": 0}, base=evento, edge=edge)
             except Exception as put_exc:
                 print(f"[ERRO] nao foi possivel marcar evento={evento_id} como erro: {put_exc}")
         if work_dir:
@@ -222,13 +232,15 @@ def processar_deteccao(
     finally:
         finalizar_captura(camera_id)
 
+    xano_immediate = EVENT_STORE in ("xano", "dual")
+
     try:
         if not for_sensor and not is_camera_active(camera_id):
             cancel_camera_captures(camera_id)
             if t_clip is not None and t_clip.is_alive():
                 t_clip.join(timeout=10)
             if evento_id:
-                put_evento(evento_id, {"status": "erro", "clip_count": 0}, base=evento)
+                put_evento(evento_id, {"status": "erro", "clip_count": 0}, base=evento, edge=edge)
             print(f"[CAPTURA] camera={camera_id} desativada — evento={evento_id} cancelado")
             if work_dir:
                 cleanup_work_dir(work_dir)
@@ -238,29 +250,34 @@ def processar_deteccao(
         if grava_foto and snapshot_future:
             snapshot_url = snapshot_future.result()
             print(f"[CAPTURA] snapshot contabo ok evento={evento_id} url={snapshot_url}")
-            put_evento(
-                evento_id,
-                {
-                    "snapshot_url": snapshot_url,
-                    "status": "capturando" if grava_video else "pronto",
-                    "clip_count": 0,
-                },
-                base=evento,
-            )
-            if not for_sensor:
+            if xano_immediate and grava_video and not edge:
+                put_evento(
+                    evento_id,
+                    {
+                        "snapshot_url": snapshot_url,
+                        "status": "capturando",
+                        "clip_count": 0,
+                    },
+                    base=evento,
+                )
+                print(f"[CAPTURA] evento={evento_id} snapshot visivel (capturando video)")
+            if not for_sensor and EVENT_STORE != "postgres":
                 submit_terminal_notify(camera, evento_id, evento)
                 terminal_notificado = True
-            if grava_video:
-                print(f"[CAPTURA] evento={evento_id} snapshot visivel (capturando video)")
 
         if not grava_video:
             if evento_id:
-                payload = {"status": "pronto", "clip_count": 0, "processado": False}
-                if snapshot_url:
-                    payload["snapshot_url"] = snapshot_url
-                put_evento(evento_id, payload, base=evento)
+                finalizar_evento(
+                    evento_id,
+                    snapshot_url=snapshot_url,
+                    video_url=None,
+                    status="pronto",
+                    clip_count=0,
+                    processado=False,
+                    edge=edge,
+                )
                 print(f"[CAPTURA] evento={evento_id} pronto snapshot (sem video)")
-                if not for_sensor and not terminal_notificado:
+                if not for_sensor and not terminal_notificado and EVENT_STORE != "postgres":
                     submit_terminal_notify(camera, evento_id, evento)
             if work_dir:
                 cleanup_work_dir(work_dir)
@@ -276,14 +293,14 @@ def processar_deteccao(
             if isinstance(err, CaptureCancelled) or (
                 not for_sensor and not is_camera_active(camera_id)
             ):
-                put_evento(evento_id, {"status": "erro", "clip_count": 0}, base=evento)
+                put_evento(evento_id, {"status": "erro", "clip_count": 0}, base=evento, edge=edge)
                 print(f"[CAPTURA] camera={camera_id} desativada — clip evento={evento_id} cancelado")
                 if work_dir:
                     cleanup_work_dir(work_dir)
                 return
             raise err
         if not for_sensor and not is_camera_active(camera_id):
-            put_evento(evento_id, {"status": "erro", "clip_count": 0}, base=evento)
+            put_evento(evento_id, {"status": "erro", "clip_count": 0}, base=evento, edge=edge)
             print(f"[CAPTURA] camera={camera_id} desativada apos clip — evento={evento_id} erro")
             if work_dir:
                 cleanup_work_dir(work_dir)
@@ -296,29 +313,18 @@ def processar_deteccao(
         video_url = clip_future.result()
         print(f"[CAPTURA] clip contabo ok evento={evento_id} url={video_url}")
 
-        post_evento_clip(
-            {
-                "vis_evento_id": evento_id,
-                "seq": 1,
-                "video_url": video_url,
-                "duracao_seg": CLIP_DURACAO_SEG,
-                "snapshot_url": snapshot_url,
-            }
-        )
-
-        put_evento(
+        finalizar_evento(
             evento_id,
-            {
-                "snapshot_url": snapshot_url,
-                "video_url": video_url,
-                "clip_count": 1,
-                "status": "pronto",
-                "processado": False,
-            },
-            base=evento,
+            snapshot_url=snapshot_url,
+            video_url=video_url,
+            status="pronto",
+            clip_count=1,
+            clip_duracao_seg=CLIP_DURACAO_SEG,
+            processado=False,
+            edge=edge,
         )
         print(f"[CAPTURA] evento={evento_id} pronto snapshot+video")
-        if not for_sensor and not terminal_notificado:
+        if not for_sensor and not terminal_notificado and EVENT_STORE != "postgres":
             submit_terminal_notify(camera, evento_id, evento)
 
     except Exception as exc:
@@ -326,7 +332,7 @@ def processar_deteccao(
         traceback.print_exc()
         if evento_id:
             try:
-                put_evento(evento_id, {"status": "erro", "clip_count": 0}, base=evento)
+                put_evento(evento_id, {"status": "erro", "clip_count": 0}, base=evento, edge=edge)
             except Exception as put_exc:
                 print(f"[ERRO] nao foi possivel marcar evento={evento_id} como erro: {put_exc}")
     finally:
@@ -335,12 +341,4 @@ def processar_deteccao(
 
 
 def _evento_id(evento) -> int | None:
-    if not evento:
-        return None
-    if isinstance(evento, dict):
-        if evento.get("id"):
-            return int(evento["id"])
-        dados = evento.get("dados")
-        if isinstance(dados, dict) and dados.get("id"):
-            return int(dados["id"])
-    return None
+    return evento_id_from_response(evento)
