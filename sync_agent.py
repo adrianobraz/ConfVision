@@ -18,6 +18,7 @@ from config_cache import (
     cameras_from_sync_payload,
     get_cached_version,
     gravacao_from_sync_payload,
+    normalize_sync_payload,
     use_unified_api,
     write_sync,
 )
@@ -46,7 +47,9 @@ def fetch_unified_sync(since_version: Optional[str] = None) -> dict[str, Any]:
         return fetch_legacy_sync()
     if isinstance(data, dict) and data.get("dados"):
         data = data["dados"]
-    return data if isinstance(data, dict) else {}
+    if isinstance(data, dict):
+        return normalize_sync_payload(data)
+    return {}
 
 
 def fetch_legacy_sync() -> dict[str, Any]:
@@ -63,13 +66,15 @@ def fetch_legacy_sync() -> dict[str, Any]:
     response_g = requests.get(url_grav, params=params, timeout=45)
     gravacao = _as_list(_parse_json(response_g))
 
-    payload = {
-        "unchanged": False,
-        "config_version": str(len(cameras)) + ":" + str(len(areas)) + ":" + str(len(gravacao)),
-        "cameras": cameras,
-        "areas": areas,
-        "gravacao": gravacao,
-    }
+    payload = normalize_sync_payload(
+        {
+            "unchanged": False,
+            "config_version": f"{len(cameras)}:{len(areas)}:{len(gravacao)}",
+            "cameras": cameras,
+            "areas": areas,
+            "gravacao": gravacao,
+        }
+    )
     return payload
 
 

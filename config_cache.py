@@ -46,8 +46,35 @@ def _hash_payload(payload: dict) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
 
 
+def normalize_config_version(value: Any, payload: Optional[dict[str, Any]] = None) -> str:
+    """Xano 2399 pode devolver config_version como lista — Redis exige string."""
+    if value is None or value == "":
+        return _hash_payload(payload) if payload else ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (list, tuple)):
+        parts = [str(item) for item in value if item is not None and str(item) != ""]
+        if parts:
+            return ":".join(parts)
+        return _hash_payload(payload) if payload else ""
+    if isinstance(value, dict):
+        return json.dumps(value, sort_keys=True, ensure_ascii=False, default=str)
+    return str(value)
+
+
+def normalize_sync_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return {}
+    normalized = dict(payload)
+    version = normalize_config_version(normalized.get("config_version"), normalized)
+    if version:
+        normalized["config_version"] = version
+    return normalized
+
+
 def write_sync(kind: str, payload: dict[str, Any]) -> str:
     """Grava sync no Redis/memoria. Retorna config_version."""
+    payload = normalize_sync_payload(payload)
     version = payload.get("config_version") or _hash_payload(payload)
     envelope = {
         "config_version": version,
@@ -60,7 +87,7 @@ def write_sync(kind: str, payload: dict[str, Any]) -> str:
         assert client is not None
         pipe = client.pipeline()
         pipe.setex(key, CONFIG_CACHE_TTL_SEC, json.dumps(envelope, ensure_ascii=False))
-        pipe.setex(_version_key(kind), CONFIG_CACHE_TTL_SEC, version)
+        pipe.setex(_version_key(kind), CONFIG_CACHE_TTL_SEC, str(version))
         pipe.execute()
     else:
         _memory_store[key] = (time.time(), envelope)
