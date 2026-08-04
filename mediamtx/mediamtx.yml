@@ -13,7 +13,8 @@ apiAddress: :9997
 rtspAddress: :8554
 rtmpAddress: :1935
 hlsAddress: :8888
-hlsAlwaysRemux: yes
+# no = HLS/remux só quando alguém assiste (escala ~800 câmeras/nó EX44)
+hlsAlwaysRemux: no
 rtspTransports: [tcp]
 
 # Auth HTTP → Guard no mesmo container (Dockerfile.mediamtx)

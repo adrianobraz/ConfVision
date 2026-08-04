@@ -27,6 +27,16 @@ YOLO_MODEL = os.getenv("YOLO_MODEL", "yolov8n.pt")
 YOLO_CONF_DEFAULT = float(os.getenv("YOLO_CONF_DEFAULT", "0.5"))
 YOLO_DEVICE = os.getenv("YOLO_DEVICE", "").strip()
 
+
+def _env_bool(name: str, default: str = "0") -> bool:
+    return os.getenv(name, default).strip().lower() in ("1", "true", "yes", "on")
+
+
+# Analítico: MOG2 barato → YOLO só pessoa após movimento (escala 120+ câmeras/EX44)
+YOLO_ONLY_ON_MOTION = _env_bool("YOLO_ONLY_ON_MOTION", "1")
+YOLO_MOTION_HOLD_SEC = int(os.getenv("YOLO_MOTION_HOLD_SEC", "15"))
+YOLO_MOTION_FRAME_SKIP = int(os.getenv("YOLO_MOTION_FRAME_SKIP", "2"))
+
 CLIP_DURACAO_SEG = int(os.getenv("CLIP_DURACAO_SEG", "20"))
 SNAPSHOT_JPEG_QUALITY = int(os.getenv("SNAPSHOT_JPEG_QUALITY", "85"))
 CAPTURE_DIR = os.getenv("CAPTURE_DIR", "/tmp/confvision").rstrip("/")

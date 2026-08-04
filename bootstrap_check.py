@@ -18,6 +18,8 @@ from config import (
     WORKER_SHARD_INDEX,
     WORKER_SHARD_TOTAL,
     XANO_BASE_URL,
+    YOLO_MOTION_HOLD_SEC,
+    YOLO_ONLY_ON_MOTION,
 )
 from rtmp_token import publish_secret
 from sharding import shard_label
@@ -79,6 +81,8 @@ def validate_config():
             f"[CONFIG] OK | xano={XANO_BASE_URL} | rtsp={MEDIAMTX_RTSP_BASE} "
             f"| clip={CLIP_DURACAO_SEG}s | contabo=sim | upload_workers={UPLOAD_WORKERS} "
             f"| capture_workers={CAPTURE_WORKERS} | {shard_label()} | capture_dir={CAPTURE_DIR} "
-            f"| cache={CONFIG_CACHE_BACKEND} | event_store={EVENT_STORE}"
+            f"| cache={CONFIG_CACHE_BACKEND} | event_store={EVENT_STORE} "
+            f"| yolo_motion_gate={'sim' if YOLO_ONLY_ON_MOTION else 'nao'} "
+            f"hold={YOLO_MOTION_HOLD_SEC}s"
         )
     return ok

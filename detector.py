@@ -7,7 +7,15 @@ import cv2
 from ultralytics import YOLO
 
 from area_utils import areas_ativas, find_area_for_box, normalize_modo_deteccao
-from config import FRAME_SKIP, YOLO_DEVICE, YOLO_MODEL
+from config import (
+    FRAME_SKIP,
+    YOLO_DEVICE,
+    YOLO_MODEL,
+    YOLO_MOTION_FRAME_SKIP,
+    YOLO_MOTION_HOLD_SEC,
+    YOLO_ONLY_ON_MOTION,
+)
+from motion_detect import create_motion_detector, frame_has_motion
 
 os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
 
@@ -17,7 +25,11 @@ class PersonDetector:
         self.model = YOLO(YOLO_MODEL)
         self.device = self._resolve_device()
         self._infer_lock = threading.Lock()
-        print(f"[YOLO] model={YOLO_MODEL} device={self.device}")
+        gate = "sim" if YOLO_ONLY_ON_MOTION else "nao"
+        print(
+            f"[YOLO] model={YOLO_MODEL} device={self.device} "
+            f"motion_gate={gate} hold={YOLO_MOTION_HOLD_SEC}s"
+        )
 
     def _resolve_device(self) -> str:
         if YOLO_DEVICE:
@@ -69,8 +81,15 @@ class PersonDetector:
             time.sleep(10)
             return
 
+        motion_fgbg = None
+        motion_kernel = None
+        yolo_active_until = 0.0
+        if YOLO_ONLY_ON_MOTION:
+            motion_fgbg, motion_kernel = create_motion_detector()
+
         print(
-            f"[OK] Stream aberto: {rtsp_url} areas={len(zonas)} modo={modo}"
+            f"[OK] Stream aberto: {rtsp_url} areas={len(zonas)} modo={modo} "
+            f"motion_gate={'sim' if YOLO_ONLY_ON_MOTION else 'nao'}"
         )
         frame_index = 0
         ultimo_evento = 0.0
@@ -93,11 +112,22 @@ class PersonDetector:
                     print(f"[ERRO] Reconexao falhou: {rtsp_url}")
                     time.sleep(10)
                     return
+                if YOLO_ONLY_ON_MOTION:
+                    motion_fgbg, motion_kernel = create_motion_detector()
+                    yolo_active_until = 0.0
                 continue
 
             falhas = 0
-
             frame_index += 1
+            agora = time.time()
+
+            if YOLO_ONLY_ON_MOTION:
+                if frame_index % max(1, YOLO_MOTION_FRAME_SKIP) == 0:
+                    if frame_has_motion(frame, motion_fgbg, motion_kernel):
+                        yolo_active_until = agora + YOLO_MOTION_HOLD_SEC
+                if agora >= yolo_active_until:
+                    continue
+
             if frame_index % FRAME_SKIP != 0:
                 continue
 
@@ -134,7 +164,8 @@ class PersonDetector:
                     best_area = area
 
             dentro_agora = best_conf >= conf_min and pessoas_match > 0
-            agora = time.time()
+            if dentro_agora:
+                yolo_active_until = max(yolo_active_until, agora + YOLO_MOTION_HOLD_SEC)
 
             if agora - ultimo_diag >= 15:
                 ultimo_diag = agora
@@ -149,7 +180,7 @@ class PersonDetector:
                         f"[DETECT] pessoa sem match modo={modo} pessoas={pessoas} "
                         f"conf_min={conf_min} url={rtsp_url}"
                     )
-                else:
+                elif not YOLO_ONLY_ON_MOTION or agora < yolo_active_until:
                     print(
                         f"[DETECT] nenhuma pessoa conf>={conf_min} modo={modo} url={rtsp_url}"
                     )

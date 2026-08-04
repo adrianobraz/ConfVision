@@ -115,6 +115,26 @@ Outros serviços referenciam este container como:
 | `requirements-guard.txt` | `requests` + `hashids` |
 | `mediamtx/mediamtx.yml` | Config com auth localhost |
 
+### Escala EX44 (~800 nuvem + 120 IA slots, sem GPU)
+
+**MediaMTX** (`mediamtx.yml`):
+
+- `hlsAlwaysRemux: no` — HLS/remux **só quando alguém abre** ao vivo (maior ganho de CPU)
+- Plano **online**: publish RTMP sob demanda; path `cam/{hash}` existe sem remux 24/7
+- `hls1.dnsid.com.br` → proxy `:8888` (EasyPanel/Caddy)
+
+**Worker analítico** (env):
+
+| Variável | Default | Descrição |
+|---|---|---|
+| `YOLO_ONLY_ON_MOTION` | `1` | MOG2 barato → YOLO **só após movimento** |
+| `YOLO_MOTION_HOLD_SEC` | `15` | Segundos de YOLO após último movimento |
+| `YOLO_MOTION_FRAME_SKIP` | `2` | Intervalo de checagem MOG2 (frames) |
+
+YOLO continua filtrando **somente classe pessoa** (id 0). Fora de movimento + hold, **não infere**.
+
+Carga planejada por nó: `(nuvem_ativas/800) + (licencas_ia/120)` — gatilho novo servidor em ~85–90%.
+
 ---
 
 ## 1b. confvision só MediaMTX (legado — não recomendado)
@@ -150,6 +170,8 @@ Processa câmeras com detecção de pessoas ativa. **Não** grava timelapse/DVR.
 | `WORKER_VERSION` | `0.3.0` |
 | `SYNC_INTERVAL_SEC` | `30` |
 | `FRAME_SKIP` | `5` |
+| `YOLO_ONLY_ON_MOTION` | `1` |
+| `YOLO_MOTION_HOLD_SEC` | `15` |
 | `YOLO_MODEL` | `yolov8n.pt` |
 | `YOLO_CONF_DEFAULT` | `0.5` |
 | `CLIP_DURACAO_SEG` | `20` |
@@ -166,7 +188,8 @@ Processa câmeras com detecção de pessoas ativa. **Não** grava timelapse/DVR.
 
 ### Métricas típicas
 
-CPU alta (~100–300%) é esperado — inferência YOLO em várias câmeras.
+Com `YOLO_ONLY_ON_MOTION=1`, CPU cresce só em câmeras com movimento (pico << total de licenças).
+Com gate desligado (`YOLO_ONLY_ON_MOTION=0`), inferência contínua — adequado só para poucas câmeras ou GPU.
 
 ---
 
