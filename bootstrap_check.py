@@ -18,7 +18,7 @@ from config import (
     WORKER_SHARD_INDEX,
     WORKER_SHARD_TOTAL,
     XANO_BASE_URL,
-    YOLO_MOTION_HOLD_SEC,
+    YOLO_MOTION_MISS_FRAMES,
     YOLO_ONLY_ON_MOTION,
 )
 from rtmp_token import publish_secret
@@ -83,6 +83,6 @@ def validate_config():
             f"| capture_workers={CAPTURE_WORKERS} | {shard_label()} | capture_dir={CAPTURE_DIR} "
             f"| cache={CONFIG_CACHE_BACKEND} | event_store={EVENT_STORE} "
             f"| yolo_motion_gate={'sim' if YOLO_ONLY_ON_MOTION else 'nao'} "
-            f"hold={YOLO_MOTION_HOLD_SEC}s"
+            f"latch=sim miss={YOLO_MOTION_MISS_FRAMES}"
         )
     return ok

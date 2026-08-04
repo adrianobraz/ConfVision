@@ -32,10 +32,11 @@ def _env_bool(name: str, default: str = "0") -> bool:
     return os.getenv(name, default).strip().lower() in ("1", "true", "yes", "on")
 
 
-# Analítico: MOG2 barato → YOLO só pessoa após movimento (escala 120+ câmeras/EX44)
+# Analítico: MOG2 barato → YOLO após movimento; trava ligada enquanto YOLO vê pessoa na área
 YOLO_ONLY_ON_MOTION = _env_bool("YOLO_ONLY_ON_MOTION", "1")
-YOLO_MOTION_HOLD_SEC = int(os.getenv("YOLO_MOTION_HOLD_SEC", "15"))
 YOLO_MOTION_FRAME_SKIP = int(os.getenv("YOLO_MOTION_FRAME_SKIP", "2"))
+# Frames YOLO consecutivos sem pessoa na área para desligar (após já ter inferido)
+YOLO_MOTION_MISS_FRAMES = int(os.getenv("YOLO_MOTION_MISS_FRAMES", "2"))
 
 CLIP_DURACAO_SEG = int(os.getenv("CLIP_DURACAO_SEG", "20"))
 SNAPSHOT_JPEG_QUALITY = int(os.getenv("SNAPSHOT_JPEG_QUALITY", "85"))

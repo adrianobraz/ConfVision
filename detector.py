@@ -12,7 +12,7 @@ from config import (
     YOLO_DEVICE,
     YOLO_MODEL,
     YOLO_MOTION_FRAME_SKIP,
-    YOLO_MOTION_HOLD_SEC,
+    YOLO_MOTION_MISS_FRAMES,
     YOLO_ONLY_ON_MOTION,
 )
 from motion_detect import create_motion_detector, frame_has_motion
@@ -28,7 +28,7 @@ class PersonDetector:
         gate = "sim" if YOLO_ONLY_ON_MOTION else "nao"
         print(
             f"[YOLO] model={YOLO_MODEL} device={self.device} "
-            f"motion_gate={gate} hold={YOLO_MOTION_HOLD_SEC}s"
+            f"motion_gate={gate} latch=sim miss={YOLO_MOTION_MISS_FRAMES}"
         )
 
     def _resolve_device(self) -> str:
@@ -54,6 +54,13 @@ class PersonDetector:
         cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         return cap
+
+    def _reset_motion_gate(self):
+        return {
+            "yolo_ligado": False,
+            "motion_pending_verify": False,
+            "miss_streak": 0,
+        }
 
     def process_camera(
         self,
@@ -83,7 +90,7 @@ class PersonDetector:
 
         motion_fgbg = None
         motion_kernel = None
-        yolo_active_until = 0.0
+        gate = self._reset_motion_gate()
         if YOLO_ONLY_ON_MOTION:
             motion_fgbg, motion_kernel = create_motion_detector()
 
@@ -114,7 +121,7 @@ class PersonDetector:
                     return
                 if YOLO_ONLY_ON_MOTION:
                     motion_fgbg, motion_kernel = create_motion_detector()
-                    yolo_active_until = 0.0
+                    gate = self._reset_motion_gate()
                 continue
 
             falhas = 0
@@ -124,8 +131,11 @@ class PersonDetector:
             if YOLO_ONLY_ON_MOTION:
                 if frame_index % max(1, YOLO_MOTION_FRAME_SKIP) == 0:
                     if frame_has_motion(frame, motion_fgbg, motion_kernel):
-                        yolo_active_until = agora + YOLO_MOTION_HOLD_SEC
-                if agora >= yolo_active_until:
+                        if not gate["yolo_ligado"]:
+                            gate["yolo_ligado"] = True
+                            gate["motion_pending_verify"] = True
+                            gate["miss_streak"] = 0
+                if not gate["yolo_ligado"]:
                     continue
 
             if frame_index % FRAME_SKIP != 0:
@@ -164,8 +174,20 @@ class PersonDetector:
                     best_area = area
 
             dentro_agora = best_conf >= conf_min and pessoas_match > 0
-            if dentro_agora:
-                yolo_active_until = max(yolo_active_until, agora + YOLO_MOTION_HOLD_SEC)
+
+            if YOLO_ONLY_ON_MOTION:
+                if dentro_agora:
+                    gate["motion_pending_verify"] = False
+                    gate["miss_streak"] = 0
+                elif gate["motion_pending_verify"]:
+                    gate["yolo_ligado"] = False
+                    gate["motion_pending_verify"] = False
+                    gate["miss_streak"] = 0
+                else:
+                    gate["miss_streak"] += 1
+                    if gate["miss_streak"] >= max(1, YOLO_MOTION_MISS_FRAMES):
+                        gate["yolo_ligado"] = False
+                        gate["miss_streak"] = 0
 
             if agora - ultimo_diag >= 15:
                 ultimo_diag = agora
@@ -180,9 +202,13 @@ class PersonDetector:
                         f"[DETECT] pessoa sem match modo={modo} pessoas={pessoas} "
                         f"conf_min={conf_min} url={rtsp_url}"
                     )
-                elif not YOLO_ONLY_ON_MOTION or agora < yolo_active_until:
+                elif gate["yolo_ligado"] or not YOLO_ONLY_ON_MOTION:
                     print(
                         f"[DETECT] nenhuma pessoa conf>={conf_min} modo={modo} url={rtsp_url}"
+                    )
+                elif YOLO_ONLY_ON_MOTION:
+                    print(
+                        f"[DETECT] movimento sem pessoa — gate off modo={modo} url={rtsp_url}"
                     )
 
             if dentro_agora and (agora - ultimo_evento >= cooldown_sec):

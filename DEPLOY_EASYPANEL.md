@@ -128,10 +128,10 @@ Outros serviços referenciam este container como:
 | Variável | Default | Descrição |
 |---|---|---|
 | `YOLO_ONLY_ON_MOTION` | `1` | MOG2 barato → YOLO **só após movimento** |
-| `YOLO_MOTION_HOLD_SEC` | `15` | Segundos de YOLO após último movimento |
 | `YOLO_MOTION_FRAME_SKIP` | `2` | Intervalo de checagem MOG2 (frames) |
+| `YOLO_MOTION_MISS_FRAMES` | `2` | Frames YOLO sem pessoa na área para desligar |
 
-YOLO continua filtrando **somente classe pessoa** (id 0). Fora de movimento + hold, **não infere**.
+**Latch por pessoa:** movimento abre o gate → se YOLO vê pessoa na área, **continua mesmo parado** → só desliga quando YOLO diz que **não é pessoa** (movimento falso para **na hora**). YOLO filtra **somente classe pessoa** (id 0).
 
 Carga planejada por nó: `(nuvem_ativas/800) + (licencas_ia/120)` — gatilho novo servidor em ~85–90%.
 
@@ -171,7 +171,7 @@ Processa câmeras com detecção de pessoas ativa. **Não** grava timelapse/DVR.
 | `SYNC_INTERVAL_SEC` | `30` |
 | `FRAME_SKIP` | `5` |
 | `YOLO_ONLY_ON_MOTION` | `1` |
-| `YOLO_MOTION_HOLD_SEC` | `15` |
+| `YOLO_MOTION_MISS_FRAMES` | `2` |
 | `YOLO_MODEL` | `yolov8n.pt` |
 | `YOLO_CONF_DEFAULT` | `0.5` |
 | `CLIP_DURACAO_SEG` | `20` |
