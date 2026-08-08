@@ -9,6 +9,8 @@ Documentação dos serviços Python/MediaMTX do ConfVision no EasyPanel.
 > ConfVision é um sistema **solo**. Cada worker roda a partir desta pasta.
 > A app web Go fica em `home/confmonit/v4.0/confvision/` (deploy separado).
 
+> **Migração Xano → Postgres:** valores de `XANO_BASE_URL` e `EVENT_STORE` na VPS explicados em [`VARIAVEIS_VPS.md`](VARIAVEIS_VPS.md).
+
 ---
 
 ## Visão geral dos serviços

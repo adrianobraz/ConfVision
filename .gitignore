@@ -1,4 +1,6 @@
 .env
+sql/cmd/apply/apply.exe
+sql/cmd/apply/apply
 __pycache__/
 *.pyc
 *.pyo
