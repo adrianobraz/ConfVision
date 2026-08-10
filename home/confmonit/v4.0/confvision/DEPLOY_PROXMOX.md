@@ -150,16 +150,18 @@ sudo systemctl restart confmonit4confvision
 
 ## 8. Variáveis `.env` (produção)
 
+Ver template completo: [`.env.producao.example`](.env.producao.example)
+
+**Novidade — dispatch terminal CV01 (analítico):**
+
 ```env
-TITULO_SITE=ConfVision
-URL_API=http://185.130.61.4:2010
-URL_API_SETOR=http://185.130.61.4:2000
-XANO_BASE_URL=https://xpcy-oyme-lno7.b2.xano.io/api:AC7rgWwW
-MEDIAMTX_HLS_BASE=http://31.97.173.119:8888
-MEDIAMTX_RTMP_PUBLISH_BASE=rtmp://31.97.173.119:1935
-PORTA=8086
-HTTPS=NAO
-MANUTENCAO=N
+RECEPTOR_WEB_URL=http://185.130.61.3:5000
+RECEPTOR_WEB_SENHA=<SenhaWeb receptorWeb>
+TERMINAL_NOTIFY_ENABLED=true
+POSTGRES_URL=postgres://confmonit:SENHA@191.96.156.116:5432/confmonit?sslmode=disable
+BD_HOST_MV4=...
 ```
+
+Deploy terminal: [`../../confvision/DEPLOY_TERMINAL_DISPATCH.md`](../../confvision/DEPLOY_TERMINAL_DISPATCH.md)
 
 URLs de câmera no painel: **`live/{id}`** (não grava no banco).

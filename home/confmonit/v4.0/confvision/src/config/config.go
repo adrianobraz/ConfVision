@@ -41,6 +41,12 @@ var (
 	UrlReceptor             string
 	UrlComando              string
 
+	ReceptorWebURL          string
+	ReceptorWebSenha        string
+	TerminalNotifyEnabled   bool
+	TerminalNotifyRetries   int
+	TerminalContactID       string
+
 	ContaboS3AccessKey string
 	ContaboS3SecretKey string
 	ContaboS3Endpoint  string
@@ -55,6 +61,10 @@ var (
 	}
 
 	ConexaoMySQL string
+
+	ConexaoPostgres    string
+	VisPostgresEnabled bool
+	VisWorkerAPIKey    string
 )
 
 func ConfigurarApp() {
@@ -102,6 +112,18 @@ func ConfigurarApp() {
 	UrlReceptor = os.Getenv("URL_RECEPTOR")
 	UrlComando = os.Getenv("URL_COMANDO")
 
+	ReceptorWebURL = strings.TrimRight(strings.TrimSpace(os.Getenv("RECEPTOR_WEB_URL")), "/")
+	if ReceptorWebURL == "" {
+		ReceptorWebURL = strings.TrimRight(strings.TrimSpace(UrlReceptor), "/")
+	}
+	ReceptorWebSenha = strings.TrimSpace(os.Getenv("RECEPTOR_WEB_SENHA"))
+	TerminalNotifyEnabled = envBool("TERMINAL_NOTIFY_ENABLED", true)
+	TerminalNotifyRetries = envInt("TERMINAL_NOTIFY_RETRIES", 3)
+	TerminalContactID = strings.TrimSpace(os.Getenv("TERMINAL_CONTACT_ID"))
+	if TerminalContactID == "" {
+		TerminalContactID = "CV01"
+	}
+
 	if os.Getenv("HTTPS") == "SIM" {
 		SiteHttps = true
 		Certificado = os.Getenv("CERTIFICADO")
@@ -131,6 +153,37 @@ func ConfigurarApp() {
 	CadSnapshotMaxWidth = envInt("CAD_SNAPSHOT_MAX_WIDTH", 1280)
 
 	ConexaoMySQL = montarConexaoMySQL()
+	ConexaoPostgres = montarConexaoPostgres()
+	VisPostgresEnabled = ConexaoPostgres != ""
+	VisWorkerAPIKey = strings.TrimSpace(os.Getenv("VIS_WORKER_API_KEY"))
+}
+
+func montarConexaoPostgres() string {
+	if u := strings.TrimSpace(os.Getenv("POSTGRES_URL")); u != "" {
+		return u
+	}
+
+	user := envOu("PG_USER", "PG_USER_CONFMONIT")
+	pass := envOu("PG_PASS", "PG_PASS_CONFMONIT")
+	host := envOu("PG_HOST", "PG_HOST_CONFMONIT")
+	port := envOu("PG_PORT", "PG_PORT_CONFMONIT")
+	base := envOu("PG_BASE", "PG_BASE_CONFMONIT")
+	ssl := envOu("PG_SSLMODE", "")
+
+	if user == "" || host == "" || base == "" {
+		return ""
+	}
+	if port == "" {
+		port = "5432"
+	}
+	if ssl == "" {
+		ssl = "disable"
+	}
+
+	return fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		user, pass, host, port, base, ssl,
+	)
 }
 
 func montarConexaoMySQL() string {
@@ -171,4 +224,19 @@ func envInt(name string, fallback int) int {
 		return fallback
 	}
 	return n
+}
+
+func envBool(name string, fallback bool) bool {
+	v := strings.TrimSpace(os.Getenv(name))
+	if v == "" {
+		return fallback
+	}
+	switch strings.ToLower(v) {
+	case "1", "true", "yes", "on", "sim", "s":
+		return true
+	case "0", "false", "no", "off", "nao", "n":
+		return false
+	default:
+		return fallback
+	}
 }
