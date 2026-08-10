@@ -41,6 +41,12 @@ func main() {
 	auxiliar.CarregarTemplates()
 	seguranca.ConfigurarCookies()
 
+	if config.VisPostgresEnabled {
+		fmt.Printf("ConfVision API Postgres: habilitada (vis_health)\n")
+	} else {
+		fmt.Println("ConfVision API Postgres: desabilitada — defina POSTGRES_URL no .env")
+	}
+
 	if config.SiteHttps {
 		webHttps()
 	} else {

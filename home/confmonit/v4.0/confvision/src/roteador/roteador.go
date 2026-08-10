@@ -13,6 +13,7 @@ import (
 	"confvision/src/modulos/modAuxiliar"
 	"confvision/src/modulos/notificacao"
 	"confvision/src/modulos/feedback"
+	"confvision/src/modulos/visapi"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -33,6 +34,8 @@ func ConfigurarRotas() *mux.Router {
 	rotas = append(rotas, dominioSaas.Rotas...)
 	rotas = append(rotas, gerenciarDispositivo.Rotas...)
 	rotas = append(rotas, gerenciarSetoresAlarme.Rotas...)
+
+	visapi.RegistrarRotasWorkerAPI(r)
 
 	for _, rota := range rotas {
 		if rota.Aberto {
