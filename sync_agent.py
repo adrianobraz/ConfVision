@@ -23,6 +23,7 @@ from config_cache import (
     write_sync,
 )
 from sharding import query_params
+from vis_api_auth import vis_api_headers
 
 
 def _parse_json(response):
@@ -37,7 +38,9 @@ def fetch_unified_sync(since_version: Optional[str] = None) -> dict[str, Any]:
     if since_version:
         params["since_version"] = since_version
     try:
-        response = requests.get(url, params=params, timeout=45)
+        response = requests.get(
+            url, params=params, headers=vis_api_headers(), timeout=45
+        )
         if response.status_code == 404:
             print("[SYNC-AGENT] API 2399 nao encontrada — fallback legacy")
             return fetch_legacy_sync()
@@ -57,13 +60,17 @@ def fetch_legacy_sync() -> dict[str, Any]:
 
     params = query_params()
     url_cam = f"{XANO_BASE_URL}/vis_camera_query_ativas"
-    response = requests.get(url_cam, params=params, timeout=45)
+    response = requests.get(
+        url_cam, params=params, headers=vis_api_headers(), timeout=45
+    )
     cameras = _as_list(_parse_json(response))
     areas = get_areas_ativas()
     cameras = _attach_areas(cameras, areas)
 
     url_grav = f"{XANO_BASE_URL}/vis_camera_query_gravacao_ativas"
-    response_g = requests.get(url_grav, params=params, timeout=45)
+    response_g = requests.get(
+        url_grav, params=params, headers=vis_api_headers(), timeout=45
+    )
     gravacao = _as_list(_parse_json(response_g))
 
     payload = normalize_sync_payload(

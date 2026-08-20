@@ -25,6 +25,7 @@ COPY rtmp_ban.py \
      rtmp_online.py \
      rtmp_token.py \
      rtmp_watch.py \
+     vis_api_auth.py \
      start_mediamtx_guard.py \
      ./
 

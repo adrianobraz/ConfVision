@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 XANO_BASE_URL = os.getenv("XANO_BASE_URL", "").rstrip("/")
+VIS_WORKER_API_KEY = os.getenv("VIS_WORKER_API_KEY", "").strip()
 CONFMONIT_API_URL = os.getenv("CONFMONIT_API_URL", "").rstrip("/")
 # Opcional: Bearer JWT se getArmadoById / getDadosById estiverem Seguro=true
 CONFMONIT_API_TOKEN = os.getenv("CONFMONIT_API_TOKEN", "").strip()

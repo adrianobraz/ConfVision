@@ -13,6 +13,22 @@ from config import (
     XANO_BASE_URL,
 )
 from sharding import filter_cameras, query_params
+from vis_api_auth import vis_api_headers
+
+
+def _api_get(url, **kwargs):
+    headers = vis_api_headers(kwargs.pop("headers", None))
+    return requests.get(url, headers=headers, **kwargs)
+
+
+def _api_post(url, **kwargs):
+    headers = vis_api_headers(kwargs.pop("headers", None))
+    return requests.post(url, headers=headers, **kwargs)
+
+
+def _api_put(url, **kwargs):
+    headers = vis_api_headers(kwargs.pop("headers", None))
+    return requests.put(url, headers=headers, **kwargs)
 
 
 def _parse_json(response):
@@ -37,7 +53,7 @@ def _cache_enabled() -> bool:
 def get_areas_ativas():
     url = f"{XANO_BASE_URL}/vis_camera_area_query_ativas"
     try:
-        response = requests.get(url, timeout=30)
+        response = _api_get(url, timeout=30)
         return _as_list(_parse_json(response))
     except Exception as exc:
         print(f"[WARN] vis_camera_area_query_ativas falhou: {exc}")
@@ -65,7 +81,7 @@ def get_cameras_ativas_direct():
     if SYNC_USE_UNIFIED_API:
         url = f"{XANO_BASE_URL}/vis_camera_sync_ativas"
         params = dict(query_params())
-        response = requests.get(url, params=params, timeout=45)
+        response = _api_get(url, params=params, timeout=45)
         data = _parse_json(response)
         if isinstance(data, dict) and data.get("dados"):
             data = data["dados"]
@@ -75,7 +91,7 @@ def get_cameras_ativas_direct():
 
     url = f"{XANO_BASE_URL}/vis_camera_query_ativas"
     params = query_params()
-    response = requests.get(url, params=params, timeout=30)
+    response = _api_get(url, params=params, timeout=30)
     data = _parse_json(response)
     cameras = _as_list(data)
     areas = get_areas_ativas()
@@ -109,7 +125,7 @@ def create_evento(camera, confianca, tipo="humano", status="capturando", extra=N
     }
     if extra:
         payload.update(extra)
-    response = requests.post(url, json=payload, timeout=15)
+    response = _api_post(url, json=payload, timeout=15)
     return _parse_json(response)
 
 
@@ -117,7 +133,7 @@ def put_evento(evento_id: int, campos: dict[str, Any], base: Optional[dict[str, 
     payload = _merge_evento_payload(base or {}, campos)
     url = f"{XANO_BASE_URL}/vis_evento/{evento_id}"
     params = {"id": evento_id}
-    response = requests.put(url, params=params, json=payload, timeout=15)
+    response = _api_put(url, params=params, json=payload, timeout=15)
     return _parse_json(response)
 
 
@@ -145,7 +161,7 @@ def finalizar_evento(
         "clip_snapshot_url": snapshot_url,
     }
     try:
-        response = requests.post(url, json=payload, timeout=20)
+        response = _api_post(url, json=payload, timeout=20)
         if response.status_code == 404:
             raise requests.HTTPError("404")
         return _parse_json(response)
@@ -207,7 +223,7 @@ def _merge_evento_payload(base: dict[str, Any], campos: dict[str, Any]) -> dict[
 
 def post_evento_clip(payload: dict[str, Any]):
     url = f"{XANO_BASE_URL}/vis_evento_clip"
-    response = requests.post(url, json=payload, timeout=15)
+    response = _api_post(url, json=payload, timeout=15)
     return _parse_json(response)
 
 
@@ -228,7 +244,7 @@ def post_ping(cameras_ativas: int, extra: Optional[dict[str, Any]] = None):
         payload.update(extra)
     if not payload.get("worker_tipo"):
         payload["worker_tipo"] = "analitico"
-    response = requests.post(url, json=payload, timeout=15)
+    response = _api_post(url, json=payload, timeout=15)
     return _parse_json(response)
 
 
@@ -240,7 +256,7 @@ def post_evento(camera, confianca, tipo="humano"):
 def get_cameras_gravacao_ativas_direct():
     url = f"{XANO_BASE_URL}/vis_camera_query_gravacao_ativas"
     params = query_params()
-    response = requests.get(url, params=params, timeout=30)
+    response = _api_get(url, params=params, timeout=30)
     return _as_list(_parse_json(response))
 
 
@@ -254,7 +270,7 @@ def get_cameras_gravacao_ativas():
 
 def get_gravacao_storage_credenciais(id_franqueado: str):
     url = f"{XANO_BASE_URL}/vis_gravacao_storage_credenciais_by_franqueado"
-    response = requests.get(
+    response = _api_get(
         url, params={"id_franqueado": id_franqueado}, timeout=15
     )
     return _parse_json(response)
@@ -262,14 +278,14 @@ def get_gravacao_storage_credenciais(id_franqueado: str):
 
 def post_gravacao_segmento(payload: dict[str, Any]):
     url = f"{XANO_BASE_URL}/vis_gravacao_segmento"
-    response = requests.post(url, json=payload, timeout=30)
+    response = _api_post(url, json=payload, timeout=30)
     return _parse_json(response)
 
 
 def ack_flush_pedido(camera_id: int) -> bool:
     try:
         url_ack = f"{XANO_BASE_URL}/vis_camera/gravacao/flush/ack/{camera_id}?vis_camera_id={camera_id}"
-        response = requests.post(url_ack, json={}, timeout=15)
+        response = _api_post(url_ack, json={}, timeout=15)
         return response.ok
     except Exception as exc:
         print(f"[XANO] ack_flush_pedido camera={camera_id} erro: {exc}")
@@ -278,11 +294,11 @@ def ack_flush_pedido(camera_id: int) -> bool:
 
 def get_eventos_sensor_pendentes(limit: int = 10):
     url = f"{XANO_BASE_URL}/vis_evento_query_sensor_pendentes"
-    response = requests.get(url, params={"limit": limit}, timeout=15)
+    response = _api_get(url, params={"limit": limit}, timeout=15)
     return _as_list(_parse_json(response))
 
 
 def get_camera_by_id(camera_id: int):
     url = f"{XANO_BASE_URL}/vis_camera/{camera_id}"
-    response = requests.get(url, params={"vis_camera_id": camera_id}, timeout=15)
+    response = _api_get(url, params={"vis_camera_id": camera_id}, timeout=15)
     return _parse_json(response)

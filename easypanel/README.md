@@ -14,8 +14,10 @@ API operacional (substitui Xano): **`https://vision.confmonit2.com.br`**
 |-------------------|---------------|-------------|
 | **confvision** (MediaMTX + Guard) | `mediamtx.env` | `Dockerfile-mediamtx` |
 | **confvision-worker** | `worker.env` | `python -u main.py` |
+| **confvision-sync-agent** | `sync-agent.env` | `python -u sync_agent_main.py` |
 | **confvision-dvr** | `dvr.env` | `python -u dvr_main.py` |
 | **confvision-motion** | `motion.env` | `python -u motion_main.py` |
+| **confvision-sensor** | `sensor.env` | `python -u sensor_main.py` |
 | **confvision-timelapse** | `timelapse.env` | `python -u timelapse_main.py` |
 
 > **Parar:** `confvision-rtmp-guard` separado (legado) se já usa `Dockerfile-mediamtx`.
@@ -26,9 +28,10 @@ API operacional (substitui Xano): **`https://vision.confmonit2.com.br`**
 
 | Variável | Valor | Onde |
 |----------|-------|------|
-| `XANO_BASE_URL` | `https://vision.confmonit2.com.br` | worker, dvr, motion, timelapse, mediamtx |
-| `RTMP_PUBLISH_SECRET` | **igual** app Go ConfVision | todos acima |
-| `MEDIAMTX_NODE_ID` | `1` (id em `vis_mediamtx_node`) | worker, dvr, motion, timelapse |
+| `XANO_BASE_URL` | `https://vision.confmonit2.com.br` | todos os serviços acima |
+| `VIS_WORKER_API_KEY` | **igual** `VIS_WORKER_API_KEY` do Go ConfVision (Proxmox) | todos os serviços acima |
+| `RTMP_PUBLISH_SECRET` | **igual** app Go ConfVision | mediamtx, worker, dvr, motion, timelapse, sensor |
+| `MEDIAMTX_NODE_ID` | `1` (id em `vis_mediamtx_node`) | worker, sync-agent, dvr, motion, timelapse |
 
 ## Só no worker / motion
 

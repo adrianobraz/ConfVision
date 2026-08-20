@@ -9,6 +9,7 @@ from typing import Any, Optional
 import requests
 
 from rtmp_ban import BanStore
+from vis_api_auth import vis_api_headers
 from rtmp_token import RE_HASH_PATH, chave_valida, parse_chave_rtmp, publish_secret
 
 
@@ -160,7 +161,12 @@ class RtmpGuard:
             return None
         url = f"{self.xano}/vis_camera/rtmp_auth/{camera_id}"
         try:
-            r = requests.get(url, params={"vis_camera_id": camera_id}, timeout=8)
+            r = requests.get(
+                url,
+                params={"vis_camera_id": camera_id},
+                headers=vis_api_headers(),
+                timeout=8,
+            )
             if r.status_code == 404:
                 return None
             r.raise_for_status()
