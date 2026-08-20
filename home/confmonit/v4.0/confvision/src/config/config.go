@@ -47,6 +47,12 @@ var (
 	TerminalNotifyRetries   int
 	TerminalContactID       string
 
+	ImagemPublicSecret      string
+	ImagemPublicBaseURL     string
+	ImagemRateLimitPerMin   int
+	ImagemRateLimitPerHour  int
+	IntegracaoDispatchEnabled bool
+
 	ContaboS3AccessKey string
 	ContaboS3SecretKey string
 	ContaboS3Endpoint  string
@@ -65,6 +71,7 @@ var (
 	ConexaoPostgres    string
 	VisPostgresEnabled bool
 	VisWorkerAPIKey    string
+	VisReceptorBearer  string
 )
 
 func ConfigurarApp() {
@@ -124,6 +131,12 @@ func ConfigurarApp() {
 		TerminalContactID = "CV01"
 	}
 
+	ImagemPublicSecret = strings.TrimSpace(os.Getenv("IMAGEM_PUBLIC_SECRET"))
+	ImagemPublicBaseURL = strings.TrimRight(strings.TrimSpace(os.Getenv("IMAGEM_PUBLIC_BASE_URL")), "/")
+	ImagemRateLimitPerMin = envInt("IMAGEM_RATE_LIMIT_PER_MIN", 60)
+	ImagemRateLimitPerHour = envInt("IMAGEM_RATE_LIMIT_PER_HOUR", 500)
+	IntegracaoDispatchEnabled = envBool("INTEGRACAO_DISPATCH_ENABLED", true)
+
 	if os.Getenv("HTTPS") == "SIM" {
 		SiteHttps = true
 		Certificado = os.Getenv("CERTIFICADO")
@@ -155,20 +168,28 @@ func ConfigurarApp() {
 	ConexaoMySQL = montarConexaoMySQL()
 	ConexaoPostgres = montarConexaoPostgres()
 	VisPostgresEnabled = ConexaoPostgres != ""
-	VisWorkerAPIKey = strings.TrimSpace(os.Getenv("VIS_WORKER_API_KEY"))
+	VisWorkerAPIKey = trimEnv(os.Getenv("VIS_WORKER_API_KEY"))
+	VisReceptorBearer = trimEnv(os.Getenv("VIS_RECEPTOR_BEARER"))
+	if VisReceptorBearer == "" {
+		VisReceptorBearer = "1e2d2eef75ccd7cfea2e06d7ce1c63c4"
+	}
+}
+
+func trimEnv(v string) string {
+	return strings.TrimSpace(strings.Trim(v, "\r"))
 }
 
 func montarConexaoPostgres() string {
-	if u := strings.TrimSpace(os.Getenv("POSTGRES_URL")); u != "" {
+	if u := trimEnv(os.Getenv("POSTGRES_URL")); u != "" {
 		return u
 	}
 
-	user := envOu("PG_USER", "PG_USER_CONFMONIT")
-	pass := envOu("PG_PASS", "PG_PASS_CONFMONIT")
-	host := envOu("PG_HOST", "PG_HOST_CONFMONIT")
-	port := envOu("PG_PORT", "PG_PORT_CONFMONIT")
-	base := envOu("PG_BASE", "PG_BASE_CONFMONIT")
-	ssl := envOu("PG_SSLMODE", "")
+	user := trimEnv(envOu("PG_USER", "PG_USER_CONFMONIT"))
+	pass := trimEnv(envOu("PG_PASS", "PG_PASS_CONFMONIT"))
+	host := trimEnv(envOu("PG_HOST", "PG_HOST_CONFMONIT"))
+	port := trimEnv(envOu("PG_PORT", "PG_PORT_CONFMONIT"))
+	base := trimEnv(envOu("PG_BASE", "PG_BASE_CONFMONIT"))
+	ssl := trimEnv(envOu("PG_SSLMODE", ""))
 
 	if user == "" || host == "" || base == "" {
 		return ""

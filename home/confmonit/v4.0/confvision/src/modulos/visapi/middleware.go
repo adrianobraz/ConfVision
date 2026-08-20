@@ -23,8 +23,11 @@ func workerAuth(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		if got != key {
-			http.Error(w, `{"erro":"nao autorizado"}`, http.StatusUnauthorized)
-			return
+			receptorKey := strings.TrimSpace(config.VisReceptorBearer)
+			if receptorKey == "" || got != receptorKey {
+				http.Error(w, `{"erro":"nao autorizado"}`, http.StatusUnauthorized)
+				return
+			}
 		}
 
 		next(w, r)

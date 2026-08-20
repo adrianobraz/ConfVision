@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 func Dispatch(ctx context.Context, method, pathWithQuery string, body io.Reader) (int, []byte, error) {
@@ -36,7 +37,10 @@ func Dispatch(ctx context.Context, method, pathWithQuery string, body io.Reader)
 
 	switch {
 	case method == http.MethodGet && path == "/vis_health":
-		return okJSON(map[string]any{"status": "ok", "enabled": true})
+		if !Ready() {
+			return http.StatusServiceUnavailable, []byte(`{"status":"postgres indisponivel"}`), nil
+		}
+		return okJSON(map[string]any{"status": "ok", "enabled": true, "postgres": "ok"})
 
 	case method == http.MethodGet && path == "/vis_camera_query_ativas":
 		list, err := ListCamerasAnaliticas(ctx, q.Get("worker_id"), parseIntQuery(q.Get("vis_mediamtx_node_id")))
@@ -54,9 +58,18 @@ func Dispatch(ctx context.Context, method, pathWithQuery string, body io.Reader)
 		if err != nil {
 			return errJSON(err)
 		}
+		configVersion := buildConfigVersion(cams, areas)
+		sinceVersion := strings.TrimSpace(q.Get("since_version"))
+		if sinceVersion != "" && sinceVersion == configVersion {
+			return okJSON(map[string]any{
+				"unchanged":      true,
+				"config_version": configVersion,
+			})
+		}
 		out := map[string]any{
 			"cameras": cams, "areas": areas,
-			"config_version": buildConfigVersion(cams, areas),
+			"config_version": configVersion,
+			"unchanged":      false,
 			"gravacao":       []any{},
 		}
 		if strings.EqualFold(q.Get("include_gravacao"), "true") {
@@ -115,6 +128,16 @@ func Dispatch(ctx context.Context, method, pathWithQuery string, body io.Reader)
 		}
 		return okJSON(map[string]any{"dados": list})
 
+	case method == http.MethodGet && path == "/vis_camera_by_setor":
+		cam, err := GetCameraBySetor(ctx, q.Get("id_dispositivo"), q.Get("particao"), q.Get("zonauser"), q.Get("id_franqueado"))
+		if err != nil {
+			return errJSON(err)
+		}
+		if cam == nil {
+			return okJSON(map[string]any{"dados": nil})
+		}
+		return okJSON(map[string]any{"dados": cam})
+
 	case method == http.MethodGet && path == "/vis_camera":
 		// admin list all — simplified: by franqueado optional
 		if idFra := q.Get("id_franqueado"); idFra != "" {
@@ -124,10 +147,26 @@ func Dispatch(ctx context.Context, method, pathWithQuery string, body io.Reader)
 			}
 			return okJSON(list)
 		}
+		if q.Get("all") == "1" || q.Get("all") == "true" {
+			list, err := ListAllCameras(ctx)
+			if err != nil {
+				return errJSON(err)
+			}
+			return okJSON(list)
+		}
 		return http.StatusBadRequest, []byte(`{"erro":"id_franqueado obrigatorio"}`), nil
 
 	case method == http.MethodPost && path == "/vis_camera":
 		out, err := CreateCamera(ctx, payload)
+		if err != nil {
+			return bizErrJSON(err)
+		}
+		return okJSON(out)
+
+	case method == http.MethodGet && strings.HasPrefix(path, "/vis_camera/mediamtx/"):
+		id := pathID(path, "/vis_camera/mediamtx/")
+		atribuir := q.Get("atribuir_se_ausente") != "false"
+		out, err := ResolveMediamtxForCamera(ctx, id, atribuir)
 		if err != nil {
 			return bizErrJSON(err)
 		}
@@ -270,6 +309,21 @@ func Dispatch(ctx context.Context, method, pathWithQuery string, body io.Reader)
 		}
 		return okJSON(out)
 
+	case method == http.MethodPost && path == "/vis_evento_disparo_sensor":
+		out, err := DisparoSensorEvento(ctx, payload)
+		if err != nil {
+			return bizErrJSON(err)
+		}
+		raw, _ := json.Marshal(out)
+		return http.StatusOK, raw, nil
+
+	case method == http.MethodPost && path == "/vis_evento_demo_moni":
+		out, err := UpsertEventoDemoMoni(ctx, payload)
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(out)
+
 	case method == http.MethodPost && path == "/vis_evento_finalizar":
 		out, err := FinalizarEvento(ctx, payload)
 		if err != nil {
@@ -317,11 +371,56 @@ func Dispatch(ctx context.Context, method, pathWithQuery string, body io.Reader)
 		return http.StatusOK, raw, nil
 
 	case method == http.MethodGet && path == "/vis_evento_query_sensor_pendentes":
-		list, err := ListEventosSensorPendentes(ctx)
+		limit := parseIntQuery(q.Get("limit"))
+		if limit <= 0 {
+			limit = 100
+		}
+		list, err := ListEventosSensorPendentes(ctx, limit)
 		if err != nil {
 			return errJSON(err)
 		}
 		return okJSON(map[string]any{"dados": list})
+
+	case method == http.MethodGet && path == "/vis_evento_by_contexto":
+		list, err := ListEventosByContexto(ctx,
+			q.Get("id_processo"), q.Get("id_cliente"), q.Get("id_dispositivo"),
+			q.Get("id_franqueado"), q.Get("data_inicio"))
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"dados": list})
+
+	case method == http.MethodGet && path == "/vis_evento_by_processo_setor":
+		ev, cam, err := GetEventoByProcessoSetor(ctx,
+			q.Get("id_processo"), q.Get("id_dispositivo"), q.Get("particao"),
+			q.Get("zonauser"), q.Get("id_evento"))
+		if err != nil {
+			return bizErrJSON(err)
+		}
+		return okJSON(map[string]any{"dados": ev, "camera": cam})
+
+	case method == http.MethodGet && path == "/vis_evento_ultimos25_setor":
+		list, cam, err := ListEventosUltimos25Setor(ctx, q.Get("id_dispositivo"), q.Get("particao"), q.Get("zonauser"))
+		if err != nil {
+			return bizErrJSON(err)
+		}
+		return okJSON(map[string]any{"dados": list, "camera": cam})
+
+	case method == http.MethodGet && path == "/vis_evento_ultimos25_dispositivo":
+		limit := parseIntQuery(q.Get("limit"))
+		if limit <= 0 {
+			limit = 25
+		}
+		list, err := ListEventosUltimos25Dispositivo(ctx, q.Get("id_dispositivo"), limit)
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{
+			"dados":  list,
+			"total":  len(list),
+			"offset": 0,
+			"limit":  limit,
+		})
 
 	case method == http.MethodGet && path == "/vis_gravacao_storage_by_franqueado":
 		mask := !strings.EqualFold(q.Get("credenciais_completas"), "true")
@@ -399,12 +498,424 @@ func Dispatch(ctx context.Context, method, pathWithQuery string, body io.Reader)
 		}
 		return CvgWorkerTickPOST(ctx, payload, workerKey)
 
+	case method == http.MethodGet && path == "/vis_integracao_by_franqueado":
+		out, err := ListIntegracoesByFranqueado(ctx, q.Get("id_franqueado"))
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(out)
+
+	case method == http.MethodGet && path == "/vis_integracao_franqueado":
+		out, err := GetIntegracaoFranqueado(ctx, q.Get("id_franqueado"))
+		if err != nil {
+			return bizErrJSON(err)
+		}
+		return okJSON(out)
+
+	case method == http.MethodPut && path == "/vis_integracao_franqueado":
+		out, err := SaveIntegracaoFranqueado(ctx, payload)
+		if err != nil {
+			return bizErrJSON(err)
+		}
+		return okJSON(out)
+
+	case method == http.MethodPost && path == "/vis_integracao_franqueado/test":
+		out, err := TestIntegracaoFranqueado(ctx, strVal(payload, "id_franqueado"))
+		if err != nil {
+			return bizErrJSON(err)
+		}
+		return okJSON(out)
+
+	case method == http.MethodPost && path == "/vis_integracao":
+		out, err := CreateIntegracao(ctx, payload)
+		if err != nil {
+			return bizErrJSON(err)
+		}
+		return okJSON(out)
+
+	case method == http.MethodPut && strings.HasPrefix(path, "/vis_integracao/"):
+		id := pathID(path, "/vis_integracao/")
+		out, err := UpdateIntegracao(ctx, id, payload)
+		if err != nil {
+			return bizErrJSON(err)
+		}
+		return okJSON(out)
+
+	case method == http.MethodDelete && strings.HasPrefix(path, "/vis_integracao/"):
+		id := pathID(path, "/vis_integracao/")
+		if err := DeleteIntegracao(ctx, id); err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"ok": true})
+
+	case method == http.MethodPost && strings.HasPrefix(path, "/vis_integracao_test/"):
+		id := pathID(path, "/vis_integracao_test/")
+		out, err := TestIntegracaoMoni(ctx, id)
+		if err != nil {
+			return bizErrJSON(err)
+		}
+		return okJSON(out)
+
+	case method == http.MethodGet && path == "/vis_integracao_log":
+		limit := parseIntQuery(q.Get("limit"))
+		out, err := ListIntegracaoLog(ctx, q.Get("id_franqueado"), limit)
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(out)
+
 	case method == http.MethodGet && path == "/ops/arme/agenda":
 		dia := parseIntQuery(q.Get("DiaSemana"))
 		if dia == 0 {
 			dia = parseIntQuery(q.Get("dia_semana"))
 		}
 		out, err := OpsArmeAgendaGET(ctx, dia)
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(out)
+
+	case method == http.MethodGet && path == "/ops/atendimento/politica":
+		out, err := GetPoliticaAtendimento(ctx, q.Get("id_franqueado"))
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"dados": out})
+
+	case method == http.MethodPut && path == "/ops/atendimento/politica":
+		var p PoliticaAtendimento
+		if err := json.Unmarshal(bodyBytes, &p); err != nil {
+			return http.StatusBadRequest, []byte(`{"erro":"json invalido"}`), nil
+		}
+		if err := SavePoliticaAtendimento(ctx, p); err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"ok": true})
+
+	case method == http.MethodGet && path == "/ops/atendimento/resolve":
+		idFra := q.Get("id_franqueado")
+		idCli := q.Get("id_cliente")
+		recurso := q.Get("recurso")
+		ctiGrupo := q.Get("cti_grupo")
+		ok, failOpen, err := ResolveRecursoAtivoComHorarioCompat(ctx, idFra, idCli, recurso, ctiGrupo)
+		if err != nil {
+			return errJSON(err)
+		}
+		bloq, _ := IsIABloqueado(ctx, idFra, idCli)
+		return okJSON(map[string]any{
+			"ativo": ok, "ia_bloqueado": bloq, "recurso": recurso, "fail_open": failOpen,
+			"cti_grupo": ctiGrupo, "emergencia": IsGrupoEmergenciaAtendimento(ctiGrupo),
+		})
+
+	case method == http.MethodGet && path == "/ops/atendimento/grade":
+		out, err := ListGradeSlots(ctx, q.Get("id_franqueado"), q.Get("id_cliente"), q.Get("responsavel"))
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"dados": out})
+
+	case method == http.MethodPut && path == "/ops/atendimento/grade":
+		idFra := strVal(payload, "id_franqueado")
+		idCli := strVal(payload, "id_cliente")
+		resp := strVal(payload, "responsavel")
+		var slots []GradeSlot
+		if raw, ok := payload["slots"].([]any); ok {
+			for _, el := range raw {
+				m, ok := el.(map[string]any)
+				if !ok {
+					continue
+				}
+				slot := GradeSlot{
+					DiasSemana: intSliceFromAny(m["dias_semana"]),
+					HoraInicio: strVal(m, "hora_inicio"),
+					HoraFim:    strVal(m, "hora_fim"),
+				}
+				slots = append(slots, slot)
+			}
+		}
+		if err := ReplaceGradeSlots(ctx, idFra, idCli, resp, slots); err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"ok": true})
+
+	case method == http.MethodPost && path == "/ops/atendimento/parceiro/envio":
+		out, err := ProcessarEnvioParceiro(ctx, payload)
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(out)
+
+	case method == http.MethodGet && path == "/ops/atendimento/ia_bloqueio":
+		out, err := ListIABloqueios(ctx, q.Get("id_franqueado"))
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"dados": out})
+
+	case method == http.MethodPost && path == "/ops/atendimento/ia_bloqueio":
+		idFra := strVal(payload, "id_franqueado")
+		idCli := strVal(payload, "id_cliente")
+		nome := strVal(payload, "nome_cliente")
+		motivo := strVal(payload, "motivo")
+		if err := AddIABloqueio(ctx, idFra, idCli, nome, motivo); err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"ok": true})
+
+	case method == http.MethodDelete && strings.HasPrefix(path, "/ops/atendimento/ia_bloqueio/"):
+		id := pathID(path, "/ops/atendimento/ia_bloqueio/")
+		if err := RemoveIABloqueio(ctx, id); err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"ok": true})
+
+	case method == http.MethodGet && path == "/ops/atendimento/creditos":
+		out, err := ListCreditoSaldos(ctx, q.Get("id_franqueado"))
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"dados": out})
+
+	case method == http.MethodGet && path == "/ops/atendimento/credito/pode_ligar":
+		idFra := strings.TrimSpace(q.Get("id_franqueado"))
+		idCentral := strings.TrimSpace(q.Get("id_central"))
+		ok, saldo, min, err := PodeUsarCanal(ctx, idFra, idCentral, CanalLigacao)
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{
+			"pode_ligar": ok, "saldo": saldo, "custo_minimo": min, "canal": CanalLigacao, "saldo_unico": true,
+		})
+
+	case method == http.MethodGet && path == "/ops/atendimento/credito/resumo":
+		r, err := GetCreditoResumo(ctx, q.Get("id_franqueado"))
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"dados": r})
+
+	case method == http.MethodPost && path == "/ops/atendimento/credito/creditar":
+		idFra := strVal(payload, "id_franqueado")
+		servico := strVal(payload, "servico")
+		if servico == "" {
+			servico = strVal(payload, "canal")
+		}
+		tipo := strVal(payload, "tipo")
+		if tipo == "" {
+			tipo = TipoMovRecarga
+		}
+		valor := floatVal(payload, "valor")
+		var idFat *int64
+		if n := intVal(payload, "id_fatura"); n > 0 {
+			v := int64(n)
+			idFat = &v
+		}
+		if err := CreditarSaldo(ctx, idFra, servico, tipo, valor, idFat, strVal(payload, "observacao"), strVal(payload, "criado_por")); err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"ok": true})
+
+	case method == http.MethodPost && path == "/ops/atendimento/credito/inicializar":
+		idFra := strVal(payload, "id_franqueado")
+		if err := InicializarSaldoZero(ctx, idFra); err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"ok": true})
+
+	case method == http.MethodPost && path == "/ops/atendimento/credito/debitar":
+		idFra := strVal(payload, "id_franqueado")
+		servico := strVal(payload, "servico")
+		if servico == "" {
+			servico = strVal(payload, "canal")
+		}
+		valor := floatVal(payload, "valor")
+		ja, err := DebitarSaldo(ctx, idFra, servico, valor, strVal(payload, "id_processo"), strVal(payload, "observacao"))
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"ok": true, "ja_debitado": ja})
+
+	case method == http.MethodGet && path == "/ops/atendimento/tarifa":
+		out, err := GetTarifaOperacional(ctx, q.Get("id_central"), q.Get("canal"))
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"dados": out})
+
+	case method == http.MethodPut && path == "/ops/atendimento/tarifa":
+		var t TarifaOperacional
+		if err := json.Unmarshal(bodyBytes, &t); err != nil {
+			return http.StatusBadRequest, []byte(`{"erro":"json invalido"}`), nil
+		}
+		if err := SaveTarifaOperacional(ctx, t); err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"ok": true})
+
+	case method == http.MethodGet && path == "/ops/atendimento/creditos/movimentos":
+		out, err := ListCreditoMovimentos(ctx, q.Get("id_franqueado"), q.Get("canal"), q.Get("de"), q.Get("ate"), 100)
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"dados": out})
+
+	case method == http.MethodGet && path == "/ops/atendimento/smtp":
+		idFra := q.Get("id_franqueado")
+		interno := q.Get("interno") == "1" || q.Get("interno") == "true"
+		cfg, err := GetSMTPConfig(ctx, idFra, interno)
+		if err != nil {
+			return errJSON(err)
+		}
+		if !interno {
+			cfg.SmtpSenha = ""
+		}
+		return okJSON(map[string]any{"dados": cfg})
+
+	case method == http.MethodGet && path == "/ops/atendimento/smtp/status":
+		okCfg, err := SMTPConfiguradoAtivo(ctx, q.Get("id_franqueado"))
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"configurado_ativo": okCfg})
+
+	case method == http.MethodPut && path == "/ops/atendimento/smtp":
+		var body struct {
+			Config    SMTPConfigEnvio `json:"config"`
+			NovaSenha string          `json:"nova_senha"`
+		}
+		if err := json.Unmarshal(bodyBytes, &body); err != nil {
+			var cfg SMTPConfigEnvio
+			if err2 := json.Unmarshal(bodyBytes, &cfg); err2 != nil {
+				return http.StatusBadRequest, []byte(`{"erro":"json invalido"}`), nil
+			}
+			body.Config = cfg
+		}
+		if err := SaveSMTPConfig(ctx, body.Config, body.NovaSenha); err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"ok": true})
+
+	case method == http.MethodPost && path == "/ops/atendimento/smtp/testar":
+		var cfg SMTPConfigEnvio
+		if err := json.Unmarshal(bodyBytes, &cfg); err != nil {
+			return http.StatusBadRequest, []byte(`{"erro":"json invalido"}`), nil
+		}
+		if strings.TrimSpace(cfg.SmtpSenha) == "" && cfg.IDFranqueado != "" {
+			stored, err := GetSMTPConfig(ctx, cfg.IDFranqueado, true)
+			if err == nil && stored.SmtpSenha != "" {
+				cfg.SmtpSenha = stored.SmtpSenha
+			}
+		}
+		out := TestarSMTP(ctx, cfg)
+		return okJSON(map[string]any{"dados": out})
+
+	case method == http.MethodPost && path == "/ops/atendimento/smtp/enviar-teste":
+		var body struct {
+			Config       SMTPConfigEnvio `json:"config"`
+			Destinatario string          `json:"destinatario"`
+			NovaSenha    string          `json:"nova_senha"`
+		}
+		if err := json.Unmarshal(bodyBytes, &body); err != nil {
+			return http.StatusBadRequest, []byte(`{"erro":"json invalido"}`), nil
+		}
+		if strings.TrimSpace(body.NovaSenha) != "" {
+			body.Config.SmtpSenha = body.NovaSenha
+		} else if strings.TrimSpace(body.Config.SmtpSenha) == "" && body.Config.IDFranqueado != "" {
+			stored, err := GetSMTPConfig(ctx, body.Config.IDFranqueado, true)
+			if err == nil {
+				body.Config.SmtpSenha = stored.SmtpSenha
+			}
+		}
+		corpo := `<p>E-mail de teste enviado pela configuracao SMTP do FranqueadoPro.</p>`
+		if err := EnviarEmailSMTP(ctx, body.Config, body.Destinatario, "Teste SMTP FranqueadoPro", corpo); err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"ok": true})
+
+	case method == http.MethodPost && path == "/ops/vis_licenca/criar_lote":
+		var body struct {
+			Licencas []map[string]any `json:"licencas"`
+		}
+		if err := json.Unmarshal(bodyBytes, &body); err != nil {
+			return http.StatusBadRequest, []byte(`{"erro":"json invalido"}`), nil
+		}
+		list, err := CreateLicencaLote(ctx, body.Licencas)
+		if err != nil {
+			return bizErrJSON(err)
+		}
+		return okJSON(map[string]any{"ok": true, "licencas": list, "criadas": len(list)})
+
+	case method == http.MethodPost && path == "/ops/vis_licenca/sync_lote":
+		var body struct {
+			Licencas []map[string]any `json:"licencas"`
+		}
+		if err := json.Unmarshal(bodyBytes, &body); err != nil {
+			return http.StatusBadRequest, []byte(`{"erro":"json invalido"}`), nil
+		}
+		n, err := SyncLicencasFromXanoRecords(ctx, body.Licencas)
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"ok": true, "sincronizadas": n})
+
+	case method == http.MethodPost && path == "/ops/vis_licenca/sync_franqueado":
+		idFra := strVal(payload, "id_franqueado")
+		if idFra == "" {
+			return http.StatusBadRequest, []byte(`{"erro":"id_franqueado obrigatorio"}`), nil
+		}
+		// licencas enviadas no body (Xano repassa apos consulta)
+		if licRaw, ok := payload["licencas"].([]any); ok && len(licRaw) > 0 {
+			records := make([]map[string]any, 0, len(licRaw))
+			for _, el := range licRaw {
+				if m, ok := el.(map[string]any); ok {
+					records = append(records, m)
+				}
+			}
+			n, err := SyncLicencasFromXanoRecords(ctx, records)
+			if err != nil {
+				return errJSON(err)
+			}
+			return okJSON(map[string]any{"ok": true, "sincronizadas": n})
+		}
+		return http.StatusBadRequest, []byte(`{"erro":"licencas obrigatorio"}`), nil
+
+	case method == http.MethodPost && path == "/ops/vis_licenca/ativar_pagamento":
+		licID := intVal(payload, "vis_licenca_id")
+		if licID == 0 {
+			licID = intVal(payload, "vis_licencaId")
+		}
+		if lic, ok := payload["licenca"].(map[string]any); ok && intFromAny(lic["id"]) > 0 {
+			if licID == 0 {
+				licID = intFromAny(lic["id"])
+			}
+		}
+		if licID <= 0 {
+			return http.StatusBadRequest, []byte(`{"erro":"vis_licenca_id obrigatorio"}`), nil
+		}
+		pago := parseTimeAny(payload["pago_em"])
+		if pago.IsZero() {
+			pago = time.Now().UTC()
+		}
+		out, err := AtivarLicencaPagamento(ctx, licID, intVal(payload, "fp_fatura_id"), intVal(payload, "fp_pagamento_id"), pago)
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(out)
+
+	case method == http.MethodPost && path == "/ops/vis_licenca/estornar_pagamento":
+		licID := intVal(payload, "vis_licenca_id")
+		if licID == 0 {
+			licID = intVal(payload, "vis_licencaId")
+		}
+		if lic, ok := payload["licenca"].(map[string]any); ok && intFromAny(lic["id"]) > 0 {
+			if licID == 0 {
+				licID = intFromAny(lic["id"])
+			}
+		}
+		if licID <= 0 {
+			return http.StatusBadRequest, []byte(`{"erro":"vis_licenca_id obrigatorio"}`), nil
+		}
+		out, err := EstornarLicencaFatura(ctx, licID, strVal(payload, "observacao"))
 		if err != nil {
 			return errJSON(err)
 		}

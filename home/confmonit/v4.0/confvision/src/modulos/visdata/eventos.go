@@ -112,7 +112,7 @@ VALUES ($1,$2,$3,$4,$5) RETURNING id`,
 		"status": nullStr(st), "snapshot_url": nullStr(snap), "video_url": nullStr(vid),
 		"clip_count": clipCount,
 	}
-	maybeScheduleTerminalDispatch(ctx, eventoID, sqlString(snap))
+	maybeScheduleIntegracaoDispatch(ctx, eventoID, sqlString(snap))
 	return map[string]any{"evento": evento, "clip": clip}, nil
 }
 
@@ -257,16 +257,19 @@ FROM vis_evento_clip WHERE vis_evento_id = $1 ORDER BY seq ASC`, eventoID)
 	}, nil
 }
 
-func ListEventosSensorPendentes(ctx context.Context) ([]map[string]any, error) {
+func ListEventosSensorPendentes(ctx context.Context, limit int) ([]map[string]any, error) {
+	if limit <= 0 || limit > 500 {
+		limit = 100
+	}
 	db, err := DB()
 	if err != nil {
 		return nil, err
 	}
-	rows, err := db.QueryContext(ctx, `
+	rows, err := db.QueryContext(ctx, fmt.Sprintf(`
 SELECT id, created_at, vis_camera_id, id_franqueado, id_cliente, id_dispositivo, status, snapshot_url
 FROM vis_evento
 WHERE processado = FALSE AND tipo_deteccao = 'sensor'
-ORDER BY created_at ASC LIMIT 100`)
+ORDER BY created_at ASC LIMIT %d`, limit))
 	if err != nil {
 		return nil, err
 	}
@@ -308,6 +311,12 @@ func UpdateEvento(ctx context.Context, id int, input map[string]any) (map[string
 		args = append(args, *v)
 		n++
 	}
+	if v := strVal(input, "codigo_imagem_publico"); v != "" {
+		sets = append(sets, fmt.Sprintf("codigo_imagem_publico = $%d", n))
+		args = append(args, v)
+		n++
+		sets = append(sets, "imagem_liberada_em = NOW()")
+	}
 	if len(sets) == 0 {
 		return map[string]any{"id": id}, nil
 	}
@@ -317,7 +326,7 @@ func UpdateEvento(ctx context.Context, id int, input map[string]any) (map[string
 		return nil, err
 	}
 	if v, ok := input["snapshot_url"]; ok && strings.TrimSpace(trimAny(v)) != "" {
-		maybeScheduleTerminalDispatch(ctx, id, trimAny(v))
+		maybeScheduleIntegracaoDispatch(ctx, id, trimAny(v))
 	}
 	return map[string]any{"id": id}, nil
 }
@@ -338,4 +347,47 @@ VALUES ($1,$2,$3,$4,$5) RETURNING id`,
 		return nil, err
 	}
 	return map[string]any{"id": id}, nil
+}
+
+// UpsertEventoDemoMoni insere/atualiza evento demo Moni com id fixo (worker API).
+func UpsertEventoDemoMoni(ctx context.Context, input map[string]any) (map[string]any, error) {
+	db, err := DB()
+	if err != nil {
+		return nil, err
+	}
+	eventoID := intVal(input, "id")
+	if eventoID < 1 {
+		return nil, fmt.Errorf("id obrigatorio")
+	}
+	snapURL := strVal(input, "snapshot_url")
+	hash := strVal(input, "codigo_imagem_publico")
+	if snapURL == "" || hash == "" {
+		return nil, fmt.Errorf("snapshot_url e codigo_imagem_publico obrigatorios")
+	}
+	idFra := strVal(input, "id_franqueado")
+	if idFra == "" {
+		idFra = "0"
+	}
+	_, err = db.ExecContext(ctx, `
+INSERT INTO vis_evento (
+	id, id_franqueado, id_cliente, conta, particao, canal,
+	tipo_deteccao, snapshot_url,
+	codigo_imagem_publico, imagem_liberada_em
+) VALUES (
+	$1, $2, '0', '0000', '00', '001',
+	'movimento', $3,
+	$4, NOW()
+)
+ON CONFLICT (id) DO UPDATE SET
+	snapshot_url = EXCLUDED.snapshot_url,
+	codigo_imagem_publico = EXCLUDED.codigo_imagem_publico,
+	imagem_liberada_em = NOW()`,
+		eventoID, idFra, snapURL, hash,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{
+		"id": eventoID, "snapshot_url": snapURL, "codigo_imagem_publico": hash,
+	}, nil
 }

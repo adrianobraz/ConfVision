@@ -119,9 +119,36 @@ func intVal(m map[string]any, key string) int {
 		return int(t)
 	case int:
 		return t
+	case int32:
+		return int(t)
+	case int64:
+		return int(t)
+	case uint64:
+		return int(t)
 	case json.Number:
 		i, _ := t.Int64()
 		return int(i)
+	default:
+		return 0
+	}
+}
+
+func floatVal(m map[string]any, key string) float64 {
+	if m == nil {
+		return 0
+	}
+	v, ok := m[key]
+	if !ok || v == nil {
+		return 0
+	}
+	switch t := v.(type) {
+	case float64:
+		return t
+	case int:
+		return float64(t)
+	case json.Number:
+		f, _ := t.Float64()
+		return f
 	default:
 		return 0
 	}
@@ -146,5 +173,28 @@ func trimAny(v any) string {
 			return s
 		}
 		return string(b)
+	}
+}
+
+func intSliceFromAny(v any) []int {
+	switch t := v.(type) {
+	case []any:
+		out := make([]int, 0, len(t))
+		for _, el := range t {
+			switch n := el.(type) {
+			case float64:
+				out = append(out, int(n))
+			case int:
+				out = append(out, n)
+			case json.Number:
+				i, _ := n.Int64()
+				out = append(out, int(i))
+			}
+		}
+		return out
+	case []int:
+		return t
+	default:
+		return nil
 	}
 }
