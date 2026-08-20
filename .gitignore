@@ -1,4 +1,5 @@
 .env
+easypanel/*.env
 sql/cmd/apply/apply.exe
 sql/cmd/apply/apply
 __pycache__/

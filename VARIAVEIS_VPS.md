@@ -92,22 +92,26 @@ Define **onde os eventos de detecção são gravados** quando o worker detecta m
 
 | Valor | Comportamento |
 |-------|----------------|
-| `xano` | Grava eventos só no Xano (legado) |
-| `postgres` | Grava eventos **direto no Postgres central** |
-| `dual` | Postgres + sync/cópia para Xano |
+| `xano` | Grava eventos via API Go (`POST /vis_evento`) |
+| `postgres` | **Igual** — via API Go (nome legado; dispatch terminal no Go) |
+| `dual` | Buffer edge local + API Go + sync |
 
 ### Migração recomendada
 
 ```env
+XANO_BASE_URL=https://vision.confmonit2.com.br
 EVENT_STORE=postgres
-POSTGRES_URL=postgres://confmonit:SENHA@191.96.156.116:5432/confmonit?sslmode=disable
+TERMINAL_NOTIFY_ENABLED=false
 ```
 
 Com `EVENT_STORE=postgres`:
 
-- Worker **não** envia `POST /vis_evento` para gravar o evento principal
-- Escreve na tabela `vis_evento` (e clips em `vis_evento_clip`) no Postgres
-- Ainda usa `XANO_BASE_URL` para **ler** config (câmeras ativas, áreas, ping)
+- Worker envia `POST /vis_evento`, `PUT /vis_evento/{id}`, `POST /vis_evento_finalizar` para o **Go central**
+- Go grava em `vis_evento` (Postgres) e dispara **terminal CV01** em goroutine
+- Worker **não** chama `terminal_notify` (`TERMINAL_NOTIFY_ENABLED=false`)
+- `POSTGRES_URL` no worker **não é obrigatório** (eventos vão pela API, não SQL direto)
+
+Deploy completo: [`DEPLOY_TERMINAL_DISPATCH.md`](DEPLOY_TERMINAL_DISPATCH.md)
 
 ### Onde colocar
 
@@ -130,27 +134,37 @@ EasyPanel → serviços que **geram eventos**:
 # API operacional (substitui o Xano)
 XANO_BASE_URL=https://vision.confmonit2.com.br
 
-# Eventos vão para o Postgres, não para o Xano
+# Eventos via API Go + terminal dispatch no Go central
 EVENT_STORE=postgres
-POSTGRES_URL=postgres://confmonit:SENHA@191.96.156.116:5432/confmonit?sslmode=disable
+TERMINAL_NOTIFY_ENABLED=false
 
 # Demais (já existentes)
 MEDIAMTX_RTSP_BASE=rtsp://foxpro_confvision:8554
 WORKER_ID=worker-01
+RTMP_PUBLISH_SECRET=<igual Go e MediaMTX>
 # ...
 ```
+
+Ver template completo: [`confvision/.env`](.env) (arquivo real, pronto para colar no EasyPanel)
 
 ### Core4 Go (`/home/confmonit/v4.0/confvision/.env`)
 
 ```env
-# Banco central — site + API /vis_* + /api/cameras
 POSTGRES_URL=postgres://confmonit:SENHA@191.96.156.116:5432/confmonit?sslmode=disable
+BD_HOST_MV4=...
+BD_USER_MV4=...
+BD_PASS_MV4=...
 
-# Fallback Xano (rotas ainda não migradas) e cobrança
+# Terminal CV01 (dispatch analítico)
+RECEPTOR_WEB_URL=http://185.130.61.3:5000
+RECEPTOR_WEB_SENHA=<SenhaWeb receptorWeb>
+TERMINAL_NOTIFY_ENABLED=true
+
 XANO_BASE_URL=https://xpcy-oyme-lno7.b2.xano.io/api:AC7rgWwW
-XANO_CVG_BASE_URL=...
 XANO_API_FRANQUEADO_PRO=...
 ```
+
+Template: [`../home/confmonit/v4.0/confvision/.env`](../home/confmonit/v4.0/confvision/.env) (arquivo real no servidor)
 
 **Não** coloque `EVENT_STORE` no Core4 Go — essa variável é só dos workers Python.
 
