@@ -74,7 +74,13 @@ func RegistrarRotasWorkerAPI(r *mux.Router) {
 
 	r.HandleFunc("/cvg_worker_tick", handleCvgWorkerTick).Methods(http.MethodPost)
 
+	// Healthcheck publico (monitoramento / curl sem credencial)
+	r.HandleFunc("/vis_health", handleDispatch).Methods(http.MethodGet)
+
 	for _, rt := range routes {
+		if rt.path == "/vis_health" {
+			continue
+		}
 		h := workerAuth(handleDispatch)
 		r.HandleFunc(rt.path, h).Methods(rt.methods...)
 	}
