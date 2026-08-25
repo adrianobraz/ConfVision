@@ -21,6 +21,7 @@ from config import (
     YOLO_MOTION_MISS_FRAMES,
     YOLO_ONLY_ON_MOTION,
 )
+from config import YOLO_ARCH
 from rtmp_token import publish_secret
 from sharding import shard_label
 from urls import stream_path
@@ -83,6 +84,6 @@ def validate_config():
             f"| capture_workers={CAPTURE_WORKERS} | {shard_label()} | capture_dir={CAPTURE_DIR} "
             f"| cache={CONFIG_CACHE_BACKEND} | event_store={EVENT_STORE} "
             f"| yolo_motion_gate={'sim' if YOLO_ONLY_ON_MOTION else 'nao'} "
-            f"latch=sim miss={YOLO_MOTION_MISS_FRAMES}"
+            f"latch=sim miss={YOLO_MOTION_MISS_FRAMES} | yolo_arch={YOLO_ARCH}"
         )
     return ok
