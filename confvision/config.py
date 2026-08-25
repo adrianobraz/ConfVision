@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 XANO_BASE_URL = os.getenv("XANO_BASE_URL", "").rstrip("/")
+VIS_WORKER_API_KEY = os.getenv("VIS_WORKER_API_KEY", "").strip()
 CONFMONIT_API_URL = os.getenv("CONFMONIT_API_URL", "").rstrip("/")
 # Opcional: Bearer JWT se getArmadoById / getDadosById estiverem Seguro=true
 CONFMONIT_API_TOKEN = os.getenv("CONFMONIT_API_TOKEN", "").strip()
@@ -30,6 +31,24 @@ YOLO_DEVICE = os.getenv("YOLO_DEVICE", "").strip()
 
 def _env_bool(name: str, default: str = "0") -> bool:
     return os.getenv(name, default).strip().lower() in ("1", "true", "yes", "on")
+
+
+# Arquitetura YOLO: legacy (main.py + _infer_lock) | distributed (capture + scheduler + batch GPU)
+YOLO_ARCH = os.getenv("YOLO_ARCH", "legacy").strip().lower()
+YOLO_BATCH_SIZE = int(os.getenv("YOLO_BATCH_SIZE", "16"))
+YOLO_BATCH_TIMEOUT_MS = int(os.getenv("YOLO_BATCH_TIMEOUT_MS", "10"))
+YOLO_MAX_FRAME_AGE_MS = int(os.getenv("YOLO_MAX_FRAME_AGE_MS", "300"))
+YOLO_EVIDENCE_FRAMES = int(os.getenv("YOLO_EVIDENCE_FRAMES", "3"))
+FRAME_STORE_DIR = os.getenv("FRAME_STORE_DIR", "/dev/shm/confvision/frames").rstrip("/")
+SCHEDULER_BACKEND = os.getenv("SCHEDULER_BACKEND", "redis").strip().lower()
+SCHEDULER_QUEUE_KEY = os.getenv("SCHEDULER_QUEUE_KEY", "confvision:yolo:queue").strip()
+YOLO_PRIORITY_ENABLED = _env_bool("YOLO_PRIORITY_ENABLED", "1")
+# FPS alvo por prioridade (rate-limit no capture worker para slots latest)
+YOLO_P2_FPS = float(os.getenv("YOLO_P2_FPS", "5"))
+YOLO_P3_FPS = float(os.getenv("YOLO_P3_FPS", "2"))
+YOLO_P4_FPS = float(os.getenv("YOLO_P4_FPS", "1"))
+# Quantos threads de captura RTSP+MOG2 no orchestrator (distributed)
+DISTRIBUTED_CAPTURE_THREADS = int(os.getenv("DISTRIBUTED_CAPTURE_THREADS", "8"))
 
 
 # Analítico: MOG2 barato → YOLO após movimento; trava ligada enquanto YOLO vê pessoa na área
@@ -76,6 +95,9 @@ EVENT_SYNC_BATCH_SIZE = int(os.getenv("EVENT_SYNC_BATCH_SIZE", "20"))
 
 # RTMP auth cache longo (guard)
 RTMP_AUTH_CACHE_SEC = int(os.getenv("RTMP_AUTH_CACHE_SEC", "300"))
+RTMP_AUTH_MISS_TTL_SEC = int(os.getenv("RTMP_AUTH_MISS_TTL_SEC", "900"))
+RTMP_REQUIRE_LICENCA = _env_bool("RTMP_REQUIRE_LICENCA", "1")
+RTMP_PUBLISH_SECRET = os.getenv("RTMP_PUBLISH_SECRET", "").strip()
 
 # Sensor poll (menos carga Xano)
 SENSOR_POLL_INTERVAL_SEC = int(os.getenv("SENSOR_POLL_INTERVAL_SEC", "10"))

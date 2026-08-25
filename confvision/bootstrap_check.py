@@ -4,18 +4,24 @@ from config import (
     CAPTURE_DIR,
     CAPTURE_WORKERS,
     CLIP_DURACAO_SEG,
+    CONFIG_CACHE_BACKEND,
     CONTABO_S3_ACCESS_KEY,
     CONTABO_S3_BUCKET,
     EVENT_QUEUE_BACKEND,
+    EVENT_STORE,
     MAX_CAMERAS,
     MEDIAMTX_RTSP_BASE,
+    POSTGRES_URL,
     REDIS_URL,
     SHARD_MODE,
     UPLOAD_WORKERS,
     WORKER_SHARD_INDEX,
     WORKER_SHARD_TOTAL,
     XANO_BASE_URL,
+    YOLO_MOTION_MISS_FRAMES,
+    YOLO_ONLY_ON_MOTION,
 )
+from config import YOLO_ARCH
 from rtmp_token import publish_secret
 from sharding import shard_label
 from urls import stream_path
@@ -60,6 +66,10 @@ def validate_config():
         print("[CONFIG] AVISO: CONTABO_S3_BUCKET vazio, usando confvision")
     if EVENT_QUEUE_BACKEND == "redis" and not REDIS_URL:
         print("[CONFIG] AVISO: EVENT_QUEUE_BACKEND=redis sem REDIS_URL — fila cai para memory")
+    if CONFIG_CACHE_BACKEND == "redis" and not REDIS_URL:
+        print("[CONFIG] AVISO: CONFIG_CACHE_BACKEND=redis sem REDIS_URL — cache cai para memory")
+    if EVENT_STORE in ("postgres", "dual") and not POSTGRES_URL:
+        print("[CONFIG] AVISO: EVENT_STORE=postgres/dual sem POSTGRES_URL — usando xano")
     if SHARD_MODE == "hash" and (WORKER_SHARD_TOTAL <= 0 or WORKER_SHARD_INDEX < 0):
         print("[CONFIG] AVISO: SHARD_MODE=hash requer WORKER_SHARD_INDEX e WORKER_SHARD_TOTAL")
     try:
@@ -71,6 +81,9 @@ def validate_config():
         print(
             f"[CONFIG] OK | xano={XANO_BASE_URL} | rtsp={MEDIAMTX_RTSP_BASE} "
             f"| clip={CLIP_DURACAO_SEG}s | contabo=sim | upload_workers={UPLOAD_WORKERS} "
-            f"| capture_workers={CAPTURE_WORKERS} | {shard_label()} | capture_dir={CAPTURE_DIR}"
+            f"| capture_workers={CAPTURE_WORKERS} | {shard_label()} | capture_dir={CAPTURE_DIR} "
+            f"| cache={CONFIG_CACHE_BACKEND} | event_store={EVENT_STORE} "
+            f"| yolo_motion_gate={'sim' if YOLO_ONLY_ON_MOTION else 'nao'} "
+            f"latch=sim miss={YOLO_MOTION_MISS_FRAMES} | yolo_arch={YOLO_ARCH}"
         )
     return ok
