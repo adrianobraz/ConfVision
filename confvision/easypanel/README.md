@@ -8,38 +8,48 @@ API operacional (substitui Xano): **`https://vision.confmonit2.com.br`**
 
 ---
 
-## Worker analítico — modo distributed (600 câmeras)
+## Worker analítico — qual env usar?
 
-| Variável | Valor | Por quê |
-|----------|-------|---------|
-| `YOLO_ARCH` | `distributed` | capture MOG2 + batch GPU (sem `_infer_lock`) |
-| `SCHEDULER_BACKEND` | `redis` | fila YOLO P1–P4 compartilhada entre processos |
-| `EVENT_QUEUE_BACKEND` | `redis` | fila detecção → clip (não usar `memory` em produção) |
-| `REDIS_URL` | Memurai Proxmox `185.130.61.5:6379` | **mesmo Redis** para as 3 filas acima |
-| `MAX_CAMERAS` | `600` | limite por container (1 GEX44 = 1 worker) |
-| `YOLO_DEVICE` | `cuda:0` | GPU dedicada |
-| `FRAME_STORE_DIR` | `/dev/shm/confvision/frames` | frames evidência + latest em RAM |
+| Servidor | Arquivo | Modelo | GPU | Mount |
+|----------|---------|--------|-----|-------|
+| **VPS atual** (foxpro, sem GPU) | [`worker.env.vps-sem-gpu`](worker.env.vps-sem-gpu) | `legacy` | Não | Nenhum |
+| **GEX44 dedicado** (com RTX) | [`worker.env.gex44-gpu`](worker.env.gex44-gpu) | `distributed` | `cuda:0` | `/dev/shm/confvision` |
 
-**Mount obrigatório no confvision-worker:**
+Templates sem senhas (GitHub): [`worker.env.vps-sem-gpu.example`](worker.env.vps-sem-gpu.example) · [`worker.env.gex44-gpu.example`](worker.env.gex44-gpu.example)
 
-| Host | Container |
-|------|-----------|
-| `/dev/shm/confvision` | `/dev/shm/confvision` |
+> **`worker.env`** espelha a VPS sem GPU enquanto o GEX44 não estiver pronto.
 
-**Redis — o que fazer:** não instalar nada novo. Só garantir `REDIS_URL` + `SCHEDULER_BACKEND=redis` + `EVENT_QUEUE_BACKEND=redis` no Environment do EasyPanel. Log esperado: `[SCHEDULER] backend=redis key=confvision:yolo:queue`.
+### VPS sem GPU (legacy, ~50 câmeras)
 
-Template completo: [`worker.env.example`](worker.env.example) (sem senhas). Produção: copie de `worker.env` local (gitignored).
+- `YOLO_ARCH=legacy` · `YOLO_DEVICE=` (vazio, CPU)
+- `MAX_CAMERAS=50` · `WORKER_SHARD_TOTAL=2`
+- **Sem** `SCHEDULER_BACKEND`, **sem** mount `/dev/shm`
+- Pode manter **confvision-worker STOPPED** se não houver analítico neste nó
 
-**Log esperado (distributed):**
+Log esperado:
+```text
+[START] ConfVision worker | ... yolo_arch=legacy
+[YOLO] model=yolov8n.pt device=cpu
+```
+
+### GEX44 com GPU (distributed, 600 câmeras)
+
+| Variável | Valor |
+|----------|-------|
+| `YOLO_ARCH` | `distributed` |
+| `YOLO_DEVICE` | `cuda:0` |
+| `SCHEDULER_BACKEND` | `redis` |
+| `MAX_CAMERAS` | `600` |
+| `FRAME_STORE_DIR` | `/dev/shm/confvision/frames` |
+
+Mount: `/dev/shm/confvision` → `/dev/shm/confvision`
+
+Log esperado:
 ```text
 [START] ConfVision distributed | arch=distributed ...
 [SCHEDULER] backend=redis key=confvision:yolo:queue
-[YOLO-GPU] model=yolov8n.pt device=cuda:0 batch=sim
-[GPU-SCHED] iniciado batch_size=16 timeout_ms=10
-[EVENTO] ... MOTION_TO_EVENT_MS=180 ...
+[YOLO-GPU] device=cuda:0
 ```
-
-Para voltar ao modo antigo: `YOLO_ARCH=legacy`.
 
 ---
 
@@ -48,7 +58,7 @@ Para voltar ao modo antigo: `YOLO_ARCH=legacy`.
 | Serviço EasyPanel | Arquivo local | Entry point |
 |-------------------|---------------|-------------|
 | **confvision** (MediaMTX + Guard) | `mediamtx.env` | `Dockerfile-mediamtx` |
-| **confvision-worker** | `worker.env` | `python -u main.py` |
+| **confvision-worker** | `worker.env.vps-sem-gpu` ou `worker.env.gex44-gpu` | `python -u main.py` |
 | **confvision-sync-agent** | `sync-agent.env` | `python -u sync_agent_main.py` |
 | **confvision-dvr** | `dvr.env` | `python -u dvr_main.py` |
 | **confvision-motion** | `motion.env` | `python -u motion_main.py` |
@@ -102,7 +112,7 @@ Terminal CV01 fica no **Go central** (`TERMINAL_NOTIFY_ENABLED=true` no Proxmox)
 |---------|------|-----------|
 | confvision (MediaMTX) | `/opt/confvision/recordings` | `/recordings` |
 | confvision-dvr | `/opt/confvision/recordings` | `/recordings` |
-| **confvision-worker** (distributed) | `/dev/shm/confvision` | `/dev/shm/confvision` |
+| **confvision-worker** (só GEX44 / distributed) | `/dev/shm/confvision` | `/dev/shm/confvision` |
 
 ---
 
