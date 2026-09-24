@@ -17,11 +17,9 @@ pub struct LiveCaptureContext<'a> {
     pub fps_est: &'a mut FpsEstimator,
 }
 
-/// Registra um frame de vídeo recebido (e opcionalmente descartado pelo buffer).
-/// Deve ser chamado uma vez por VideoFrame efetivo no demux.
-pub async fn record_video_frame(ctx: &mut LiveCaptureContext<'_>, dropped: bool) {
-    let dropped_n = u64::from(dropped);
-    ctx.metrics.add_frames(1, dropped_n);
+/// RTSP recebeu um VideoFrame (contagem live — não inclui drops da pipeline).
+pub async fn record_frame_received(ctx: &mut LiveCaptureContext<'_>) {
+    ctx.metrics.add_frames_received(1);
     ctx.global_frames.fetch_add(1, Ordering::Relaxed);
 
     let fps_update = ctx.fps_est.record_frame();
@@ -29,7 +27,6 @@ pub async fn record_video_frame(ctx: &mut LiveCaptureContext<'_>, dropped: bool)
     let mut map = ctx.states.write().await;
     if let Some(s) = map.get_mut(&ctx.camera_id) {
         s.frames_received += 1;
-        s.frames_dropped += dropped_n;
         s.last_frame_at = Some(Utc::now());
         s.status = CameraStatus::Online;
         if let Some(fps) = fps_update {

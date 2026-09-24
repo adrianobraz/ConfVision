@@ -7,6 +7,7 @@ mod health;
 mod logging;
 mod media;
 mod metrics;
+mod pipeline;
 mod redis;
 mod rtsp;
 mod worker;

@@ -38,7 +38,7 @@ pub struct ReadyResponse {
 
 pub async fn health_handler(State(st): State<AppState>) -> Json<HealthResponse> {
     let snap = st.metrics.snapshot();
-    let (total, online, offline, fps_total) = summarize_cameras(&st.camera_states).await;
+    let (total, online, offline, fps_total, _) = summarize_cameras(&st.camera_states).await;
     Json(HealthResponse {
         status: "ok",
         processor_id: snap.processor_id,
@@ -71,15 +71,17 @@ pub async fn ready_handler(State(st): State<AppState>) -> (StatusCode, Json<Read
 
 pub async fn metrics_handler(State(st): State<AppState>) -> Json<MetricsBody> {
     let snap = st.metrics.snapshot();
-    let (total, online, offline, fps_total) = summarize_cameras(&st.camera_states).await;
+    let frame_latency_ms = snap.frame_latency_ms;
+    let (total, online, offline, fps_total, queue_depth) =
+        summarize_cameras(&st.camera_states).await;
     Json(MetricsBody {
         metrics: snap,
         cameras_total: total,
         cameras_online: online,
         cameras_offline: offline,
         fps_total,
-        queue_depth: 0,
-        processing_latency_ms: 0,
+        queue_depth,
+        processing_latency_ms: frame_latency_ms,
         note: "CPU/RAM/GPU — PRECISA SER MEDIDO no host",
     })
 }
@@ -98,19 +100,21 @@ pub struct MetricsBody {
 
 async fn summarize_cameras(
     states: &Arc<RwLock<std::collections::HashMap<i64, CameraRuntimeState>>>,
-) -> (usize, usize, usize, f64) {
+) -> (usize, usize, usize, f64, u64) {
     let map = states.read().await;
     let total = map.len();
     let mut online = 0usize;
     let mut offline = 0usize;
     let mut fps_total = 0.0f64;
+    let mut queue_depth = 0u64;
     for s in map.values() {
         fps_total += s.fps;
+        queue_depth += s.buffer_size;
         match s.status {
             CameraStatus::Online => online += 1,
             CameraStatus::Offline | CameraStatus::Error | CameraStatus::Reconnecting => offline += 1,
             _ => {}
         }
     }
-    (total, online, offline, fps_total)
+    (total, online, offline, fps_total, queue_depth)
 }

@@ -26,6 +26,12 @@ pub struct CameraRuntimeState {
     pub started_at: DateTime<Utc>,
     pub frames_received: u64,
     pub frames_dropped: u64,
+    pub frames_enqueued: u64,
+    pub frames_processed: u64,
+    pub buffer_capacity: u64,
+    pub buffer_size: u64,
+    pub buffer_full_events: u64,
+    pub last_frame_latency_ms: u64,
 }
 
 impl CameraRuntimeState {
@@ -41,6 +47,12 @@ impl CameraRuntimeState {
             started_at: Utc::now(),
             frames_received: 0,
             frames_dropped: 0,
+            frames_enqueued: 0,
+            frames_processed: 0,
+            buffer_capacity: 0,
+            buffer_size: 0,
+            buffer_full_events: 0,
+            last_frame_latency_ms: 0,
         }
     }
 }
