@@ -3,7 +3,7 @@ mod cpu;
 #[cfg(all(feature = "ffmpeg-decode", feature = "ffmpeg-nvdec"))]
 mod nvdec;
 
-pub use cpu::{is_eagain, CpuFfmpegDecoder};
+pub use cpu::{is_eagain, map_ffmpeg_err, CpuFfmpegDecoder};
 
 #[cfg(all(feature = "ffmpeg-decode", feature = "ffmpeg-nvdec"))]
 pub use nvdec::{NvdecCapability, NvdecH264Decoder};
