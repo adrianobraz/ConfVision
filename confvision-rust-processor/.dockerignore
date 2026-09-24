@@ -1,0 +1,31 @@
+# Build Rust local
+target/
+
+# Git (se contexto incluir metadados)
+.git/
+.gitignore
+
+# Segredos e ambiente local
+.env
+.env.*
+!.env.example
+
+# Logs e temporários
+*.log
+tmp/
+*.tmp
+*.swp
+*~
+
+# Binários locais (Windows/Linux/macOS)
+*.exe
+*.dll
+*.so
+*.dylib
+**/*.exe
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

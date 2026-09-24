@@ -1,0 +1,21 @@
+[Unit]
+Description=ConfVision Rust Processor (RTSP phase 1)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=confvision
+Group=confvision
+EnvironmentFile=/opt/confvision/rust-processor.env
+ExecStart=/opt/confvision/bin/confvision-rust-processor
+Restart=always
+RestartSec=5
+LimitNOFILE=65535
+
+# Graceful stop
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
