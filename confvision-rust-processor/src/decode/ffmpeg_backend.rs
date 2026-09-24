@@ -16,18 +16,13 @@ fn ensure_ffmpeg_init() {
     });
 }
 
-fn set_extradata(
-    context: &mut ffmpeg::codec::Context,
-    data: &[u8],
-) -> Result<(), DecodeError> {
+fn set_extradata(context: &mut ffmpeg::codec::Context, data: &[u8]) -> Result<(), DecodeError> {
     unsafe {
         use ffmpeg_next::ffi as sys;
 
         let ctx = context.as_mut_ptr();
         if !(*ctx).extradata.is_null() {
-            sys::av_freep(
-                std::ptr::addr_of_mut!((*ctx).extradata).cast::<std::ffi::c_void>(),
-            );
+            sys::av_freep(std::ptr::addr_of_mut!((*ctx).extradata).cast::<std::ffi::c_void>());
         }
         let padding = sys::AV_INPUT_BUFFER_PADDING_SIZE as usize;
         let ed = sys::av_malloc(data.len() + padding) as *mut u8;
@@ -87,9 +82,7 @@ impl FfmpegH264Decoder {
         }
 
         let packet = ffmpeg::Packet::copy(data);
-        self.decoder
-            .send_packet(&packet)
-            .map_err(map_ffmpeg_err)?;
+        self.decoder.send_packet(&packet).map_err(map_ffmpeg_err)?;
 
         let mut frame = ffmpeg::util::frame::Video::empty();
         self.decoder
@@ -97,7 +90,9 @@ impl FfmpegH264Decoder {
             .map_err(map_ffmpeg_err)?;
 
         let format = match frame.format() {
-            ffmpeg::format::Pixel::YUV420P => PixelFormat::Yuv420p,
+            ffmpeg::format::Pixel::YUV420P | ffmpeg::format::Pixel::YUVJ420P => {
+                PixelFormat::Yuv420p
+            }
             ffmpeg::format::Pixel::NV12 => PixelFormat::Nv12,
             other => {
                 return Err(DecodeError::UnsupportedPixelFormat(format!("{other:?}")));
