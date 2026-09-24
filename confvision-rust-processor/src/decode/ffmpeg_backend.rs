@@ -25,7 +25,9 @@ fn set_extradata(
 
         let ctx = context.as_mut_ptr();
         if !(*ctx).extradata.is_null() {
-            sys::av_freep(&mut (*ctx).extradata as *mut _);
+            sys::av_freep(
+                std::ptr::addr_of_mut!((*ctx).extradata).cast::<std::ffi::c_void>(),
+            );
         }
         let padding = sys::AV_INPUT_BUFFER_PADDING_SIZE as usize;
         let ed = sys::av_malloc(data.len() + padding) as *mut u8;
@@ -111,7 +113,7 @@ impl FfmpegH264Decoder {
 }
 
 fn map_ffmpeg_err(err: FfmpegError) -> DecodeError {
-    if err == FfmpegError::Other { errno: EAGAIN } {
+    if err == (FfmpegError::Other { errno: EAGAIN }) {
         DecodeError::Ffmpeg("Resource temporarily unavailable".into())
     } else {
         DecodeError::Ffmpeg(err.to_string())
