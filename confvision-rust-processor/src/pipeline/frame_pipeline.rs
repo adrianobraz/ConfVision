@@ -8,6 +8,7 @@ use tokio::sync::{Notify, RwLock};
 use crate::camera::CameraRuntimeState;
 use crate::decode::{DecodeInput, DecodeOutcome, H264Decoder, SessionDecodeContext};
 use crate::metrics::ProcessorMetrics;
+use crate::motion::{MotionDetector, MotionOutcome};
 use crate::pipeline::PipelineFrame;
 
 /// Fila bounded com política DROP-OLDEST (testável de forma síncrona).
@@ -132,9 +133,7 @@ impl FramePipeline {
         let new_len = guard.len();
         drop(guard);
 
-        self.inner
-            .buffer_size
-            .store(new_len, Ordering::Relaxed);
+        self.inner.buffer_size.store(new_len, Ordering::Relaxed);
         self.sync_after_enqueue(new_len, was_full);
         self.inner.notify.notify_one();
         true
@@ -145,9 +144,7 @@ impl FramePipeline {
         let frame = guard.pop();
         let new_len = guard.len();
         drop(guard);
-        self.inner
-            .buffer_size
-            .store(new_len, Ordering::Relaxed);
+        self.inner.buffer_size.store(new_len, Ordering::Relaxed);
         self.sync_camera_buffer(new_len);
         frame
     }
@@ -250,9 +247,43 @@ impl FramePipeline {
             }
         });
     }
+
+    pub async fn record_motion_analyzed(
+        &self,
+        score_percent: u32,
+        detected: bool,
+        latency_ms: u64,
+    ) {
+        self.inner
+            .metrics
+            .record_motion_analyzed(score_percent, detected, latency_ms);
+        let states = self.inner.states.clone();
+        let camera_id = self.inner.camera_id;
+        let mut map = states.write().await;
+        if let Some(s) = map.get_mut(&camera_id) {
+            s.frames_motion_analyzed += 1;
+            s.last_motion_score = score_percent as u64;
+            s.last_motion_ms = latency_ms;
+            if detected {
+                s.motion_detected += 1;
+            }
+        }
+    }
+
+    pub fn record_motion_error(&self) {
+        self.inner.metrics.record_motion_error();
+        let states = self.inner.states.clone();
+        let camera_id = self.inner.camera_id;
+        tokio::spawn(async move {
+            let mut map = states.write().await;
+            if let Some(s) = map.get_mut(&camera_id) {
+                s.motion_errors += 1;
+            }
+        });
+    }
 }
 
-/// Consumer: decode H.264 (Fase 3.1) + métricas de pipeline.
+/// Consumer: decode H.264 (Fase 3.1) + motion (Fase 3.2) + métricas de pipeline.
 pub async fn run_frame_consumer(
     pipeline: FramePipeline,
     mut session_shutdown: tokio::sync::watch::Receiver<bool>,
@@ -261,6 +292,7 @@ pub async fn run_frame_consumer(
     decode_enabled: bool,
 ) {
     let mut h264_decoder = H264Decoder::new();
+    let mut motion_detector = MotionDetector::new();
 
     loop {
         if *global_shutdown.borrow() {
@@ -291,10 +323,46 @@ pub async fn run_frame_consumer(
                                     rtp_timestamp_ticks: Some(f.rtp_timestamp.timestamp),
                                 },
                             ) {
-                                DecodeOutcome::Decoded(_frame) => {
-                                    pipeline
-                                        .record_decode_success(started.elapsed().as_millis() as u64)
-                                        .await;
+                                DecodeOutcome::Decoded(frame) => {
+                                    let decode_ms = started.elapsed().as_millis() as u64;
+                                    pipeline.record_decode_success(decode_ms).await;
+
+                                    let motion_started = Instant::now();
+                                    match motion_detector.analyze(&frame) {
+                                        MotionOutcome::ReferenceSet => {
+                                            pipeline
+                                                .record_motion_analyzed(
+                                                    0,
+                                                    false,
+                                                    motion_started.elapsed().as_millis() as u64,
+                                                )
+                                                .await;
+                                            tracing::debug!(seq = f.seq, "motion reference set");
+                                        }
+                                        MotionOutcome::Analyzed {
+                                            detected,
+                                            score_percent,
+                                        } => {
+                                            pipeline
+                                                .record_motion_analyzed(
+                                                    score_percent,
+                                                    detected,
+                                                    motion_started.elapsed().as_millis() as u64,
+                                                )
+                                                .await;
+                                            if detected {
+                                                tracing::debug!(
+                                                    seq = f.seq,
+                                                    score_percent,
+                                                    "motion detected"
+                                                );
+                                            }
+                                        }
+                                        MotionOutcome::Error => {
+                                            tracing::debug!(seq = f.seq, "motion luma error");
+                                            pipeline.record_motion_error();
+                                        }
+                                    }
                                 }
                                 DecodeOutcome::NotReady => {}
                                 DecodeOutcome::Failed(e) => {
@@ -420,10 +488,10 @@ mod tests {
     async fn processed_increments_via_pipeline() {
         let metrics = test_metrics();
         let states = empty_states();
-        states.write().await.insert(
-            1,
-            CameraRuntimeState::new(1, "rtsp://test".into()),
-        );
+        states
+            .write()
+            .await
+            .insert(1, CameraRuntimeState::new(1, "rtsp://test".into()));
         let pipeline = FramePipeline::new(2, metrics.clone(), states.clone(), 1);
         pipeline.try_enqueue(test_frame(1, 0x01, false));
         let frame = pipeline.dequeue().await.unwrap();
@@ -437,10 +505,10 @@ mod tests {
     async fn buffer_size_tracks_len() {
         let metrics = test_metrics();
         let states = empty_states();
-        states.write().await.insert(
-            2,
-            CameraRuntimeState::new(2, "rtsp://test".into()),
-        );
+        states
+            .write()
+            .await
+            .insert(2, CameraRuntimeState::new(2, "rtsp://test".into()));
         let pipeline = FramePipeline::new(3, metrics, states.clone(), 2);
         pipeline.try_enqueue(test_frame(1, 1, false));
         pipeline.try_enqueue(test_frame(2, 2, false));
@@ -466,8 +534,14 @@ mod tests {
     async fn cameras_isolated() {
         let metrics = test_metrics();
         let states = empty_states();
-        states.write().await.insert(1, CameraRuntimeState::new(1, "a".into()));
-        states.write().await.insert(2, CameraRuntimeState::new(2, "b".into()));
+        states
+            .write()
+            .await
+            .insert(1, CameraRuntimeState::new(1, "a".into()));
+        states
+            .write()
+            .await
+            .insert(2, CameraRuntimeState::new(2, "b".into()));
         let p1 = FramePipeline::new(2, metrics.clone(), states.clone(), 1);
         let p2 = FramePipeline::new(2, metrics.clone(), states.clone(), 2);
         p1.try_enqueue(test_frame(10, 0x10, false));
@@ -481,7 +555,10 @@ mod tests {
     async fn fast_producer_slow_consumer_drops() {
         let metrics = test_metrics();
         let states = empty_states();
-        states.write().await.insert(1, CameraRuntimeState::new(1, "a".into()));
+        states
+            .write()
+            .await
+            .insert(1, CameraRuntimeState::new(1, "a".into()));
         let pipeline = FramePipeline::new(2, metrics.clone(), states, 1);
         for seq in 1..=10 {
             pipeline.try_enqueue(test_frame(seq, seq as u8, false));

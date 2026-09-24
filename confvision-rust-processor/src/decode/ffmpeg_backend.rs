@@ -6,6 +6,7 @@ use ffmpeg_next as ffmpeg;
 use ffmpeg_next::util::error::{Error as FfmpegError, EAGAIN};
 
 use super::error::DecodeError;
+use super::luma::downscale_y_plane;
 use super::types::{DecodedFrame, PixelFormat};
 
 static FFMPEG_INIT: Once = Once::new();
@@ -99,10 +100,19 @@ impl FfmpegH264Decoder {
             }
         };
 
+        let src_w = frame.width();
+        let src_h = frame.height();
+        let y_stride = frame.stride(0);
+        let y_data = frame.data(0);
+        let luma = downscale_y_plane(y_data, src_w, src_h, y_stride)?;
+
         Ok(DecodedFrame {
-            width: frame.width(),
-            height: frame.height(),
+            width: src_w,
+            height: src_h,
             format,
+            luma,
+            luma_width: super::types::DECODED_LUMA_WIDTH,
+            luma_height: super::types::DECODED_LUMA_HEIGHT,
         })
     }
 }

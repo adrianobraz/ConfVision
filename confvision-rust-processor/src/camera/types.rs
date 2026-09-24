@@ -35,6 +35,11 @@ pub struct CameraRuntimeState {
     pub frames_decoded: u64,
     pub decode_errors: u64,
     pub last_decode_ms: u64,
+    pub frames_motion_analyzed: u64,
+    pub motion_detected: u64,
+    pub motion_errors: u64,
+    pub last_motion_score: u64,
+    pub last_motion_ms: u64,
 }
 
 impl CameraRuntimeState {
@@ -59,6 +64,11 @@ impl CameraRuntimeState {
             frames_decoded: 0,
             decode_errors: 0,
             last_decode_ms: 0,
+            frames_motion_analyzed: 0,
+            motion_detected: 0,
+            motion_errors: 0,
+            last_motion_score: 0,
+            last_motion_ms: 0,
         }
     }
 }

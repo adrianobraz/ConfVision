@@ -1,4 +1,10 @@
+use std::sync::Arc;
+
 use super::DecodeError;
+
+/// Grade Y reduzida anexada a cada `DecodedFrame` (Fase 3.2 motion).
+pub const DECODED_LUMA_WIDTH: u32 = 160;
+pub const DECODED_LUMA_HEIGHT: u32 = 120;
 
 /// Formato de pixel do frame decodificado (sem expor FFmpeg).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -17,11 +23,15 @@ impl PixelFormat {
 }
 
 /// Resultado mínimo de um decode bem-sucedido.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecodedFrame {
     pub width: u32,
     pub height: u32,
     pub format: PixelFormat,
+    /// Plano Y reduzido (160×120) para motion / análise.
+    pub luma: Arc<[u8]>,
+    pub luma_width: u32,
+    pub luma_height: u32,
 }
 
 /// Entrada para decode a partir de um `PipelineFrame`.

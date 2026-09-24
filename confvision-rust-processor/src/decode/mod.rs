@@ -1,6 +1,7 @@
 mod context;
 mod error;
 mod h264_decoder;
+mod luma;
 mod types;
 
 #[cfg(feature = "ffmpeg-decode")]
@@ -12,7 +13,9 @@ mod fixtures;
 pub use context::SessionDecodeContext;
 pub use error::DecodeError;
 pub use h264_decoder::H264Decoder;
-pub use types::{DecodeInput, DecodeOutcome, DecodedFrame, PixelFormat};
+pub use types::{
+    DecodeInput, DecodeOutcome, DecodedFrame, PixelFormat, DECODED_LUMA_HEIGHT, DECODED_LUMA_WIDTH,
+};
 
 #[cfg(test)]
 mod tests {

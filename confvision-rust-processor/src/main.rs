@@ -8,6 +8,7 @@ mod health;
 mod logging;
 mod media;
 mod metrics;
+mod motion;
 mod pipeline;
 mod redis;
 mod rtsp;

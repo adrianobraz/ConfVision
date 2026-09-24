@@ -18,6 +18,11 @@ pub struct ProcessorMetrics {
     pub frames_decoded: AtomicU64,
     pub decode_errors: AtomicU64,
     pub last_decode_ms: AtomicU64,
+    pub frames_motion_analyzed: AtomicU64,
+    pub motion_detected: AtomicU64,
+    pub motion_errors: AtomicU64,
+    pub last_motion_score: AtomicU64,
+    pub last_motion_ms: AtomicU64,
     pub reconnects: AtomicU64,
     pub rtsp_errors: AtomicU64,
     pub errors: AtomicU64,
@@ -37,6 +42,11 @@ impl ProcessorMetrics {
             frames_decoded: AtomicU64::new(0),
             decode_errors: AtomicU64::new(0),
             last_decode_ms: AtomicU64::new(0),
+            frames_motion_analyzed: AtomicU64::new(0),
+            motion_detected: AtomicU64::new(0),
+            motion_errors: AtomicU64::new(0),
+            last_motion_score: AtomicU64::new(0),
+            last_motion_ms: AtomicU64::new(0),
             reconnects: AtomicU64::new(0),
             rtsp_errors: AtomicU64::new(0),
             errors: AtomicU64::new(0),
@@ -80,6 +90,20 @@ impl ProcessorMetrics {
         self.decode_errors.fetch_add(1, Ordering::Relaxed);
     }
 
+    pub fn record_motion_analyzed(&self, score_percent: u32, detected: bool, latency_ms: u64) {
+        self.frames_motion_analyzed.fetch_add(1, Ordering::Relaxed);
+        self.last_motion_score
+            .store(score_percent as u64, Ordering::Relaxed);
+        self.last_motion_ms.store(latency_ms, Ordering::Relaxed);
+        if detected {
+            self.motion_detected.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    pub fn record_motion_error(&self) {
+        self.motion_errors.fetch_add(1, Ordering::Relaxed);
+    }
+
     pub fn record_reconnect(&self) {
         self.reconnects.fetch_add(1, Ordering::Relaxed);
     }
@@ -106,6 +130,11 @@ impl ProcessorMetrics {
             decode_errors: self.decode_errors.load(Ordering::Relaxed),
             decode_ms: self.last_decode_ms.load(Ordering::Relaxed),
             last_decode_ms: self.last_decode_ms.load(Ordering::Relaxed),
+            frames_motion_analyzed: self.frames_motion_analyzed.load(Ordering::Relaxed),
+            motion_detected: self.motion_detected.load(Ordering::Relaxed),
+            motion_errors: self.motion_errors.load(Ordering::Relaxed),
+            last_motion_score: self.last_motion_score.load(Ordering::Relaxed),
+            last_motion_ms: self.last_motion_ms.load(Ordering::Relaxed),
             reconnects: self.reconnects.load(Ordering::Relaxed),
             rtsp_errors: self.rtsp_errors.load(Ordering::Relaxed),
             errors: self.errors.load(Ordering::Relaxed),
@@ -128,6 +157,11 @@ pub struct MetricsSnapshot {
     /// Último decode bem-sucedido (ms).
     pub decode_ms: u64,
     pub last_decode_ms: u64,
+    pub frames_motion_analyzed: u64,
+    pub motion_detected: u64,
+    pub motion_errors: u64,
+    pub last_motion_score: u64,
+    pub last_motion_ms: u64,
     pub reconnects: u64,
     pub rtsp_errors: u64,
     pub errors: u64,
