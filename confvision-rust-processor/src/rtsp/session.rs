@@ -5,7 +5,7 @@ use retina::client::{Credentials, PlayOptions, Session, SessionOptions, SetupOpt
 use retina::codec::CodecItem;
 use tracing::debug;
 
-use crate::camera::BoundedFrameCounter;
+use crate::camera::{BoundedFrameCounter, LiveCaptureContext, record_video_frame};
 use crate::error::{AppError, AppResult};
 
 /// Conecta ao RTSP e conta frames de vídeo até cancelamento ou erro.
@@ -16,6 +16,7 @@ pub async fn run_rtsp_frame_loop(
     frame_timeout: Duration,
     buffer_max: usize,
     mut cancel: tokio::sync::watch::Receiver<bool>,
+    mut live: Option<&mut LiveCaptureContext<'_>>,
 ) -> AppResult<RtspLoopStats> {
     let url = rtsp_url
         .parse()
@@ -74,7 +75,12 @@ pub async fn run_rtsp_frame_loop(
         match item {
             Ok(Some(Ok(CodecItem::VideoFrame(_frame)))) => {
                 seq += 1;
+                let depth_before = buffer.depth();
                 buffer.push_frame(seq);
+                let dropped = depth_before >= buffer_max.max(1);
+                if let Some(ctx) = live.as_mut() {
+                    record_video_frame(ctx, dropped).await;
+                }
                 last_frame = Instant::now();
                 if seq == 1 || seq % 100 == 0 {
                     debug!(camera_id, seq, "frame received");
@@ -109,6 +115,7 @@ pub async fn simulate_frame_loop(
     fps: f64,
     mut cancel: tokio::sync::watch::Receiver<bool>,
     buffer_max: usize,
+    mut live: Option<&mut LiveCaptureContext<'_>>,
 ) -> RtspLoopStats {
     let mut buffer = BoundedFrameCounter::new(buffer_max);
     let interval = Duration::from_secs_f64(1.0 / fps.max(0.1));
@@ -119,7 +126,12 @@ pub async fn simulate_frame_loop(
             break;
         }
         seq += 1;
+        let depth_before = buffer.depth();
         buffer.push_frame(seq);
+        let dropped = depth_before >= buffer_max.max(1);
+        if let Some(ctx) = live.as_mut() {
+            record_video_frame(ctx, dropped).await;
+        }
         if seq % 30 == 0 {
             debug!(camera_id, seq, "simulated frame");
         }
@@ -138,7 +150,7 @@ mod tests {
     async fn simulate_respects_cancel() {
         let (tx, rx) = tokio::sync::watch::channel(false);
         let handle = tokio::spawn(async move {
-            simulate_frame_loop(1, 50.0, rx, 2).await
+            simulate_frame_loop(1, 50.0, rx, 2, None).await
         });
         tokio::time::sleep(Duration::from_millis(80)).await;
         tx.send(true).unwrap();

@@ -1,16 +1,16 @@
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 
-use chrono::Utc;
 use tokio::sync::watch;
 use tracing::{info, warn};
 
 use crate::camera::{
-    redact_rtsp_url, CameraRuntimeState, CameraStatus, FpsEstimator, ReconnectBackoff,
+    redact_rtsp_url, CameraRuntimeState, CameraStatus, FpsEstimator, LiveCaptureContext,
+    ReconnectBackoff,
 };
 use crate::config::Config;
 use crate::metrics::ProcessorMetrics;
-use crate::rtsp::{run_rtsp_frame_loop, simulate_frame_loop, RtspLoopStats};
+use crate::rtsp::{run_rtsp_frame_loop, simulate_frame_loop};
 
 pub async fn run_camera_worker(
     camera_id: i64,
@@ -32,22 +32,31 @@ pub async fn run_camera_worker(
 
         update_state(&states, camera_id, |s| {
             s.status = CameraStatus::Reconnecting;
+            s.fps = 0.0;
         })
         .await;
+
+        let mut live = LiveCaptureContext {
+            metrics: metrics.as_ref(),
+            global_frames: global_frames.as_ref(),
+            states: &states,
+            camera_id,
+            fps_est: &mut fps_est,
+        };
 
         if std::env::var("RTSP_SIMULATE")
             .map(|v| matches!(v.as_str(), "1" | "true" | "yes"))
             .unwrap_or(false)
         {
             let cancel = shutdown_rx.clone();
-            let stats = simulate_frame_loop(
+            simulate_frame_loop(
                 camera_id,
                 5.0,
                 cancel,
                 cfg.frame_buffer_max,
+                Some(&mut live),
             )
             .await;
-            apply_stats(&states, camera_id, &stats, &mut fps_est, &global_frames, &metrics).await;
             break;
         }
 
@@ -59,12 +68,12 @@ pub async fn run_camera_worker(
             cfg.rtsp_frame_timeout,
             cfg.frame_buffer_max,
             cancel,
+            Some(&mut live),
         )
         .await
         {
-            Ok(stats) => {
+            Ok(_stats) => {
                 backoff.reset();
-                apply_stats(&states, camera_id, &stats, &mut fps_est, &global_frames, &metrics).await;
                 info!(camera_id, processor_id = %cfg.processor_id, "rtsp session ended — reconnecting");
                 continue;
             }
@@ -81,6 +90,7 @@ pub async fn run_camera_worker(
                 );
                 update_state(&states, camera_id, |s| {
                     s.status = CameraStatus::Offline;
+                    s.fps = 0.0;
                     s.last_error = Some(e.to_string());
                     s.reconnect_count += 1;
                 })
@@ -96,6 +106,7 @@ pub async fn run_camera_worker(
 
     update_state(&states, camera_id, |s| {
         s.status = CameraStatus::Stopped;
+        s.fps = 0.0;
     })
     .await;
 
@@ -107,31 +118,11 @@ pub async fn run_camera_worker(
     );
 }
 
-async fn apply_stats(
+async fn update_state<F>(
     states: &Arc<tokio::sync::RwLock<std::collections::HashMap<i64, CameraRuntimeState>>>,
     camera_id: i64,
-    stats: &RtspLoopStats,
-    fps_est: &mut FpsEstimator,
-    global_frames: &Arc<AtomicU64>,
-    metrics: &Arc<ProcessorMetrics>,
-) {
-    global_frames.fetch_add(stats.frames_received, Ordering::Relaxed);
-    metrics.add_frames(stats.frames_received, stats.frames_dropped);
-
-    update_state(states, camera_id, |s| {
-        s.frames_received += stats.frames_received;
-        s.frames_dropped += stats.frames_dropped;
-        s.last_frame_at = Some(Utc::now());
-        s.status = CameraStatus::Online;
-        if let Some(fps) = fps_est.record_frame() {
-            s.fps = fps;
-        }
-    })
-    .await;
-}
-
-async fn update_state<F>(states: &Arc<tokio::sync::RwLock<std::collections::HashMap<i64, CameraRuntimeState>>>, camera_id: i64, f: F)
-where
+    f: F,
+) where
     F: FnOnce(&mut CameraRuntimeState),
 {
     if let Some(s) = states.write().await.get_mut(&camera_id) {
