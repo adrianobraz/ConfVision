@@ -7,11 +7,13 @@ use serde::Serialize;
 use tokio::sync::RwLock;
 
 use crate::camera::{CameraRuntimeState, CameraStatus};
+use crate::decode::AccelerationRuntime;
 use crate::metrics::{MetricsSnapshot, SharedMetrics};
 
 #[derive(Clone)]
 pub struct AppState {
     pub metrics: SharedMetrics,
+    pub acceleration: Arc<AccelerationRuntime>,
     pub camera_states: Arc<RwLock<std::collections::HashMap<i64, CameraRuntimeState>>>,
     pub api_ready: Arc<std::sync::atomic::AtomicBool>,
 }
@@ -70,7 +72,9 @@ pub async fn ready_handler(State(st): State<AppState>) -> (StatusCode, Json<Read
 }
 
 pub async fn metrics_handler(State(st): State<AppState>) -> Json<MetricsBody> {
-    let snap = st.metrics.snapshot();
+    let snap = st
+        .metrics
+        .snapshot_with_acceleration(Some(st.acceleration.as_ref()));
     let frame_latency_ms = snap.frame_latency_ms;
     let (total, online, offline, fps_total, queue_depth) =
         summarize_cameras(&st.camera_states).await;
@@ -112,7 +116,9 @@ async fn summarize_cameras(
         queue_depth += s.buffer_size;
         match s.status {
             CameraStatus::Online => online += 1,
-            CameraStatus::Offline | CameraStatus::Error | CameraStatus::Reconnecting => offline += 1,
+            CameraStatus::Offline | CameraStatus::Error | CameraStatus::Reconnecting => {
+                offline += 1
+            }
             _ => {}
         }
     }

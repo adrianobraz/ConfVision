@@ -117,6 +117,14 @@ impl ProcessorMetrics {
     }
 
     pub fn snapshot(&self) -> MetricsSnapshot {
+        self.snapshot_with_acceleration(None)
+    }
+
+    pub fn snapshot_with_acceleration(
+        &self,
+        acceleration: Option<&crate::decode::AccelerationRuntime>,
+    ) -> MetricsSnapshot {
+        let accel = acceleration.map(acceleration_snapshot_fields);
         MetricsSnapshot {
             processor_id: self.processor_id.clone(),
             uptime_secs: self.uptime_secs(),
@@ -138,7 +146,59 @@ impl ProcessorMetrics {
             reconnects: self.reconnects.load(Ordering::Relaxed),
             rtsp_errors: self.rtsp_errors.load(Ordering::Relaxed),
             errors: self.errors.load(Ordering::Relaxed),
+            video_acceleration_requested: accel
+                .as_ref()
+                .map(|a| a.requested.clone())
+                .unwrap_or_else(|| "unknown".into()),
+            video_acceleration_effective: accel
+                .as_ref()
+                .map(|a| a.effective.clone())
+                .unwrap_or_else(|| "cpu".into()),
+            video_hw_backend: accel
+                .as_ref()
+                .map(|a| a.hw_backend.clone())
+                .unwrap_or_else(|| "none".into()),
+            gpu_detected: accel.as_ref().map(|a| a.gpu_detected).unwrap_or(false),
+            ffmpeg_hw_decode_available: accel
+                .as_ref()
+                .map(|a| a.ffmpeg_hw_decode_available)
+                .unwrap_or(false),
+            hardware_decode_active: accel
+                .as_ref()
+                .map(|a| a.hardware_decode_active)
+                .unwrap_or(false),
+            hw_decode_errors: accel.as_ref().map(|a| a.hw_decode_errors).unwrap_or(0),
+            hw_fallback_to_cpu_count: accel
+                .as_ref()
+                .map(|a| a.hw_fallback_to_cpu_count)
+                .unwrap_or(0),
         }
+    }
+}
+
+struct AccelerationSnapshotFields {
+    requested: String,
+    effective: String,
+    hw_backend: String,
+    gpu_detected: bool,
+    ffmpeg_hw_decode_available: bool,
+    hardware_decode_active: bool,
+    hw_decode_errors: u64,
+    hw_fallback_to_cpu_count: u64,
+}
+
+fn acceleration_snapshot_fields(
+    acceleration: &crate::decode::AccelerationRuntime,
+) -> AccelerationSnapshotFields {
+    AccelerationSnapshotFields {
+        requested: acceleration.video_acceleration_requested().into(),
+        effective: acceleration.video_acceleration_effective().into(),
+        hw_backend: acceleration.video_hw_backend().into(),
+        gpu_detected: acceleration.gpu_detected(),
+        ffmpeg_hw_decode_available: acceleration.ffmpeg_hw_decode_available(),
+        hardware_decode_active: acceleration.hardware_decode_active(),
+        hw_decode_errors: acceleration.hw_decode_errors(),
+        hw_fallback_to_cpu_count: acceleration.hw_fallback_to_cpu_count(),
     }
 }
 
@@ -165,6 +225,14 @@ pub struct MetricsSnapshot {
     pub reconnects: u64,
     pub rtsp_errors: u64,
     pub errors: u64,
+    pub video_acceleration_requested: String,
+    pub video_acceleration_effective: String,
+    pub video_hw_backend: String,
+    pub gpu_detected: bool,
+    pub ffmpeg_hw_decode_available: bool,
+    pub hardware_decode_active: bool,
+    pub hw_decode_errors: u64,
+    pub hw_fallback_to_cpu_count: u64,
 }
 
 pub type SharedMetrics = Arc<ProcessorMetrics>;

@@ -7,15 +7,17 @@ use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
 use crate::api::CameraRecord;
-use crate::config::Config;
 use crate::camera::stream_url::{redact_rtsp_url, resolve_rtsp_url};
 use crate::camera::types::{CameraRuntimeState, CameraStatus};
+use crate::config::Config;
+use crate::decode::AccelerationRuntime;
 use crate::metrics::ProcessorMetrics;
 use crate::worker::camera_worker::run_camera_worker;
 
 pub struct CameraManager {
     cfg: Config,
     metrics: Arc<ProcessorMetrics>,
+    acceleration: Arc<AccelerationRuntime>,
     states: Arc<RwLock<HashMap<i64, CameraRuntimeState>>>,
     shutdown: watch::Sender<bool>,
     shutdown_rx: watch::Receiver<bool>,
@@ -24,11 +26,16 @@ pub struct CameraManager {
 }
 
 impl CameraManager {
-    pub fn new(cfg: Config, metrics: Arc<ProcessorMetrics>) -> Self {
+    pub fn new(
+        cfg: Config,
+        metrics: Arc<ProcessorMetrics>,
+        acceleration: Arc<AccelerationRuntime>,
+    ) -> Self {
         let (shutdown, shutdown_rx) = watch::channel(false);
         Self {
             cfg,
             metrics,
+            acceleration,
             states: Arc::new(RwLock::new(HashMap::new())),
             shutdown,
             shutdown_rx,
@@ -87,10 +94,7 @@ impl CameraManager {
 
         {
             let mut states = self.states.write().await;
-            states.insert(
-                cam.id,
-                CameraRuntimeState::new(cam.id, redacted.clone()),
-            );
+            states.insert(cam.id, CameraRuntimeState::new(cam.id, redacted.clone()));
         }
 
         info!(
@@ -102,6 +106,7 @@ impl CameraManager {
 
         let cfg = self.cfg.clone();
         let metrics = self.metrics.clone();
+        let acceleration = self.acceleration.clone();
         let states = self.states.clone();
         let mut shutdown_rx = self.shutdown_rx.clone();
         let global_frames = self.global_frames.clone();
@@ -112,6 +117,7 @@ impl CameraManager {
                 rtsp_url,
                 cfg,
                 metrics,
+                acceleration,
                 states,
                 &mut shutdown_rx,
                 global_frames,
@@ -154,6 +160,9 @@ impl CameraManager {
 mod tests {
     use super::*;
     use crate::api::CameraRecord;
+    use crate::decode::{
+        AccelerationPolicy, AccelerationRuntime, VideoAccelerationMode, VideoGpuBackend,
+    };
     use serde_json::json;
     use std::time::Duration;
 
@@ -190,7 +199,12 @@ mod tests {
     async fn manager_respects_max_cameras() {
         std::env::set_var("RTSP_SIMULATE", "1");
         let metrics = Arc::new(ProcessorMetrics::new("test"));
-        let mgr = CameraManager::new(test_cfg(), metrics);
+        let acceleration = AccelerationRuntime::bootstrap(AccelerationPolicy::from_parts(
+            VideoAccelerationMode::Cpu,
+            VideoGpuBackend::Auto,
+        ))
+        .unwrap();
+        let mgr = CameraManager::new(test_cfg(), metrics, acceleration);
         let cams: Vec<CameraRecord> = (1..=5)
             .map(|id| CameraRecord {
                 id,

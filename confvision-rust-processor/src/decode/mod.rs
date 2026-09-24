@@ -1,3 +1,4 @@
+mod acceleration;
 mod context;
 mod error;
 mod h264_decoder;
@@ -10,6 +11,9 @@ mod ffmpeg_backend;
 #[cfg(test)]
 mod fixtures;
 
+pub use acceleration::{
+    AccelerationPolicy, AccelerationRuntime, VideoAccelerationMode, VideoGpuBackend,
+};
 pub use context::SessionDecodeContext;
 pub use error::DecodeError;
 pub use h264_decoder::H264Decoder;

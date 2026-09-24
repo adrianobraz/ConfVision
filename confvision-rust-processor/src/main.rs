@@ -26,6 +26,7 @@ use tracing::{error, info, warn};
 use crate::api::{ConfVisionClient, WorkerPingRequest};
 use crate::camera::CameraManager;
 use crate::config::Config;
+use crate::decode::{AccelerationPolicy, AccelerationRuntime};
 use crate::health::{health_handler, metrics_handler, ready_handler, AppState};
 use crate::metrics::ProcessorMetrics;
 
@@ -44,6 +45,22 @@ async fn main() {
     redis::log_redis_status(&cfg);
     media::log_media_status(&cfg);
 
+    let accel_policy = match AccelerationPolicy::from_env() {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("config error: {e}");
+            std::process::exit(1);
+        }
+    };
+    let acceleration = match AccelerationRuntime::bootstrap(accel_policy) {
+        Ok(a) => a,
+        Err(e) => {
+            eprintln!("config error: {e}");
+            std::process::exit(1);
+        }
+    };
+    acceleration.log_startup();
+
     info!(
         processor_id = %cfg.processor_id,
         api = %cfg.confvision_api_url,
@@ -51,11 +68,16 @@ async fn main() {
     );
 
     let metrics = Arc::new(ProcessorMetrics::new(cfg.processor_id.clone()));
-    let manager = Arc::new(CameraManager::new(cfg.clone(), metrics.clone()));
+    let manager = Arc::new(CameraManager::new(
+        cfg.clone(),
+        metrics.clone(),
+        acceleration.clone(),
+    ));
     let api_ready = Arc::new(AtomicBool::new(false));
 
     let app_state = AppState {
         metrics: metrics.clone(),
+        acceleration: acceleration.clone(),
         camera_states: manager.states_handle(),
         api_ready: api_ready.clone(),
     };
@@ -159,7 +181,11 @@ async fn run_sync_loop(client: ConfVisionClient, manager: Arc<CameraManager>, cf
         };
 
         match client
-            .sync_cameras_ativas(worker_filter, cfg.mediamtx_node_id, config_version.as_deref())
+            .sync_cameras_ativas(
+                worker_filter,
+                cfg.mediamtx_node_id,
+                config_version.as_deref(),
+            )
             .await
         {
             Ok(resp) => {

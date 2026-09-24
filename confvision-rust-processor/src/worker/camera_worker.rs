@@ -9,7 +9,7 @@ use crate::camera::{
     ReconnectBackoff,
 };
 use crate::config::Config;
-use crate::decode::SessionDecodeContext;
+use crate::decode::{AccelerationRuntime, SessionDecodeContext};
 use crate::metrics::ProcessorMetrics;
 use crate::pipeline::{run_frame_consumer, FramePipeline};
 use crate::rtsp::{run_rtsp_frame_loop, simulate_frame_loop};
@@ -19,6 +19,7 @@ async fn run_session_with_pipeline(
     rtsp_url: &str,
     cfg: &Config,
     metrics: Arc<ProcessorMetrics>,
+    acceleration: Arc<AccelerationRuntime>,
     states: Arc<tokio::sync::RwLock<std::collections::HashMap<i64, CameraRuntimeState>>>,
     shutdown_rx: watch::Receiver<bool>,
     global_frames: Arc<AtomicU64>,
@@ -36,12 +37,14 @@ async fn run_session_with_pipeline(
     let consumer_pipeline = pipeline.clone();
     let global_shutdown = shutdown_rx.clone();
     let decode_for_consumer = decode_ctx.clone();
+    let acceleration_for_consumer = acceleration.clone();
     let consumer = tokio::spawn(async move {
         run_frame_consumer(
             consumer_pipeline,
             session_shutdown_rx,
             global_shutdown,
             decode_for_consumer,
+            acceleration_for_consumer,
             !simulate,
         )
         .await;
@@ -91,6 +94,7 @@ pub async fn run_camera_worker(
     rtsp_url: String,
     cfg: Config,
     metrics: Arc<ProcessorMetrics>,
+    acceleration: Arc<AccelerationRuntime>,
     states: Arc<tokio::sync::RwLock<std::collections::HashMap<i64, CameraRuntimeState>>>,
     shutdown_rx: &mut watch::Receiver<bool>,
     global_frames: Arc<AtomicU64>,
@@ -120,6 +124,7 @@ pub async fn run_camera_worker(
                 &rtsp_url,
                 &cfg,
                 metrics.clone(),
+                acceleration.clone(),
                 states.clone(),
                 cancel,
                 global_frames.clone(),
@@ -135,6 +140,7 @@ pub async fn run_camera_worker(
             &rtsp_url,
             &cfg,
             metrics.clone(),
+            acceleration.clone(),
             states.clone(),
             cancel,
             global_frames.clone(),

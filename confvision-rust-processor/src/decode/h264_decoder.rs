@@ -1,16 +1,31 @@
+use std::sync::Arc;
+
+use super::acceleration::AccelerationRuntime;
 use super::context::SessionDecodeContext;
 use super::error::DecodeError;
 use super::types::{DecodeInput, DecodeOutcome, DecodedFrame};
 
 /// Decoder H.264 por sessão RTSP (uma instância por consumer / reconexão).
 pub struct H264Decoder {
+    #[allow(dead_code)]
+    acceleration: Option<Arc<AccelerationRuntime>>,
     #[cfg(feature = "ffmpeg-decode")]
     inner: Option<super::ffmpeg_backend::FfmpegH264Decoder>,
 }
 
 impl H264Decoder {
     pub fn new() -> Self {
+        Self::from_acceleration(None)
+    }
+
+    /// Fase 4.0+: policy/runtime para futura seleção CPU/HW (decode continua CPU).
+    pub fn with_acceleration(acceleration: Arc<AccelerationRuntime>) -> Self {
+        Self::from_acceleration(Some(acceleration))
+    }
+
+    fn from_acceleration(acceleration: Option<Arc<AccelerationRuntime>>) -> Self {
         Self {
+            acceleration,
             #[cfg(feature = "ffmpeg-decode")]
             inner: None,
         }

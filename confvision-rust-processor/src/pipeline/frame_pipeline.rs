@@ -6,7 +6,9 @@ use std::time::Instant;
 use tokio::sync::{Notify, RwLock};
 
 use crate::camera::CameraRuntimeState;
-use crate::decode::{DecodeInput, DecodeOutcome, H264Decoder, SessionDecodeContext};
+use crate::decode::{
+    AccelerationRuntime, DecodeInput, DecodeOutcome, H264Decoder, SessionDecodeContext,
+};
 use crate::metrics::ProcessorMetrics;
 use crate::motion::{MotionDetector, MotionOutcome};
 use crate::pipeline::PipelineFrame;
@@ -289,9 +291,10 @@ pub async fn run_frame_consumer(
     mut session_shutdown: tokio::sync::watch::Receiver<bool>,
     mut global_shutdown: tokio::sync::watch::Receiver<bool>,
     decode_ctx: Arc<SessionDecodeContext>,
+    acceleration: Arc<AccelerationRuntime>,
     decode_enabled: bool,
 ) {
-    let mut h264_decoder = H264Decoder::new();
+    let mut h264_decoder = H264Decoder::with_acceleration(acceleration);
     let mut motion_detector = MotionDetector::new();
 
     loop {
@@ -385,6 +388,18 @@ pub async fn run_frame_consumer(
 mod tests {
     use super::*;
     use std::sync::atomic::AtomicU64;
+
+    use crate::decode::{
+        AccelerationPolicy, AccelerationRuntime, VideoAccelerationMode, VideoGpuBackend,
+    };
+
+    fn test_acceleration_runtime() -> Arc<AccelerationRuntime> {
+        AccelerationRuntime::bootstrap(AccelerationPolicy::from_parts(
+            VideoAccelerationMode::Cpu,
+            VideoGpuBackend::Auto,
+        ))
+        .unwrap()
+    }
 
     use crate::pipeline::{fake_h264_payload, RtpTimestamp};
 
@@ -589,8 +604,9 @@ mod tests {
         let (gtx, grx) = tokio::sync::watch::channel(false);
         let p = pipeline.clone();
         let decode_ctx = SessionDecodeContext::new();
+        let acceleration = test_acceleration_runtime();
         let consumer = tokio::spawn(async move {
-            run_frame_consumer(p, rx, grx, decode_ctx, false).await;
+            run_frame_consumer(p, rx, grx, decode_ctx, acceleration, false).await;
         });
         for seq in 1..=5 {
             pipeline.try_enqueue(test_frame(seq, seq as u8, false));
