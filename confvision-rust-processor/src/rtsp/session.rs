@@ -1,23 +1,46 @@
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use futures::StreamExt;
-use retina::client::{Credentials, PlayOptions, Session, SessionOptions, SetupOptions, Transport};
-use retina::codec::CodecItem;
+use retina::client::{Credentials, Demuxed, PlayOptions, Session, SessionOptions, SetupOptions, Transport};
+use retina::codec::{CodecItem, ParametersRef, VideoFrame};
 use tracing::debug;
 
 use crate::camera::{LiveCaptureContext, record_frame_received};
+use crate::decode::SessionDecodeContext;
 use crate::error::{AppError, AppResult};
-use crate::pipeline::FramePipeline;
+use crate::pipeline::{FramePipeline, PipelineFrame, RtpTimestamp};
 
-/// Conecta ao RTSP e conta frames de vídeo até cancelamento ou erro.
+fn sync_h264_extradata(session: &Demuxed, video_index: usize, decode_ctx: &SessionDecodeContext) {
+    let Some(ParametersRef::Video(params)) = session.streams()[video_index].parameters() else {
+        return;
+    };
+    decode_ctx.update_extradata(params.extra_data());
+}
+
+fn pipeline_frame_from_video(seq: u64, frame: VideoFrame) -> PipelineFrame {
+    let ts = frame.timestamp();
+    let rtp_timestamp = RtpTimestamp {
+        timestamp: ts.timestamp(),
+        clock_rate_hz: ts.clock_rate().get(),
+        stream_start: ts.start(),
+    };
+    let is_keyframe = frame.is_random_access_point();
+    // Move do buffer interno do retina — sem cópia extra dos bytes do AU.
+    let payload: Arc<[u8]> = Arc::from(frame.into_data());
+    PipelineFrame::new(seq, payload, is_keyframe, rtp_timestamp)
+}
+
+// Conecta ao RTSP e conta frames de vídeo até cancelamento ou erro.
 pub async fn run_rtsp_frame_loop(
     camera_id: i64,
     rtsp_url: &str,
     connect_timeout: Duration,
     frame_timeout: Duration,
-    mut cancel: tokio::sync::watch::Receiver<bool>,
+    cancel: tokio::sync::watch::Receiver<bool>,
     mut live: Option<&mut LiveCaptureContext<'_>>,
     pipeline: &FramePipeline,
+    decode_ctx: &SessionDecodeContext,
 ) -> AppResult<RtspLoopStats> {
     let url = rtsp_url
         .parse()
@@ -54,9 +77,11 @@ pub async fn run_rtsp_frame_loop(
         .map_err(|e| AppError::Rtsp(e.to_string()))?;
 
     debug!(camera_id, "rtsp connected");
+    sync_h264_extradata(&session, video_index, decode_ctx);
 
     let mut last_frame = Instant::now();
     let mut seq: u64 = 0;
+    let mut cancel = cancel;
 
     loop {
         if *cancel.borrow() {
@@ -73,12 +98,16 @@ pub async fn run_rtsp_frame_loop(
         let item = tokio::time::timeout(Duration::from_secs(2), session.next()).await;
 
         match item {
-            Ok(Some(Ok(CodecItem::VideoFrame(_frame)))) => {
+            Ok(Some(Ok(CodecItem::VideoFrame(frame)))) => {
+                if frame.has_new_parameters() {
+                    sync_h264_extradata(&session, video_index, decode_ctx);
+                }
                 seq += 1;
                 if let Some(ctx) = live.as_mut() {
                     record_frame_received(ctx).await;
                 }
-                pipeline.try_enqueue(seq);
+                sync_h264_extradata(&session, video_index, decode_ctx);
+                pipeline.try_enqueue(pipeline_frame_from_video(seq, frame));
                 last_frame = Instant::now();
                 if seq == 1 || seq % 100 == 0 {
                     debug!(camera_id, seq, "frame received");
@@ -107,16 +136,31 @@ pub struct RtspLoopStats {
     pub frames_dropped: u64,
 }
 
-/// Simula recebimento de frames (testes / RTSP_SIMULATE=1).
+fn simulated_pipeline_frame(seq: u64) -> PipelineFrame {
+    let payload = Arc::from(format!("sim-h264-{seq}").into_bytes());
+    PipelineFrame::new(
+        seq,
+        payload,
+        seq == 1 || seq % 30 == 0,
+        RtpTimestamp {
+            timestamp: seq as i64 * 3_000,
+            clock_rate_hz: 90_000,
+            stream_start: 0,
+        },
+    )
+}
+
+// Simula recebimento de frames (testes / RTSP_SIMULATE=1).
 pub async fn simulate_frame_loop(
     camera_id: i64,
     fps: f64,
-    mut cancel: tokio::sync::watch::Receiver<bool>,
+    cancel: tokio::sync::watch::Receiver<bool>,
     mut live: Option<&mut LiveCaptureContext<'_>>,
     pipeline: &FramePipeline,
 ) -> RtspLoopStats {
     let interval = Duration::from_secs_f64(1.0 / fps.max(0.1));
     let mut seq = 0u64;
+    let mut cancel = cancel;
     while !*cancel.borrow() {
         tokio::time::sleep(interval).await;
         if *cancel.borrow() {
@@ -126,7 +170,7 @@ pub async fn simulate_frame_loop(
         if let Some(ctx) = live.as_mut() {
             record_frame_received(ctx).await;
         }
-        pipeline.try_enqueue(seq);
+        pipeline.try_enqueue(simulated_pipeline_frame(seq));
         if seq % 30 == 0 {
             debug!(camera_id, seq, "simulated frame");
         }

@@ -23,6 +23,11 @@ tokio = { version = "1.43", features = ["macros", "rt-multi-thread", "signal", "
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 url = "2.5"
+# 6.1.x + ffmpeg-sys-next 6.1 — linka contra FFmpeg 5.x (libavcodec59 no Debian Bookworm).
+ffmpeg-next = { version = "=6.1.1", optional = true, default-features = false, features = ["codec"] }
+
+[features]
+ffmpeg-decode = ["dep:ffmpeg-next"]
 
 [dev-dependencies]
 wiremock = "0.6"

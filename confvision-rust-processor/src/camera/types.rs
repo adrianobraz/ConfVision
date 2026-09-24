@@ -32,6 +32,9 @@ pub struct CameraRuntimeState {
     pub buffer_size: u64,
     pub buffer_full_events: u64,
     pub last_frame_latency_ms: u64,
+    pub frames_decoded: u64,
+    pub decode_errors: u64,
+    pub last_decode_ms: u64,
 }
 
 impl CameraRuntimeState {
@@ -53,6 +56,9 @@ impl CameraRuntimeState {
             buffer_size: 0,
             buffer_full_events: 0,
             last_frame_latency_ms: 0,
+            frames_decoded: 0,
+            decode_errors: 0,
+            last_decode_ms: 0,
         }
     }
 }

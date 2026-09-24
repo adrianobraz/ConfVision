@@ -1,6 +1,7 @@
 mod api;
 mod camera;
 mod config;
+mod decode;
 mod error;
 mod events;
 mod health;

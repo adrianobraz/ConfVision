@@ -15,6 +15,9 @@ pub struct ProcessorMetrics {
     pub buffer_full_events: AtomicU64,
     /// Última latência observada no consumer (ms).
     pub last_frame_latency_ms: AtomicU64,
+    pub frames_decoded: AtomicU64,
+    pub decode_errors: AtomicU64,
+    pub last_decode_ms: AtomicU64,
     pub reconnects: AtomicU64,
     pub rtsp_errors: AtomicU64,
     pub errors: AtomicU64,
@@ -31,6 +34,9 @@ impl ProcessorMetrics {
             frames_processed: AtomicU64::new(0),
             buffer_full_events: AtomicU64::new(0),
             last_frame_latency_ms: AtomicU64::new(0),
+            frames_decoded: AtomicU64::new(0),
+            decode_errors: AtomicU64::new(0),
+            last_decode_ms: AtomicU64::new(0),
             reconnects: AtomicU64::new(0),
             rtsp_errors: AtomicU64::new(0),
             errors: AtomicU64::new(0),
@@ -65,6 +71,15 @@ impl ProcessorMetrics {
         self.buffer_full_events.fetch_add(1, Ordering::Relaxed);
     }
 
+    pub fn record_decode_success(&self, latency_ms: u64) {
+        self.frames_decoded.fetch_add(1, Ordering::Relaxed);
+        self.last_decode_ms.store(latency_ms, Ordering::Relaxed);
+    }
+
+    pub fn record_decode_error(&self) {
+        self.decode_errors.fetch_add(1, Ordering::Relaxed);
+    }
+
     pub fn record_reconnect(&self) {
         self.reconnects.fetch_add(1, Ordering::Relaxed);
     }
@@ -87,6 +102,10 @@ impl ProcessorMetrics {
             frames_processed: self.frames_processed.load(Ordering::Relaxed),
             buffer_full_events: self.buffer_full_events.load(Ordering::Relaxed),
             frame_latency_ms: self.last_frame_latency_ms.load(Ordering::Relaxed),
+            frames_decoded: self.frames_decoded.load(Ordering::Relaxed),
+            decode_errors: self.decode_errors.load(Ordering::Relaxed),
+            decode_ms: self.last_decode_ms.load(Ordering::Relaxed),
+            last_decode_ms: self.last_decode_ms.load(Ordering::Relaxed),
             reconnects: self.reconnects.load(Ordering::Relaxed),
             rtsp_errors: self.rtsp_errors.load(Ordering::Relaxed),
             errors: self.errors.load(Ordering::Relaxed),
@@ -104,6 +123,11 @@ pub struct MetricsSnapshot {
     pub frames_processed: u64,
     pub buffer_full_events: u64,
     pub frame_latency_ms: u64,
+    pub frames_decoded: u64,
+    pub decode_errors: u64,
+    /// Último decode bem-sucedido (ms).
+    pub decode_ms: u64,
+    pub last_decode_ms: u64,
     pub reconnects: u64,
     pub rtsp_errors: u64,
     pub errors: u64,
