@@ -7,4 +7,4 @@ pub use policy::{
     VideoGpuBackend,
 };
 pub use probe::{DefaultSystemProbe, ProbeResult, SystemProbe};
-pub use runtime::AccelerationRuntime;
+pub use runtime::{AccelerationRuntime, PlannedDecodeBackend};

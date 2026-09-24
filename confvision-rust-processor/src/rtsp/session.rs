@@ -2,11 +2,13 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use futures::StreamExt;
-use retina::client::{Credentials, Demuxed, PlayOptions, Session, SessionOptions, SetupOptions, Transport};
+use retina::client::{
+    Credentials, Demuxed, PlayOptions, Session, SessionOptions, SetupOptions, Transport,
+};
 use retina::codec::{CodecItem, ParametersRef, VideoFrame};
 use tracing::debug;
 
-use crate::camera::{LiveCaptureContext, record_frame_received};
+use crate::camera::{record_frame_received, CameraCancel, LiveCaptureContext};
 use crate::decode::SessionDecodeContext;
 use crate::error::{AppError, AppResult};
 use crate::pipeline::{FramePipeline, PipelineFrame, RtpTimestamp};
@@ -37,7 +39,7 @@ pub async fn run_rtsp_frame_loop(
     rtsp_url: &str,
     connect_timeout: Duration,
     frame_timeout: Duration,
-    cancel: tokio::sync::watch::Receiver<bool>,
+    cancel: CameraCancel,
     mut live: Option<&mut LiveCaptureContext<'_>>,
     pipeline: &FramePipeline,
     decode_ctx: &SessionDecodeContext,
@@ -48,10 +50,11 @@ pub async fn run_rtsp_frame_loop(
 
     let session_options = SessionOptions::default().creds(None::<Credentials>);
 
-    let mut session = tokio::time::timeout(connect_timeout, Session::describe(url, session_options))
-        .await
-        .map_err(|_| AppError::Rtsp("timeout ao conectar RTSP".into()))?
-        .map_err(|e| AppError::Rtsp(e.to_string()))?;
+    let mut session =
+        tokio::time::timeout(connect_timeout, Session::describe(url, session_options))
+            .await
+            .map_err(|_| AppError::Rtsp("timeout ao conectar RTSP".into()))?
+            .map_err(|e| AppError::Rtsp(e.to_string()))?;
 
     let video_index = session
         .streams()
@@ -81,10 +84,8 @@ pub async fn run_rtsp_frame_loop(
 
     let mut last_frame = Instant::now();
     let mut seq: u64 = 0;
-    let mut cancel = cancel;
-
     loop {
-        if *cancel.borrow() {
+        if cancel.is_cancelled() {
             break;
         }
 
@@ -154,16 +155,15 @@ fn simulated_pipeline_frame(seq: u64) -> PipelineFrame {
 pub async fn simulate_frame_loop(
     camera_id: i64,
     fps: f64,
-    cancel: tokio::sync::watch::Receiver<bool>,
+    cancel: CameraCancel,
     mut live: Option<&mut LiveCaptureContext<'_>>,
     pipeline: &FramePipeline,
 ) -> RtspLoopStats {
     let interval = Duration::from_secs_f64(1.0 / fps.max(0.1));
     let mut seq = 0u64;
-    let mut cancel = cancel;
-    while !*cancel.borrow() {
+    while !cancel.is_cancelled() {
         tokio::time::sleep(interval).await;
-        if *cancel.borrow() {
+        if cancel.is_cancelled() {
             break;
         }
         seq += 1;
@@ -184,22 +184,29 @@ pub async fn simulate_frame_loop(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
     use std::sync::Arc;
 
+    use crate::camera::{CameraCancel, CameraRuntimeState, SharedCameraState};
     use crate::metrics::ProcessorMetrics;
 
     #[tokio::test]
     async fn simulate_respects_cancel() {
         let metrics = Arc::new(ProcessorMetrics::new("test"));
-        let states = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
-        let pipeline = FramePipeline::new(2, metrics, states, 1);
-        let (tx, rx) = tokio::sync::watch::channel(false);
-        let handle = tokio::spawn(async move {
-            simulate_frame_loop(1, 50.0, rx, None, &pipeline).await
-        });
+        let state: SharedCameraState = Arc::new(tokio::sync::RwLock::new(CameraRuntimeState::new(
+            1,
+            "x".into(),
+        )));
+        let pipeline = FramePipeline::new(2, metrics, state);
+        let (gtx, grx) = tokio::sync::watch::channel(false);
+        let (ltx, lrx) = tokio::sync::watch::channel(false);
+        let cancel = CameraCancel::new(grx, lrx);
+        let handle =
+            tokio::spawn(
+                async move { simulate_frame_loop(1, 50.0, cancel, None, &pipeline).await },
+            );
         tokio::time::sleep(Duration::from_millis(80)).await;
-        tx.send(true).unwrap();
+        ltx.send(true).unwrap();
+        let _ = gtx;
         let stats = handle.await.unwrap();
         assert!(stats.frames_received > 0);
     }

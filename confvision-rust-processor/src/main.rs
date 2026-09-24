@@ -12,6 +12,7 @@ mod motion;
 mod pipeline;
 mod redis;
 mod rtsp;
+mod sharding;
 mod worker;
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -63,6 +64,8 @@ async fn main() {
 
     info!(
         processor_id = %cfg.processor_id,
+        worker_id = %cfg.worker_id,
+        shard = %sharding::shard_label(&cfg),
         api = %cfg.confvision_api_url,
         "confvision-rust-processor starting"
     );
@@ -80,6 +83,7 @@ async fn main() {
         acceleration: acceleration.clone(),
         camera_states: manager.states_handle(),
         api_ready: api_ready.clone(),
+        identity: health::RuntimeIdentity::from_config(&cfg),
     };
 
     let app = Router::new()
@@ -174,11 +178,7 @@ async fn run_sync_loop(client: ConfVisionClient, manager: Arc<CameraManager>, cf
             break;
         }
 
-        let worker_filter = if cfg.sync_filter_worker_id {
-            Some(cfg.processor_id.as_str())
-        } else {
-            None
-        };
+        let worker_filter = sharding::sync_query_worker_id(&cfg);
 
         match client
             .sync_cameras_ativas(
@@ -193,7 +193,8 @@ async fn run_sync_loop(client: ConfVisionClient, manager: Arc<CameraManager>, cf
                     config_version = Some(v);
                 }
                 if !resp.unchanged {
-                    manager.sync_cameras(resp.cameras).await;
+                    let cameras = sharding::filter_analytic_cameras(&cfg, resp.cameras);
+                    manager.sync_cameras(cameras).await;
                 }
             }
             Err(e) => {
@@ -223,19 +224,7 @@ async fn run_ping_loop(
             None
         };
 
-        let ping = WorkerPingRequest {
-            worker_id: cfg.processor_id.clone(),
-            worker_tipo: cfg.worker_tipo.clone(),
-            hostname: cfg.processor_hostname.clone(),
-            versao: cfg.processor_version.clone(),
-            cameras_ativas,
-            ultimo_ping_em: Utc::now().to_rfc3339(),
-            ativo: true,
-            yolo_device: "none".to_string(),
-            queue_backend: cfg.queue_backend.clone(),
-            vis_mediamtx_node_id: node_id,
-            max_cameras: Some(cfg.max_cameras as i32),
-        };
+        let ping = build_worker_ping(&cfg, cameras_ativas, true, node_id);
 
         if let Err(e) = client.worker_ping(&ping).await {
             warn!(processor_id = %cfg.processor_id, error = %e, "worker ping failed");
@@ -252,22 +241,43 @@ async fn send_final_ping(
     manager: &CameraManager,
     metrics: &ProcessorMetrics,
 ) {
-    let ping = WorkerPingRequest {
-        worker_id: cfg.processor_id.clone(),
-        worker_tipo: cfg.worker_tipo.clone(),
-        hostname: cfg.processor_hostname.clone(),
-        versao: cfg.processor_version.clone(),
-        cameras_ativas: 0,
-        ultimo_ping_em: Utc::now().to_rfc3339(),
-        ativo: false,
-        yolo_device: "none".into(),
-        queue_backend: cfg.queue_backend.clone(),
-        vis_mediamtx_node_id: None,
-        max_cameras: Some(cfg.max_cameras as i32),
-    };
+    let ping = build_worker_ping(cfg, 0, false, None);
     if let Err(e) = client.worker_ping(&ping).await {
         warn!(error = %e, "final ping failed");
         metrics.errors.fetch_add(1, Ordering::Relaxed);
     }
     let _ = manager;
+}
+
+fn build_worker_ping(
+    cfg: &Config,
+    cameras_ativas: i32,
+    ativo: bool,
+    vis_mediamtx_node_id: Option<i32>,
+) -> WorkerPingRequest {
+    let shard_index = if cfg.worker_shard_index >= 0 {
+        Some(cfg.worker_shard_index)
+    } else {
+        None
+    };
+    let shard_total = if cfg.worker_shard_total > 0 {
+        Some(cfg.worker_shard_total as i32)
+    } else {
+        None
+    };
+    WorkerPingRequest {
+        worker_id: cfg.worker_id.clone(),
+        worker_tipo: cfg.worker_tipo.clone(),
+        hostname: cfg.processor_hostname.clone(),
+        versao: cfg.processor_version.clone(),
+        cameras_ativas,
+        ultimo_ping_em: Utc::now().to_rfc3339(),
+        ativo,
+        yolo_device: "none".to_string(),
+        queue_backend: cfg.queue_backend.clone(),
+        vis_mediamtx_node_id,
+        max_cameras: Some(cfg.max_cameras as i32),
+        shard_index,
+        shard_total,
+    }
 }

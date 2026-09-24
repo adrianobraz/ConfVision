@@ -1,6 +1,39 @@
+use std::str::FromStr;
 use std::time::Duration;
 
 use crate::error::{AppError, AppResult};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ShardMode {
+    Auto,
+    WorkerId,
+    Hash,
+}
+
+impl ShardMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::WorkerId => "worker_id",
+            Self::Hash => "hash",
+        }
+    }
+}
+
+impl FromStr for ShardMode {
+    type Err = AppError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_lowercase().as_str() {
+            "auto" => Ok(Self::Auto),
+            "worker_id" => Ok(Self::WorkerId),
+            "hash" => Ok(Self::Hash),
+            other => Err(AppError::Config(format!(
+                "SHARD_MODE inválido: {other:?} (use auto, worker_id ou hash)"
+            ))),
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -11,8 +44,12 @@ pub struct Config {
     pub processor_id: String,
     pub processor_hostname: String,
     pub processor_version: String,
+    /// Identidade lógica do worker (`WORKER_ID`) — usada em ping e sync worker_id.
+    pub worker_id: String,
     pub worker_tipo: String,
-    pub sync_filter_worker_id: bool,
+    pub shard_mode: ShardMode,
+    pub worker_shard_index: i32,
+    pub worker_shard_total: u32,
     pub mediamtx_node_id: u32,
     pub redis_url: Option<String>,
     pub s3_endpoint: Option<String>,
@@ -60,8 +97,11 @@ impl Config {
             processor_id,
             processor_hostname,
             processor_version: env_or("PROCESSOR_VERSION", "0.1.0"),
+            worker_id: env_or("WORKER_ID", "worker-01"),
             worker_tipo: env_or("WORKER_TIPO", "rust_processor"),
-            sync_filter_worker_id: env_bool("SYNC_FILTER_WORKER_ID", true),
+            shard_mode: parse_shard_mode(&env_or("SHARD_MODE", "auto"))?,
+            worker_shard_index: env_i32("WORKER_SHARD_INDEX", -1),
+            worker_shard_total: env_u32("WORKER_SHARD_TOTAL", 0),
             mediamtx_node_id: env_u32("MEDIAMTX_NODE_ID", 0),
             redis_url: non_empty_opt("REDIS_URL"),
             s3_endpoint: non_empty_opt("S3_ENDPOINT"),
@@ -107,16 +147,6 @@ fn non_empty_opt(key: &str) -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
-fn env_bool(key: &str, default: bool) -> bool {
-    match std::env::var(key) {
-        Ok(v) => matches!(
-            v.trim().to_lowercase().as_str(),
-            "1" | "true" | "yes" | "on"
-        ),
-        Err(_) => default,
-    }
-}
-
 fn env_u64(key: &str, default: u64) -> u64 {
     std::env::var(key)
         .ok()
@@ -145,6 +175,17 @@ fn env_usize(key: &str, default: usize) -> usize {
         .unwrap_or(default)
 }
 
+fn env_i32(key: &str, default: i32) -> i32 {
+    std::env::var(key)
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
+}
+
+fn parse_shard_mode(raw: &str) -> AppResult<ShardMode> {
+    raw.parse()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -166,6 +207,12 @@ mod tests {
         assert!(err.to_string().contains("XANO_BASE_URL"));
         std::env::remove_var("CONFVISION_API_URL");
         std::env::remove_var("XANO_BASE_URL");
+    }
+
+    #[test]
+    fn parses_shard_mode() {
+        assert_eq!("hash".parse::<ShardMode>().unwrap(), ShardMode::Hash);
+        assert!("invalid".parse::<ShardMode>().is_err());
     }
 }
 

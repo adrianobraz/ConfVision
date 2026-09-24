@@ -44,7 +44,7 @@ Visão geral dos projetos: [`ARQUITETURA_PROJETOS.md`](../ARQUITETURA_PROJETOS.m
 ```
 
 - **Go:** control plane — URL base em `CONFVISION_API_URL` (nunca `*.xano.io`).
-- **Python:** continua responsável por analítico/YOLO/eventos em produção; use `PROCESSOR_ID` ≠ `WORKER_ID` e `SYNC_FILTER_WORKER_ID=true` em testes.
+- **Python:** continua responsável por analítico/YOLO/eventos em produção; use `PROCESSOR_ID` (processo) distinto de `WORKER_ID` (worker lógico) quando coexistirem.
 - **MediaMTX:** streams RTSP; path `cam/{hash12}` quando necessário (`RTMP_PUBLISH_SECRET` alinhado ao Go).
 
 ## Fase 1 — escopo
@@ -106,11 +106,13 @@ Referência completa: [`.env.example`](.env.example) e [`easypanel.env.example`]
 | `VIS_WORKER_API_KEY` | Header `X-Vis-Worker-Key` |
 | `RTMP_PUBLISH_SECRET` | Salt para path `cam/{hash12}` |
 | `MEDIAMTX_RTSP_BASE` | RTSP base se a API não enviar por câmera |
-| `PROCESSOR_ID` | Identidade deste processor |
-| `PROCESSOR_HOSTNAME`, `PROCESSOR_VERSION` | Metadados no ping |
+| `PROCESSOR_ID` | ID do processo (health/métricas); não substitui `WORKER_ID` |
+| `WORKER_ID` | Identidade lógica do worker (ping e sync com `SHARD_MODE=worker_id`) |
 | `WORKER_TIPO` | Default `rust_processor` |
-| `SYNC_FILTER_WORKER_ID` | `true` → só câmeras com `worker_id = PROCESSOR_ID` |
-| `MAX_CAMERAS`, `SYNC_INTERVAL_SEC`, `PING_INTERVAL_SEC` | Limites e intervalos |
+| `SHARD_MODE` | `auto`, `worker_id` ou `hash` (igual `ConfVision/sharding.py`) |
+| `WORKER_SHARD_INDEX`, `WORKER_SHARD_TOTAL` | Shard por hash (`camera_id % total == index`) |
+| `MEDIAMTX_NODE_ID` | Query `vis_mediamtx_node_id` na sync (0 = sem filtro) |
+| `MAX_CAMERAS`, `SYNC_INTERVAL_SEC`, `PING_INTERVAL_SEC` | Limite **local** e intervalos |
 | `HTTP_HOST`, `HTTP_PORT` | Servidor local (default `8090`) |
 | `LOG_LEVEL` | `info` ou `debug` |
 | `RTSP_*`, `FRAME_BUFFER_MAX` | Timeouts e buffer RTSP |
@@ -177,16 +179,18 @@ cargo run
 
 **Uma câmera real:**
 
-1. No Postgres (via fluxo Go), `vis_camera.worker_id = '<PROCESSOR_ID>'` só na câmera de teste.
+1. No Postgres (via fluxo Go), `vis_camera.worker_id = '<WORKER_ID>'` só na câmera de teste.
 2. Python mantém outro `WORKER_ID` nas demais.
-3. `SYNC_FILTER_WORKER_ID=true`, `MAX_CAMERAS=1`.
+3. `SHARD_MODE=worker_id`, `WORKER_ID` igual ao Postgres, `MAX_CAMERAS=1`.
 4. Verificar logs (`rtsp connected`, frames) e `GET http://localhost:8090/ready`.
 
 **Health:**
 
-- `GET /health`
+- `GET /health` — agregados + contagem por status (`online`, `offline`, `reconnecting`, `starting`)
 - `GET /ready`
-- `GET /metrics`
+- `GET /metrics` — métricas globais (`metrics`) + array `cameras[]` com contadores por câmera
+
+**Multi-câmera (Fase 5.0):** uma task Tokio por câmera, pipeline/decoder/motion/RTSP isolados por sessão; limite apenas via `MAX_CAMERAS` (env).
 
 ## O que NÃO fazer
 
@@ -220,9 +224,9 @@ Alterações de contrato Go devem ser documentadas e feitas **no projeto Go**, n
 
 ## Contrato Go — compatibilidade (Fase 1)
 
-`POST /vis_worker_ping` aceita campos do `WorkerPingInput` Go, incluindo `worker_id`, `worker_tipo`, `hostname`, `versao`, `cameras_ativas`, `ultimo_ping_em`, `ativo`, `yolo_device`, `queue_backend`, `vis_mediamtx_node_id`, `max_cameras`.
+`POST /vis_worker_ping` aceita campos do `WorkerPingInput` Go, incluindo `worker_id`, `worker_tipo`, `hostname`, `versao`, `cameras_ativas`, `ultimo_ping_em`, `ativo`, `shard_index`, `shard_total`, `yolo_device`, `queue_backend`, `vis_mediamtx_node_id`, `max_cameras`.
 
-Use `worker_tipo=rust_processor` para não colidir com ping Python (`analitico`) no mesmo ID.
+O Rust envia `worker_id` a partir de `WORKER_ID` (não de `PROCESSOR_ID`). Use `worker_tipo=rust_processor` para não colidir com ping Python (`analitico`) no mesmo ID.
 
 Desligamento: SIGINT/SIGTERM → para RTSP, ping final `ativo=false`, encerra HTTP.
 

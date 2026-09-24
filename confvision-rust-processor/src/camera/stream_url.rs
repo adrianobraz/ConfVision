@@ -4,7 +4,12 @@ use crate::error::{AppError, AppResult};
 
 /// Monta URL RTSP alinhada ao Python `urls.rtsp_url_for_camera` (sem credenciais no log).
 pub fn resolve_rtsp_url(cam: &CameraRecord, cfg: &Config) -> AppResult<String> {
-    if let Some(sec) = cam.rtsp_url_sec.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()) {
+    if let Some(sec) = cam
+        .rtsp_url_sec
+        .as_ref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+    {
         let lower = sec.to_lowercase();
         if lower.starts_with("rtsp://") || lower.starts_with("rtsps://") {
             if lower.contains("/live/") {
@@ -28,10 +33,9 @@ pub fn resolve_rtsp_url(cam: &CameraRecord, cfg: &Config) -> AppResult<String> {
 }
 
 pub fn stream_path(camera_id: i64, cfg: &Config) -> AppResult<String> {
-    let secret = cfg
-        .rtmp_publish_secret
-        .as_ref()
-        .ok_or_else(|| AppError::Config("RTMP_PUBLISH_SECRET necessário para path cam/{hash}".into()))?;
+    let secret = cfg.rtmp_publish_secret.as_ref().ok_or_else(|| {
+        AppError::Config("RTMP_PUBLISH_SECRET necessário para path cam/{hash}".into())
+    })?;
     let h = hashids::HashIds::builder()
         .with_salt(secret.as_str())
         .with_min_length(12)
@@ -72,7 +76,10 @@ mod tests {
             processor_hostname: "h".into(),
             processor_version: "0.1.0".into(),
             worker_tipo: "rust".into(),
-            sync_filter_worker_id: false,
+            worker_id: "worker-01".into(),
+            shard_mode: crate::config::ShardMode::Auto,
+            worker_shard_index: -1,
+            worker_shard_total: 0,
             mediamtx_node_id: 0,
             redis_url: None,
             s3_endpoint: None,

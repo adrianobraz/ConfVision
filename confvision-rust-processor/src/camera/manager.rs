@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
 use tokio::sync::{watch, RwLock};
 use tokio::task::JoinHandle;
@@ -8,7 +9,8 @@ use tracing::{info, warn};
 
 use crate::api::CameraRecord;
 use crate::camera::stream_url::{redact_rtsp_url, resolve_rtsp_url};
-use crate::camera::types::{CameraRuntimeState, CameraStatus};
+use crate::camera::types::{CameraRuntimeState, SharedCameraState};
+use crate::camera::worker_control::CameraWorkerControl;
 use crate::config::Config;
 use crate::decode::AccelerationRuntime;
 use crate::metrics::ProcessorMetrics;
@@ -18,10 +20,11 @@ pub struct CameraManager {
     cfg: Config,
     metrics: Arc<ProcessorMetrics>,
     acceleration: Arc<AccelerationRuntime>,
-    states: Arc<RwLock<HashMap<i64, CameraRuntimeState>>>,
+    /// Mapa só para listagem (health/metrics); cada câmera tem lock próprio em `SharedCameraState`.
+    states: Arc<RwLock<HashMap<i64, SharedCameraState>>>,
     shutdown: watch::Sender<bool>,
     shutdown_rx: watch::Receiver<bool>,
-    handles: Arc<RwLock<HashMap<i64, JoinHandle<()>>>>,
+    handles: Arc<RwLock<HashMap<i64, CameraWorkerControl>>>,
     global_frames: Arc<AtomicU64>,
 }
 
@@ -44,7 +47,7 @@ impl CameraManager {
         }
     }
 
-    pub fn states_handle(&self) -> Arc<RwLock<HashMap<i64, CameraRuntimeState>>> {
+    pub fn states_handle(&self) -> Arc<RwLock<HashMap<i64, SharedCameraState>>> {
         self.states.clone()
     }
 
@@ -92,9 +95,13 @@ impl CameraManager {
         let rtsp_url = resolve_rtsp_url(&cam, &self.cfg).map_err(|e| e.to_string())?;
         let redacted = redact_rtsp_url(&rtsp_url);
 
+        let state: SharedCameraState = Arc::new(RwLock::new(CameraRuntimeState::new(
+            cam.id,
+            redacted.clone(),
+        )));
         {
             let mut states = self.states.write().await;
-            states.insert(cam.id, CameraRuntimeState::new(cam.id, redacted.clone()));
+            states.insert(cam.id, state.clone());
         }
 
         info!(
@@ -107,35 +114,46 @@ impl CameraManager {
         let cfg = self.cfg.clone();
         let metrics = self.metrics.clone();
         let acceleration = self.acceleration.clone();
-        let states = self.states.clone();
         let mut shutdown_rx = self.shutdown_rx.clone();
         let global_frames = self.global_frames.clone();
+        let (camera_stop_tx, camera_stop_rx) = watch::channel(false);
 
-        let handle = tokio::spawn(async move {
+        let camera_id = cam.id;
+        let join: JoinHandle<()> = tokio::spawn(async move {
             run_camera_worker(
-                cam.id,
+                camera_id,
                 rtsp_url,
                 cfg,
                 metrics,
                 acceleration,
-                states,
+                state,
                 &mut shutdown_rx,
+                camera_stop_rx,
                 global_frames,
             )
             .await;
         });
 
-        self.handles.write().await.insert(cam.id, handle);
+        self.handles
+            .write()
+            .await
+            .insert(cam.id, CameraWorkerControl::new(join, camera_stop_tx));
         Ok(())
     }
 
     pub async fn stop_camera(&self, camera_id: i64) {
-        if let Some(handle) = self.handles.write().await.remove(&camera_id) {
-            handle.abort();
+        if let Some(ctrl) = self.handles.write().await.remove(&camera_id) {
+            let _ = ctrl.stop.send(true);
+            let mut join = ctrl.join;
+            if tokio::time::timeout(Duration::from_secs(15), &mut join)
+                .await
+                .is_err()
+            {
+                warn!(camera_id, "camera worker stop timed out — aborting task");
+                join.abort();
+            }
         }
-        if let Some(state) = self.states.write().await.get_mut(&camera_id) {
-            state.status = CameraStatus::Stopped;
-        }
+        self.states.write().await.remove(&camera_id);
         info!(camera_id, processor_id = %self.cfg.processor_id, "worker stopped");
     }
 
@@ -176,7 +194,10 @@ mod tests {
             processor_hostname: "host".into(),
             processor_version: "0.1.0".into(),
             worker_tipo: "rust_processor".into(),
-            sync_filter_worker_id: false,
+            worker_id: "worker-01".into(),
+            shard_mode: crate::config::ShardMode::Auto,
+            worker_shard_index: -1,
+            worker_shard_total: 0,
             mediamtx_node_id: 0,
             redis_url: None,
             s3_endpoint: None,

@@ -1,19 +1,15 @@
-use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
 
 use chrono::Utc;
-use tokio::sync::RwLock;
 
-use crate::camera::{CameraRuntimeState, CameraStatus, FpsEstimator};
+use crate::camera::{CameraStatus, FpsEstimator, SharedCameraState};
 use crate::metrics::ProcessorMetrics;
 
-/// Referências compartilhadas para atualização incremental durante captura RTSP/simulada.
+/// Referências para atualização incremental durante captura RTSP/simulada (por câmera).
 pub struct LiveCaptureContext<'a> {
     pub metrics: &'a ProcessorMetrics,
     pub global_frames: &'a AtomicU64,
-    pub states: &'a Arc<RwLock<HashMap<i64, CameraRuntimeState>>>,
-    pub camera_id: i64,
+    pub state: &'a SharedCameraState,
     pub fps_est: &'a mut FpsEstimator,
 }
 
@@ -24,13 +20,11 @@ pub async fn record_frame_received(ctx: &mut LiveCaptureContext<'_>) {
 
     let fps_update = ctx.fps_est.record_frame();
 
-    let mut map = ctx.states.write().await;
-    if let Some(s) = map.get_mut(&ctx.camera_id) {
-        s.frames_received += 1;
-        s.last_frame_at = Some(Utc::now());
-        s.status = CameraStatus::Online;
-        if let Some(fps) = fps_update {
-            s.fps = fps;
-        }
+    let mut s = ctx.state.write().await;
+    s.frames_received += 1;
+    s.last_frame_at = Some(Utc::now());
+    s.status = CameraStatus::Online;
+    if let Some(fps) = fps_update {
+        s.fps = fps;
     }
 }

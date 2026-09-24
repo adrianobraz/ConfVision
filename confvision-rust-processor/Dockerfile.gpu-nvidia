@@ -1,0 +1,39 @@
+# Imagem opcional — NVIDIA Container Toolkit + FFmpeg com NVDEC (h264_cuvid).
+# Não substitui o Dockerfile CPU (Bookworm slim sem CUDA).
+#
+# Build:
+#   docker build -f Dockerfile.gpu-nvidia -t confvision-rust-processor:nvdec .
+# Run (exemplo):
+#   docker run --gpus all -e VIDEO_ACCELERATION=auto ...
+
+FROM nvidia/cuda:12.2.0-devel-ubuntu22.04 AS builder
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates pkg-config clang libclang-dev \
+    && rm -rf /var/lib/apt/lists/*
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.88.0
+ENV PATH="/root/.cargo/bin:${PATH}"
+# FFmpeg com suporte CUDA/NVDEC (Ubuntu 22.04 — ajuste conforme mirror/apt do host).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libavcodec-dev libavutil-dev libavformat-dev \
+    && rm -rf /var/lib/apt/lists/*
+COPY Cargo.toml Cargo.lock* ./
+RUN mkdir src && echo "fn main(){}" > src/main.rs \
+    && cargo build --release --features ffmpeg-decode,ffmpeg-nvdec \
+    && rm -rf src
+COPY src ./src
+RUN touch src/main.rs && cargo build --release --features ffmpeg-decode,ffmpeg-nvdec
+
+FROM nvidia/cuda:12.2.0-runtime-ubuntu22.04
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libavcodec58 libavutil56 \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=builder /app/target/release/confvision-rust-processor /usr/local/bin/confvision-rust-processor
+ENV HTTP_HOST=0.0.0.0
+ENV HTTP_PORT=8090
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,video,utility
+EXPOSE 8090
+ENTRYPOINT ["/usr/local/bin/confvision-rust-processor"]

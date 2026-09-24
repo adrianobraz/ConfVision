@@ -1,8 +1,9 @@
+use std::sync::Arc;
 use std::time::Instant;
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-
+use tokio::sync::RwLock;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CameraStatus {
@@ -23,6 +24,7 @@ pub struct CameraRuntimeState {
     pub last_error: Option<String>,
     pub fps: f64,
     pub reconnect_count: u64,
+    pub rtsp_errors: u64,
     pub started_at: DateTime<Utc>,
     pub frames_received: u64,
     pub frames_dropped: u64,
@@ -52,6 +54,7 @@ impl CameraRuntimeState {
             last_error: None,
             fps: 0.0,
             reconnect_count: 0,
+            rtsp_errors: 0,
             started_at: Utc::now(),
             frames_received: 0,
             frames_dropped: 0,
@@ -98,6 +101,9 @@ impl FpsEstimator {
         None
     }
 }
+
+/// Estado runtime de uma câmera — lock independente (multi-câmera sem bloquear o mapa global).
+pub type SharedCameraState = Arc<RwLock<CameraRuntimeState>>;
 
 impl Default for FpsEstimator {
     fn default() -> Self {

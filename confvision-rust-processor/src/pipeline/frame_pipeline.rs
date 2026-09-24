@@ -1,11 +1,11 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use tokio::sync::{Notify, RwLock};
+use tokio::sync::Notify;
 
-use crate::camera::CameraRuntimeState;
+use crate::camera::SharedCameraState;
 use crate::decode::{
     AccelerationRuntime, DecodeInput, DecodeOutcome, H264Decoder, SessionDecodeContext,
 };
@@ -72,8 +72,7 @@ struct FramePipelineInner {
     notify: Notify,
     buffer_size: AtomicUsize,
     metrics: Arc<ProcessorMetrics>,
-    states: Arc<RwLock<HashMap<i64, CameraRuntimeState>>>,
-    camera_id: i64,
+    state: SharedCameraState,
 }
 
 /// Pipeline assíncrona por câmera (producer RTSP / consumer dedicado).
@@ -83,12 +82,7 @@ pub struct FramePipeline {
 }
 
 impl FramePipeline {
-    pub fn new(
-        capacity: usize,
-        metrics: Arc<ProcessorMetrics>,
-        states: Arc<RwLock<HashMap<i64, CameraRuntimeState>>>,
-        camera_id: i64,
-    ) -> Self {
+    pub fn new(capacity: usize, metrics: Arc<ProcessorMetrics>, state: SharedCameraState) -> Self {
         let cap = capacity.max(1);
         let pipeline = Self {
             inner: Arc::new(FramePipelineInner {
@@ -97,8 +91,7 @@ impl FramePipeline {
                 notify: Notify::new(),
                 buffer_size: AtomicUsize::new(0),
                 metrics,
-                states,
-                camera_id,
+                state,
             }),
         };
         pipeline.set_camera_buffer_capacity(cap);
@@ -177,39 +170,30 @@ impl FramePipeline {
     }
 
     fn set_camera_buffer_capacity(&self, cap: usize) {
-        let states = self.inner.states.clone();
-        let camera_id = self.inner.camera_id;
+        let state = self.inner.state.clone();
         tokio::spawn(async move {
-            let mut map = states.write().await;
-            if let Some(s) = map.get_mut(&camera_id) {
-                s.buffer_capacity = cap as u64;
-            }
+            let mut s = state.write().await;
+            s.buffer_capacity = cap as u64;
         });
     }
 
     fn sync_camera_buffer(&self, size: usize) {
-        let states = self.inner.states.clone();
-        let camera_id = self.inner.camera_id;
+        let state = self.inner.state.clone();
         tokio::spawn(async move {
-            let mut map = states.write().await;
-            if let Some(s) = map.get_mut(&camera_id) {
-                s.buffer_size = size as u64;
-            }
+            let mut s = state.write().await;
+            s.buffer_size = size as u64;
         });
     }
 
     fn sync_after_enqueue(&self, size: usize, buffer_was_full: bool) {
-        let states = self.inner.states.clone();
-        let camera_id = self.inner.camera_id;
+        let state = self.inner.state.clone();
         tokio::spawn(async move {
-            let mut map = states.write().await;
-            if let Some(s) = map.get_mut(&camera_id) {
-                s.buffer_size = size as u64;
-                s.frames_enqueued += 1;
-                if buffer_was_full {
-                    s.frames_dropped += 1;
-                    s.buffer_full_events += 1;
-                }
+            let mut s = state.write().await;
+            s.buffer_size = size as u64;
+            s.frames_enqueued += 1;
+            if buffer_was_full {
+                s.frames_dropped += 1;
+                s.buffer_full_events += 1;
             }
         });
     }
@@ -218,35 +202,24 @@ impl FramePipeline {
         let latency_ms = frame.captured_at.elapsed().as_millis() as u64;
         self.inner.metrics.record_processed(latency_ms);
 
-        let states = self.inner.states.clone();
-        let camera_id = self.inner.camera_id;
-        let mut map = states.write().await;
-        if let Some(s) = map.get_mut(&camera_id) {
-            s.frames_processed += 1;
-            s.last_frame_latency_ms = latency_ms;
-        }
+        let mut s = self.inner.state.write().await;
+        s.frames_processed += 1;
+        s.last_frame_latency_ms = latency_ms;
     }
 
     pub async fn record_decode_success(&self, latency_ms: u64) {
         self.inner.metrics.record_decode_success(latency_ms);
-        let states = self.inner.states.clone();
-        let camera_id = self.inner.camera_id;
-        let mut map = states.write().await;
-        if let Some(s) = map.get_mut(&camera_id) {
-            s.frames_decoded += 1;
-            s.last_decode_ms = latency_ms;
-        }
+        let mut s = self.inner.state.write().await;
+        s.frames_decoded += 1;
+        s.last_decode_ms = latency_ms;
     }
 
     pub fn record_decode_error(&self) {
         self.inner.metrics.record_decode_error();
-        let states = self.inner.states.clone();
-        let camera_id = self.inner.camera_id;
+        let state = self.inner.state.clone();
         tokio::spawn(async move {
-            let mut map = states.write().await;
-            if let Some(s) = map.get_mut(&camera_id) {
-                s.decode_errors += 1;
-            }
+            let mut s = state.write().await;
+            s.decode_errors += 1;
         });
     }
 
@@ -259,28 +232,21 @@ impl FramePipeline {
         self.inner
             .metrics
             .record_motion_analyzed(score_percent, detected, latency_ms);
-        let states = self.inner.states.clone();
-        let camera_id = self.inner.camera_id;
-        let mut map = states.write().await;
-        if let Some(s) = map.get_mut(&camera_id) {
-            s.frames_motion_analyzed += 1;
-            s.last_motion_score = score_percent as u64;
-            s.last_motion_ms = latency_ms;
-            if detected {
-                s.motion_detected += 1;
-            }
+        let mut s = self.inner.state.write().await;
+        s.frames_motion_analyzed += 1;
+        s.last_motion_score = score_percent as u64;
+        s.last_motion_ms = latency_ms;
+        if detected {
+            s.motion_detected += 1;
         }
     }
 
     pub fn record_motion_error(&self) {
         self.inner.metrics.record_motion_error();
-        let states = self.inner.states.clone();
-        let camera_id = self.inner.camera_id;
+        let state = self.inner.state.clone();
         tokio::spawn(async move {
-            let mut map = states.write().await;
-            if let Some(s) = map.get_mut(&camera_id) {
-                s.motion_errors += 1;
-            }
+            let mut s = state.write().await;
+            s.motion_errors += 1;
         });
     }
 }
@@ -318,21 +284,27 @@ pub async fn run_frame_consumer(
                     Some(f) => {
                         if decode_enabled {
                             let started = Instant::now();
-                            match h264_decoder.decode(
-                                &decode_ctx,
-                                DecodeInput {
-                                    payload: &f.payload,
-                                    is_keyframe: f.is_keyframe,
-                                    rtp_timestamp_ticks: Some(f.rtp_timestamp.timestamp),
-                                },
-                            ) {
-                                DecodeOutcome::Decoded(frame) => {
+                            let decode_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                                h264_decoder.decode(
+                                    &decode_ctx,
+                                    DecodeInput {
+                                        payload: &f.payload,
+                                        is_keyframe: f.is_keyframe,
+                                        rtp_timestamp_ticks: Some(f.rtp_timestamp.timestamp),
+                                    },
+                                )
+                            }));
+                            match decode_result {
+                                Ok(DecodeOutcome::Decoded(frame)) => {
                                     let decode_ms = started.elapsed().as_millis() as u64;
                                     pipeline.record_decode_success(decode_ms).await;
 
                                     let motion_started = Instant::now();
-                                    match motion_detector.analyze(&frame) {
-                                        MotionOutcome::ReferenceSet => {
+                                    let motion_result = std::panic::catch_unwind(
+                                        std::panic::AssertUnwindSafe(|| motion_detector.analyze(&frame)),
+                                    );
+                                    match motion_result {
+                                        Ok(MotionOutcome::ReferenceSet) => {
                                             pipeline
                                                 .record_motion_analyzed(
                                                     0,
@@ -342,10 +314,10 @@ pub async fn run_frame_consumer(
                                                 .await;
                                             tracing::debug!(seq = f.seq, "motion reference set");
                                         }
-                                        MotionOutcome::Analyzed {
+                                        Ok(MotionOutcome::Analyzed {
                                             detected,
                                             score_percent,
-                                        } => {
+                                        }) => {
                                             pipeline
                                                 .record_motion_analyzed(
                                                     score_percent,
@@ -361,15 +333,23 @@ pub async fn run_frame_consumer(
                                                 );
                                             }
                                         }
-                                        MotionOutcome::Error => {
+                                        Ok(MotionOutcome::Error) => {
                                             tracing::debug!(seq = f.seq, "motion luma error");
+                                            pipeline.record_motion_error();
+                                        }
+                                        Err(_) => {
+                                            tracing::warn!(seq = f.seq, "motion analyze panicked");
                                             pipeline.record_motion_error();
                                         }
                                     }
                                 }
-                                DecodeOutcome::NotReady => {}
-                                DecodeOutcome::Failed(e) => {
+                                Ok(DecodeOutcome::NotReady) => {}
+                                Ok(DecodeOutcome::Failed(e)) => {
                                     tracing::debug!(error = %e, seq = f.seq, "h264 decode");
+                                    pipeline.record_decode_error();
+                                }
+                                Err(_) => {
+                                    tracing::warn!(seq = f.seq, "h264 decode panicked");
                                     pipeline.record_decode_error();
                                 }
                             }
@@ -388,10 +368,20 @@ pub async fn run_frame_consumer(
 mod tests {
     use super::*;
     use std::sync::atomic::AtomicU64;
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
 
+    use crate::camera::{CameraRuntimeState, SharedCameraState};
     use crate::decode::{
         AccelerationPolicy, AccelerationRuntime, VideoAccelerationMode, VideoGpuBackend,
     };
+
+    fn test_state(id: i64) -> SharedCameraState {
+        Arc::new(RwLock::new(CameraRuntimeState::new(
+            id,
+            "rtsp://test".into(),
+        )))
+    }
 
     fn test_acceleration_runtime() -> Arc<AccelerationRuntime> {
         AccelerationRuntime::bootstrap(AccelerationPolicy::from_parts(
@@ -417,10 +407,6 @@ mod tests {
 
     fn test_metrics() -> Arc<ProcessorMetrics> {
         Arc::new(ProcessorMetrics::new("test-pipeline"))
-    }
-
-    fn empty_states() -> Arc<RwLock<HashMap<i64, CameraRuntimeState>>> {
-        Arc::new(RwLock::new(HashMap::new()))
     }
 
     #[test]
@@ -502,42 +488,31 @@ mod tests {
     #[tokio::test]
     async fn processed_increments_via_pipeline() {
         let metrics = test_metrics();
-        let states = empty_states();
-        states
-            .write()
-            .await
-            .insert(1, CameraRuntimeState::new(1, "rtsp://test".into()));
-        let pipeline = FramePipeline::new(2, metrics.clone(), states.clone(), 1);
+        let state = test_state(1);
+        let pipeline = FramePipeline::new(2, metrics.clone(), state.clone());
         pipeline.try_enqueue(test_frame(1, 0x01, false));
         let frame = pipeline.dequeue().await.unwrap();
         pipeline.record_processed(&frame).await;
         assert_eq!(metrics.frames_processed.load(Ordering::Relaxed), 1);
-        let map = states.read().await;
-        assert_eq!(map.get(&1).unwrap().frames_processed, 1);
+        assert_eq!(state.read().await.frames_processed, 1);
     }
 
     #[tokio::test]
     async fn buffer_size_tracks_len() {
         let metrics = test_metrics();
-        let states = empty_states();
-        states
-            .write()
-            .await
-            .insert(2, CameraRuntimeState::new(2, "rtsp://test".into()));
-        let pipeline = FramePipeline::new(3, metrics, states.clone(), 2);
+        let state = test_state(2);
+        let pipeline = FramePipeline::new(3, metrics, state.clone());
         pipeline.try_enqueue(test_frame(1, 1, false));
         pipeline.try_enqueue(test_frame(2, 2, false));
         assert_eq!(pipeline.len(), 2);
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-        let map = states.read().await;
-        assert_eq!(map.get(&2).unwrap().buffer_size, 2);
+        assert_eq!(state.read().await.buffer_size, 2);
     }
 
     #[tokio::test]
     async fn close_clears_queue() {
         let metrics = test_metrics();
-        let states = empty_states();
-        let pipeline = FramePipeline::new(2, metrics, states, 3);
+        let pipeline = FramePipeline::new(2, metrics, test_state(3));
         pipeline.try_enqueue(test_frame(1, 1, false));
         pipeline.try_enqueue(test_frame(2, 2, false));
         pipeline.close();
@@ -548,17 +523,8 @@ mod tests {
     #[tokio::test]
     async fn cameras_isolated() {
         let metrics = test_metrics();
-        let states = empty_states();
-        states
-            .write()
-            .await
-            .insert(1, CameraRuntimeState::new(1, "a".into()));
-        states
-            .write()
-            .await
-            .insert(2, CameraRuntimeState::new(2, "b".into()));
-        let p1 = FramePipeline::new(2, metrics.clone(), states.clone(), 1);
-        let p2 = FramePipeline::new(2, metrics.clone(), states.clone(), 2);
+        let p1 = FramePipeline::new(2, metrics.clone(), test_state(1));
+        let p2 = FramePipeline::new(2, metrics.clone(), test_state(2));
         p1.try_enqueue(test_frame(10, 0x10, false));
         p2.try_enqueue(test_frame(20, 0x20, false));
         p2.try_enqueue(test_frame(21, 0x21, true));
@@ -569,12 +535,7 @@ mod tests {
     #[tokio::test]
     async fn fast_producer_slow_consumer_drops() {
         let metrics = test_metrics();
-        let states = empty_states();
-        states
-            .write()
-            .await
-            .insert(1, CameraRuntimeState::new(1, "a".into()));
-        let pipeline = FramePipeline::new(2, metrics.clone(), states, 1);
+        let pipeline = FramePipeline::new(2, metrics.clone(), test_state(1));
         for seq in 1..=10 {
             pipeline.try_enqueue(test_frame(seq, seq as u8, false));
         }
@@ -586,11 +547,10 @@ mod tests {
     #[tokio::test]
     async fn reconnect_new_pipeline_empty() {
         let metrics = test_metrics();
-        let states = empty_states();
-        let old = FramePipeline::new(2, metrics.clone(), states.clone(), 1);
+        let old = FramePipeline::new(2, metrics.clone(), test_state(1));
         old.try_enqueue(test_frame(1, 1, false));
         old.close();
-        let new_pipe = FramePipeline::new(2, metrics, states, 1);
+        let new_pipe = FramePipeline::new(2, metrics, test_state(1));
         assert_eq!(new_pipe.len(), 0);
         assert!(!new_pipe.is_closed());
     }
@@ -598,8 +558,7 @@ mod tests {
     #[tokio::test]
     async fn consumer_drains_without_deadlock() {
         let metrics = test_metrics();
-        let states = empty_states();
-        let pipeline = FramePipeline::new(4, metrics.clone(), states, 1);
+        let pipeline = FramePipeline::new(4, metrics.clone(), test_state(1));
         let (tx, rx) = tokio::sync::watch::channel(false);
         let (gtx, grx) = tokio::sync::watch::channel(false);
         let p = pipeline.clone();

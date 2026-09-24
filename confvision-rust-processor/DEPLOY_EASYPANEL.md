@@ -284,6 +284,153 @@ WHERE id = <ID_CAMERA_PILOTO>;
 
 ---
 
+## Variáveis — serviço `rust-pilot` (foxpro)
+
+Documentação **sem segredos** para colar no Environment do EasyPanel. Valores sensíveis ficam **somente no painel** (copiar dos serviços Python existentes na mesma VPS).
+
+### O que copiar de outros apps (mesma stack)
+
+| Variável Rust | Onde olhar no EasyPanel | Observação |
+|---------------|-------------------------|------------|
+| `CONFVISION_API_URL` | Base HTTPS usada pelos workers (ex.: env legada `XANO_BASE_URL` em `confvision-worker`) | Use **este nome** no Rust (`CONFVISION_API_URL`). **Não** defina `XANO_BASE_URL` no Rust — o binário recusa. A URL não pode conter `*.xano.io`. Deve ser a app que expõe `/vis_camera_sync_ativas` e `/vis_worker_ping`. |
+| `VIS_WORKER_API_KEY` | `confvision-worker`, `confvision-dvr`, `confvision-motion`, etc. | Mesmo valor em todos os workers. |
+| `MEDIAMTX_RTSP_BASE` | `confvision-worker` (ex.: host interno `rtsp://…:8554`) | Deve ser alcançável **de dentro** do container Rust (rede Docker foxpro). |
+| `RTMP_PUBLISH_SECRET` | `confvision-worker` / `confvision` | Igual MediaMTX / Hashids `cam/{hash12}`. |
+
+**Não copiar** para o Rust: `REDIS_URL`, `CONFIG_CACHE_*`, `CONTABO_S3_*`, `MEDIAMTX_API_*`, chaves RTMP guard, `WORKER_ID` (Python), YOLO, etc.
+
+### Bloco fixo do piloto (1 câmera)
+
+```env
+PROCESSOR_ID=rust-processor-pilot-01
+PROCESSOR_VERSION=0.1.0
+WORKER_TIPO=rust_processor
+SYNC_FILTER_WORKER_ID=true
+MAX_CAMERAS=1
+HTTP_HOST=0.0.0.0
+HTTP_PORT=8090
+LOG_LEVEL=info
+MEDIAMTX_NODE_ID=0
+SYNC_INTERVAL_SEC=60
+PING_INTERVAL_SEC=30
+QUEUE_BACKEND=none
+```
+
+### Quatro variáveis a preencher no painel (placeholders)
+
+Adicione **abaixo** do bloco fixo, com valores reais copiados da VPS:
+
+```env
+CONFVISION_API_URL=SUBSTITUIR_PELA_BASE_DA_API_GO
+VIS_WORKER_API_KEY=SUBSTITUIR_PELA_CHAVE_DO_WORKER
+MEDIAMTX_RTSP_BASE=rtsp://SUBSTITUIR_HOST_MEDIAMTX:8554
+RTMP_PUBLISH_SECRET=SUBSTITUIR_PELO_SEGREDO_RTMP
+```
+
+### Proibido / ausente no piloto Rust Fase 1
+
+Não definir: `RTSP_SIMULATE`, `XANO_BASE_URL`, `XANO_API_FRANQUEADO_PRO`, `REDIS_URL`, `S3_ENDPOINT`, `S3_BUCKET`.
+
+### `MEDIAMTX_NODE_ID`
+
+Workers Python na VPS costumam usar `MEDIAMTX_NODE_ID=1`. O piloto Rust usa default **`0`** (não envia filtro de nó extra). Se o sync não listar a câmera esperada, alinhe com o nó da câmera na API antes de mudar este valor.
+
+---
+
+## Acesso HTTP e Métricas — Rust Pilot
+
+Documentação do ambiente **atual** do Rust Pilot no EasyPanel (foxpro), após deploy com decode H.264 (Fase 3.1).
+
+### Domínio público do Rust Pilot
+
+<https://foxpro-rust-pilot.rkr351.easypanel.host/>
+
+### Endpoint de métricas
+
+<https://foxpro-rust-pilot.rkr351.easypanel.host/metrics>
+
+### Porta interna
+
+**8090**
+
+### Configuração do domínio no EasyPanel
+
+| Campo | Valor |
+|--------|--------|
+| HTTPS | ativado |
+| Host | `foxpro-rust-pilot.rkr351.easypanel.host` |
+| Destino | HTTP |
+| Porta | **8090** |
+| Path | `/` |
+
+### Endpoint disponível
+
+**`GET /metrics`**
+
+O endpoint retorna JSON com as métricas do processador Rust.
+
+Principais campos:
+
+| Campo | Descrição (resumo) |
+|--------|---------------------|
+| `processor_id` | ID do processor (`PROCESSOR_ID`) |
+| `uptime_secs` | Tempo de execução do processo |
+| `frames_received` | Frames recebidos do RTSP |
+| `frames_dropped` | Frames descartados antes da fila |
+| `frames_enqueued` | Frames enfileirados no pipeline |
+| `frames_processed` | Frames consumidos pelo worker (incl. tentativas de decode) |
+| `buffer_full_events` | Eventos de fila cheia (drop-oldest) |
+| `frame_latency_ms` | Latência frame (captura → fila) |
+| `frames_decoded` | Frames decodificados com sucesso (H.264) |
+| `decode_errors` | Falhas de decode por frame (não derrubam RTSP) |
+| `decode_ms` | Tempo acumulado de decode |
+| `last_decode_ms` | Último tempo de decode por frame |
+| `reconnects` | Reconexões RTSP |
+| `rtsp_errors` | Erros RTSP |
+| `errors` | Erros gerais do processor |
+| `cameras_total` | Câmeras gerenciadas |
+| `cameras_online` | Câmeras com RTSP ativo |
+| `cameras_offline` | Câmeras offline / reconectando |
+| `fps_total` | FPS agregado estimado |
+| `queue_depth` | Profundidade atual da fila |
+| `processing_latency_ms` | Latência fila → consumer |
+
+### Exemplo de métricas validadas em 24/09/2026
+
+Snapshot real do piloto após validação com stream H.264 da câmera:
+
+```json
+{
+  "processor_id": "rust-processor-pilot-01",
+  "uptime_secs": 320,
+  "frames_received": 4654,
+  "frames_dropped": 0,
+  "frames_enqueued": 4654,
+  "frames_processed": 4654,
+  "buffer_full_events": 0,
+  "frame_latency_ms": 0,
+  "frames_decoded": 4635,
+  "decode_errors": 0,
+  "decode_ms": 0,
+  "last_decode_ms": 0,
+  "reconnects": 0,
+  "rtsp_errors": 0,
+  "errors": 0,
+  "cameras_total": 1,
+  "cameras_online": 1,
+  "cameras_offline": 0,
+  "fps_total": 14.4954,
+  "queue_depth": 0,
+  "processing_latency_ms": 0
+}
+```
+
+**Observação:** Este endpoint foi utilizado durante a validação do decode H.264 real no Rust Pilot. O teste apresentou 4.654 frames recebidos, 4.635 frames decodificados, zero frames descartados, zero erros de decode e fila com profundidade zero.
+
+**Observação (recursos do host):** CPU/RAM/GPU não devem ser inferidos a partir deste endpoint. O próprio endpoint informa que esses recursos precisam ser medidos no host (EasyPanel / `docker stats` — ver seção 13).
+
+---
+
 ## Referência rápida
 
 | Item | Valor |

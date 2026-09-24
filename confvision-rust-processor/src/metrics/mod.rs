@@ -172,6 +172,10 @@ impl ProcessorMetrics {
                 .as_ref()
                 .map(|a| a.hw_fallback_to_cpu_count)
                 .unwrap_or(0),
+            frames_hw_decoded: accel.as_ref().map(|a| a.frames_hw_decoded).unwrap_or(0),
+            frames_cpu_decoded: accel.as_ref().map(|a| a.frames_cpu_decoded).unwrap_or(0),
+            last_hw_decode_ms: accel.as_ref().map(|a| a.last_hw_decode_ms).unwrap_or(0),
+            hw_transfer_to_cpu_ms: accel.as_ref().map(|a| a.hw_transfer_to_cpu_ms).unwrap_or(0),
         }
     }
 }
@@ -185,6 +189,10 @@ struct AccelerationSnapshotFields {
     hardware_decode_active: bool,
     hw_decode_errors: u64,
     hw_fallback_to_cpu_count: u64,
+    frames_hw_decoded: u64,
+    frames_cpu_decoded: u64,
+    last_hw_decode_ms: u64,
+    hw_transfer_to_cpu_ms: u64,
 }
 
 fn acceleration_snapshot_fields(
@@ -199,6 +207,10 @@ fn acceleration_snapshot_fields(
         hardware_decode_active: acceleration.hardware_decode_active(),
         hw_decode_errors: acceleration.hw_decode_errors(),
         hw_fallback_to_cpu_count: acceleration.hw_fallback_to_cpu_count(),
+        frames_hw_decoded: acceleration.frames_hw_decoded(),
+        frames_cpu_decoded: acceleration.frames_cpu_decoded(),
+        last_hw_decode_ms: acceleration.last_hw_decode_ms(),
+        hw_transfer_to_cpu_ms: acceleration.hw_transfer_to_cpu_ms(),
     }
 }
 
@@ -233,6 +245,10 @@ pub struct MetricsSnapshot {
     pub hardware_decode_active: bool,
     pub hw_decode_errors: u64,
     pub hw_fallback_to_cpu_count: u64,
+    pub frames_hw_decoded: u64,
+    pub frames_cpu_decoded: u64,
+    pub last_hw_decode_ms: u64,
+    pub hw_transfer_to_cpu_ms: u64,
 }
 
 pub type SharedMetrics = Arc<ProcessorMetrics>;

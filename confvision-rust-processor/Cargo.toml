@@ -28,6 +28,8 @@ ffmpeg-next = { version = "=6.1.1", optional = true, default-features = false, f
 
 [features]
 ffmpeg-decode = ["dep:ffmpeg-next"]
+# NVDEC/CUDA via FFmpeg (requer libav com h264_cuvid + runtime NVIDIA). Compila sem GPU física.
+ffmpeg-nvdec = []
 
 [dev-dependencies]
 wiremock = "0.6"

@@ -61,6 +61,10 @@ pub struct WorkerPingRequest {
     pub vis_mediamtx_node_id: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_cameras: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shard_index: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shard_total: Option<i32>,
 }
 
 impl ConfVisionClient {
@@ -232,7 +236,10 @@ mod tests {
             processor_hostname: "host".into(),
             processor_version: "0.1.0".into(),
             worker_tipo: "rust_processor".into(),
-            sync_filter_worker_id: false,
+            worker_id: "worker-01".into(),
+            shard_mode: crate::config::ShardMode::Auto,
+            worker_shard_index: -1,
+            worker_shard_total: 0,
             mediamtx_node_id: 0,
             redis_url: None,
             s3_endpoint: None,

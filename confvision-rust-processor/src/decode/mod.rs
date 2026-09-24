@@ -6,6 +6,9 @@ mod luma;
 mod types;
 
 #[cfg(feature = "ffmpeg-decode")]
+pub(crate) mod backend;
+
+#[cfg(feature = "ffmpeg-decode")]
 mod ffmpeg_backend;
 
 #[cfg(test)]
