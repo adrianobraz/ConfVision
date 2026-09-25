@@ -7,6 +7,7 @@ use serde::Serialize;
 use tokio::sync::RwLock;
 
 use crate::camera::{CameraRuntimeState, CameraStatus};
+use crate::capacity::{CapacityEngine, CapacitySnapshot, CapacityState, LimitingResource};
 use crate::config::Config;
 use crate::decode::AccelerationRuntime;
 use crate::metrics::{MetricsSnapshot, SharedMetrics};
@@ -46,6 +47,7 @@ pub struct AppState {
         Arc<RwLock<std::collections::HashMap<i64, crate::camera::SharedCameraState>>>,
     pub api_ready: Arc<std::sync::atomic::AtomicBool>,
     pub identity: RuntimeIdentity,
+    pub capacity: Arc<CapacityEngine>,
 }
 
 #[derive(Serialize)]
@@ -69,6 +71,11 @@ pub struct HealthResponse {
     pub fps_total: f64,
     pub reconnects: u64,
     pub errors: u64,
+    pub capacity_state: CapacityState,
+    pub capacity_used_percent: Option<f64>,
+    pub estimated_capacity_cameras: Option<u32>,
+    pub estimated_available_cameras: Option<i32>,
+    pub limiting_resource: LimitingResource,
 }
 
 #[derive(Serialize)]
@@ -80,6 +87,7 @@ pub struct ReadyResponse {
 pub async fn health_handler(State(st): State<AppState>) -> Json<HealthResponse> {
     let snap = st.metrics.snapshot();
     let summary = summarize_cameras(&st.camera_states).await;
+    let cap = st.capacity.snapshot().await;
     Json(HealthResponse {
         status: "ok",
         processor_id: st.identity.processor_id.clone(),
@@ -100,6 +108,11 @@ pub async fn health_handler(State(st): State<AppState>) -> Json<HealthResponse> 
         fps_total: summary.fps_total,
         reconnects: snap.reconnects,
         errors: snap.errors + snap.rtsp_errors,
+        capacity_state: cap.state,
+        capacity_used_percent: cap.capacity_used_percent,
+        estimated_capacity_cameras: cap.estimated_capacity_cameras,
+        estimated_available_cameras: cap.estimated_available_cameras,
+        limiting_resource: cap.limiting_resource,
     })
 }
 
@@ -126,6 +139,7 @@ pub async fn metrics_handler(State(st): State<AppState>) -> Json<MetricsBody> {
     let frame_latency_ms = snap.frame_latency_ms;
     let summary = summarize_cameras(&st.camera_states).await;
     let cameras = snapshot_camera_states(&st.camera_states).await;
+    let capacity = st.capacity.snapshot().await;
     Json(MetricsBody {
         identity: st.identity.clone(),
         metrics: snap,
@@ -137,7 +151,8 @@ pub async fn metrics_handler(State(st): State<AppState>) -> Json<MetricsBody> {
         queue_depth: summary.queue_depth,
         processing_latency_ms: frame_latency_ms,
         cameras,
-        note: "CPU/RAM/GPU — PRECISA SER MEDIDO no host",
+        capacity,
+        note: "capacity.mode=dynamic: MAX_CAMERAS é apenas hard safety limit",
     })
 }
 
@@ -154,6 +169,7 @@ pub struct MetricsBody {
     pub processing_latency_ms: u64,
     /// Métricas por câmera (mesmos campos que `CameraRuntimeState`).
     pub cameras: Vec<CameraRuntimeState>,
+    pub capacity: CapacitySnapshot,
     pub note: &'static str,
 }
 
@@ -211,4 +227,123 @@ async fn snapshot_camera_states(
     }
     out.sort_by_key(|c| c.camera_id);
     out
+}
+
+#[cfg(test)]
+mod integration_tests {
+    use super::*;
+    use crate::capacity::CapacityEngine;
+    use crate::config::{CapacityMode, Config, ShardMode};
+    use crate::decode::{
+        AccelerationPolicy, AccelerationRuntime, VideoAccelerationMode, VideoGpuBackend,
+    };
+    use crate::metrics::ProcessorMetrics;
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    fn test_config() -> Config {
+        Config {
+            confvision_api_url: "http://localhost".into(),
+            vis_worker_api_key: String::new(),
+            mediamtx_rtsp_base: "rtsp://x".into(),
+            rtmp_publish_secret: None,
+            processor_id: "proc".into(),
+            processor_hostname: "h".into(),
+            processor_version: "0.1.0".into(),
+            worker_id: "worker".into(),
+            worker_tipo: "rust_processor".into(),
+            shard_mode: ShardMode::Auto,
+            worker_shard_index: -1,
+            worker_shard_total: 0,
+            mediamtx_node_id: 0,
+            redis_url: None,
+            s3_endpoint: None,
+            s3_bucket: None,
+            http_host: "127.0.0.1".into(),
+            http_port: 8090,
+            log_level: "info".into(),
+            max_cameras: 10,
+            sync_interval: Duration::from_secs(60),
+            ping_interval: Duration::from_secs(30),
+            rtsp_connect_timeout: Duration::from_secs(5),
+            rtsp_reconnect_base: Duration::from_secs(10),
+            rtsp_frame_timeout: Duration::from_secs(30),
+            frame_buffer_max: 2,
+            queue_backend: "none".into(),
+            capacity_mode: CapacityMode::Dynamic,
+            capacity_cpu_target_percent: 80.0,
+            capacity_memory_target_percent: 80.0,
+            capacity_gpu_target_percent: 80.0,
+            capacity_vram_target_percent: 80.0,
+            capacity_min_sample_sec: 30,
+            capacity_safety_factor: 0.80,
+            capacity_history_size: 120,
+            capacity_sample_interval_sec: 5,
+        }
+    }
+
+    #[tokio::test]
+    async fn metrics_json_includes_capacity_section() {
+        let cfg = test_config();
+        let metrics = Arc::new(ProcessorMetrics::new("proc"));
+        let acceleration = AccelerationRuntime::bootstrap(AccelerationPolicy::from_parts(
+            VideoAccelerationMode::Cpu,
+            VideoGpuBackend::Auto,
+        ))
+        .unwrap();
+        let capacity = CapacityEngine::new(&cfg);
+        let body = MetricsBody {
+            identity: RuntimeIdentity::from_config(&cfg),
+            metrics: metrics.snapshot(),
+            cameras_total: 0,
+            cameras_online: 0,
+            cameras_offline: 0,
+            cameras_reconnecting: 0,
+            fps_total: 0.0,
+            queue_depth: 0,
+            processing_latency_ms: 0,
+            cameras: vec![],
+            capacity: capacity.snapshot().await,
+            note: "test",
+        };
+        let v = serde_json::to_value(&body).unwrap();
+        assert!(v.get("capacity").is_some());
+        assert_eq!(v["capacity"]["mode"], "dynamic");
+    }
+
+    #[tokio::test]
+    async fn health_json_includes_capacity_summary_fields() {
+        let cfg = test_config();
+        let cap = CapacityEngine::new(&cfg);
+        let snap = cap.snapshot().await;
+        let health = HealthResponse {
+            status: "ok",
+            processor_id: cfg.processor_id.clone(),
+            worker_id: cfg.worker_id.clone(),
+            worker_tipo: cfg.worker_tipo.clone(),
+            shard_mode: cfg.shard_mode.as_str().to_string(),
+            worker_shard_index: cfg.worker_shard_index,
+            worker_shard_total: cfg.worker_shard_total,
+            mediamtx_node_id: cfg.mediamtx_node_id,
+            max_cameras: cfg.max_cameras,
+            uptime_secs: 0,
+            cameras_total: 0,
+            cameras_online: 0,
+            cameras_offline: 0,
+            cameras_reconnecting: 0,
+            cameras_starting: 0,
+            frames_received: 0,
+            fps_total: 0.0,
+            reconnects: 0,
+            errors: 0,
+            capacity_state: snap.state,
+            capacity_used_percent: snap.capacity_used_percent,
+            estimated_capacity_cameras: snap.estimated_capacity_cameras,
+            estimated_available_cameras: snap.estimated_available_cameras,
+            limiting_resource: snap.limiting_resource,
+        };
+        let v = serde_json::to_value(&health).unwrap();
+        assert!(v.get("capacity_state").is_some());
+        assert!(v.get("limiting_resource").is_some());
+    }
 }

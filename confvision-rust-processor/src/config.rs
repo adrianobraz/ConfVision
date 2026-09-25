@@ -1,7 +1,30 @@
 use std::str::FromStr;
 use std::time::Duration;
 
+use serde::Serialize;
+
 use crate::error::{AppError, AppResult};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CapacityMode {
+    Dynamic,
+    Disabled,
+}
+
+impl FromStr for CapacityMode {
+    type Err = AppError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_lowercase().as_str() {
+            "dynamic" => Ok(Self::Dynamic),
+            "disabled" => Ok(Self::Disabled),
+            other => Err(AppError::Config(format!(
+                "CAPACITY_MODE inválido: {other:?} (use dynamic ou disabled)"
+            ))),
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ShardMode {
@@ -65,6 +88,52 @@ pub struct Config {
     pub rtsp_frame_timeout: Duration,
     pub frame_buffer_max: usize,
     pub queue_backend: String,
+    pub capacity_mode: CapacityMode,
+    pub capacity_cpu_target_percent: f64,
+    pub capacity_memory_target_percent: f64,
+    pub capacity_gpu_target_percent: f64,
+    pub capacity_vram_target_percent: f64,
+    pub capacity_min_sample_sec: u64,
+    pub capacity_safety_factor: f64,
+    pub capacity_history_size: usize,
+    pub capacity_sample_interval_sec: u64,
+}
+
+impl Config {
+    /// Teto local de câmeras (hard safety). `0` = sem limite.
+    pub fn effective_max_cameras(&self) -> usize {
+        if self.max_cameras == 0 {
+            usize::MAX
+        } else {
+            self.max_cameras
+        }
+    }
+
+    pub fn max_cameras_hard_limit(&self) -> Option<usize> {
+        if self.max_cameras == 0 {
+            None
+        } else {
+            Some(self.max_cameras)
+        }
+    }
+
+    pub fn max_cameras_for_ping(&self) -> Option<i32> {
+        self.max_cameras_hard_limit()
+            .and_then(|v| i32::try_from(v).ok())
+    }
+}
+
+/// Preenche campos de capacidade (Fase 6) — uso em testes e stubs.
+pub fn fill_capacity_defaults(cfg: &mut Config) {
+    cfg.capacity_mode = CapacityMode::Dynamic;
+    cfg.capacity_cpu_target_percent = 80.0;
+    cfg.capacity_memory_target_percent = 80.0;
+    cfg.capacity_gpu_target_percent = 80.0;
+    cfg.capacity_vram_target_percent = 80.0;
+    cfg.capacity_min_sample_sec = 30;
+    cfg.capacity_safety_factor = 0.80;
+    cfg.capacity_history_size = 120;
+    cfg.capacity_sample_interval_sec = 5;
 }
 
 impl Config {
@@ -117,6 +186,15 @@ impl Config {
             rtsp_frame_timeout: Duration::from_secs(env_u64("RTSP_FRAME_TIMEOUT_SEC", 30)),
             frame_buffer_max: env_usize("FRAME_BUFFER_MAX", 2).max(1),
             queue_backend: env_or("QUEUE_BACKEND", "none"),
+            capacity_mode: parse_capacity_mode(&env_or("CAPACITY_MODE", "dynamic"))?,
+            capacity_cpu_target_percent: env_f64("CAPACITY_CPU_TARGET_PERCENT", 80.0),
+            capacity_memory_target_percent: env_f64("CAPACITY_MEMORY_TARGET_PERCENT", 80.0),
+            capacity_gpu_target_percent: env_f64("CAPACITY_GPU_TARGET_PERCENT", 80.0),
+            capacity_vram_target_percent: env_f64("CAPACITY_VRAM_TARGET_PERCENT", 80.0),
+            capacity_min_sample_sec: env_u64("CAPACITY_MIN_SAMPLE_SEC", 30),
+            capacity_safety_factor: env_f64("CAPACITY_SAFETY_FACTOR", 0.80),
+            capacity_history_size: env_usize("CAPACITY_HISTORY_SIZE", 120),
+            capacity_sample_interval_sec: env_u64("CAPACITY_SAMPLE_INTERVAL_SEC", 5),
         })
     }
 }
@@ -184,6 +262,17 @@ fn env_i32(key: &str, default: i32) -> i32 {
 
 fn parse_shard_mode(raw: &str) -> AppResult<ShardMode> {
     raw.parse()
+}
+
+fn parse_capacity_mode(raw: &str) -> AppResult<CapacityMode> {
+    raw.parse()
+}
+
+fn env_f64(key: &str, default: f64) -> f64 {
+    std::env::var(key)
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
 }
 
 #[cfg(test)]

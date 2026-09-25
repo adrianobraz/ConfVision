@@ -1,5 +1,6 @@
 mod api;
 mod camera;
+mod capacity;
 mod config;
 mod decode;
 mod error;
@@ -26,6 +27,7 @@ use tracing::{error, info, warn};
 
 use crate::api::{ConfVisionClient, WorkerPingRequest};
 use crate::camera::CameraManager;
+use crate::capacity::{run_capacity_sampler, CapacityEngine};
 use crate::config::Config;
 use crate::decode::{AccelerationPolicy, AccelerationRuntime};
 use crate::health::{health_handler, metrics_handler, ready_handler, AppState};
@@ -77,6 +79,7 @@ async fn main() {
         acceleration.clone(),
     ));
     let api_ready = Arc::new(AtomicBool::new(false));
+    let capacity = CapacityEngine::new(&cfg);
 
     let app_state = AppState {
         metrics: metrics.clone(),
@@ -84,7 +87,16 @@ async fn main() {
         camera_states: manager.states_handle(),
         api_ready: api_ready.clone(),
         identity: health::RuntimeIdentity::from_config(&cfg),
+        capacity: capacity.clone(),
     };
+
+    let cap_metrics = metrics.clone();
+    let cap_states = manager.states_handle();
+    let cap_accel = acceleration.clone();
+    let cap_engine = capacity.clone();
+    tokio::spawn(async move {
+        run_capacity_sampler(cap_engine, cap_metrics, cap_states, cap_accel).await;
+    });
 
     let app = Router::new()
         .route("/health", get(health_handler))
@@ -276,7 +288,7 @@ fn build_worker_ping(
         yolo_device: "none".to_string(),
         queue_backend: cfg.queue_backend.clone(),
         vis_mediamtx_node_id,
-        max_cameras: Some(cfg.max_cameras as i32),
+        max_cameras: cfg.max_cameras_for_ping(),
         shard_index,
         shard_total,
     }

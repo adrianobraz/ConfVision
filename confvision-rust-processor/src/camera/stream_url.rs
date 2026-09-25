@@ -95,6 +95,15 @@ mod tests {
             rtsp_frame_timeout: Duration::from_secs(30),
             frame_buffer_max: 2,
             queue_backend: "none".into(),
+            capacity_mode: crate::config::CapacityMode::Dynamic,
+            capacity_cpu_target_percent: 80.0,
+            capacity_memory_target_percent: 80.0,
+            capacity_gpu_target_percent: 80.0,
+            capacity_vram_target_percent: 80.0,
+            capacity_min_sample_sec: 30,
+            capacity_safety_factor: 0.80,
+            capacity_history_size: 120,
+            capacity_sample_interval_sec: 5,
         }
     }
 

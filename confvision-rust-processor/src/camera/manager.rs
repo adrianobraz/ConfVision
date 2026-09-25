@@ -61,14 +61,15 @@ impl CameraManager {
 
     pub async fn sync_cameras(&self, desired: Vec<CameraRecord>) {
         let mut limited = desired;
-        if limited.len() > self.cfg.max_cameras {
+        let hard_max = self.cfg.effective_max_cameras();
+        if limited.len() > hard_max {
             warn!(
                 processor_id = %self.cfg.processor_id,
                 total = limited.len(),
-                max = self.cfg.max_cameras,
-                "truncating camera list"
+                max = hard_max,
+                "truncating camera list (hard safety limit)"
             );
-            limited.truncate(self.cfg.max_cameras);
+            limited.truncate(hard_max);
         }
 
         let desired_ids: Vec<i64> = limited.iter().map(|c| c.id).collect();
@@ -213,6 +214,15 @@ mod tests {
             rtsp_frame_timeout: Duration::from_secs(1),
             frame_buffer_max: 2,
             queue_backend: "none".into(),
+            capacity_mode: crate::config::CapacityMode::Dynamic,
+            capacity_cpu_target_percent: 80.0,
+            capacity_memory_target_percent: 80.0,
+            capacity_gpu_target_percent: 80.0,
+            capacity_vram_target_percent: 80.0,
+            capacity_min_sample_sec: 30,
+            capacity_safety_factor: 0.80,
+            capacity_history_size: 120,
+            capacity_sample_interval_sec: 5,
         }
     }
 

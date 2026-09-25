@@ -49,13 +49,14 @@ pub fn filter_analytic_cameras(cfg: &Config, cameras: Vec<CameraRecord>) -> Vec<
         })
         .collect();
 
-    if filtered.len() > cfg.max_cameras {
+    let hard_max = cfg.effective_max_cameras();
+    if filtered.len() > hard_max {
         tracing::warn!(
             total = filtered.len(),
-            max = cfg.max_cameras,
-            "shard: truncating camera list (MAX_CAMERAS)"
+            max = hard_max,
+            "shard: truncating camera list (MAX_CAMERAS hard safety)"
         );
-        filtered.truncate(cfg.max_cameras);
+        filtered.truncate(hard_max);
     }
     filtered
 }
@@ -112,6 +113,15 @@ mod tests {
             rtsp_frame_timeout: std::time::Duration::from_secs(30),
             frame_buffer_max: 2,
             queue_backend: "none".into(),
+            capacity_mode: crate::config::CapacityMode::Dynamic,
+            capacity_cpu_target_percent: 80.0,
+            capacity_memory_target_percent: 80.0,
+            capacity_gpu_target_percent: 80.0,
+            capacity_vram_target_percent: 80.0,
+            capacity_min_sample_sec: 30,
+            capacity_safety_factor: 0.80,
+            capacity_history_size: 120,
+            capacity_sample_interval_sec: 5,
         }
     }
 

@@ -201,13 +201,40 @@ cargo run
 - Assumir que `core4\confvision` (Python) é este serviço.
 - Commitar `.env`, `target/` ou logs com credenciais.
 
+## Fase 6.0 — Dynamic Capacity
+
+O processor estima **capacidade dinâmica** (câmeras/FPS) com base na carga observada e nos recursos medidos.
+
+- **`MAX_CAMERAS`** continua existindo apenas como **hard safety limit** local (use `0` para sem teto). **Não** é capacidade estimada nem capacidade do servidor.
+- **`CAPACITY_MODE=dynamic`** (default) liga o Capacity Engine; `disabled` desliga estimativas.
+- Coleta periódica (`CAPACITY_SAMPLE_INTERVAL_SEC`, default 5s) — **fora** do caminho crítico de cada frame.
+- Janela mínima `CAPACITY_MIN_SAMPLE_SEC` (default 30s): até lá, `capacity_state=unknown`.
+- Métricas em `GET /metrics` → objeto `capacity` (completo) e resumo em `GET /health`.
+
+### How capacity is calculated
+
+1. Média móvel sobre `CAPACITY_HISTORY_SIZE` amostras (CPU, RAM, FPS, câmeras online, drops, fila, latência).
+2. Para cada recurso medido (CPU/RAM; GPU/VRAM só se disponíveis via infra existente):
+
+   `capacity_fps ≈ current_fps × (target × safety_factor) / current_usage`
+
+   `capacity_cameras ≈ capacity_fps / average_fps_per_camera`
+
+3. A capacidade final usa o **mínimo** entre recursos (recurso limitante → `limiting_resource`).
+4. Valores são **arredondados para baixo**; sem amostra suficiente → campos `null` e `unknown`.
+5. Cada métrica de recurso inclui `scope`: `host`, `container`, `process` ou `unavailable` (nunca mascarar container como host).
+
+Variáveis: ver [`.env.example`](.env.example) (`CAPACITY_*`).
+
+API interna (Fase 7): `CapacityEngine::current()`, `snapshot()`, `estimate()`.
+
 ## Roadmap (próximas fases — não implementadas)
 
 | Fase | Ideia |
 |------|--------|
+| **7** | Assignment automático (Cluster Manager) — consome `CapacityEstimate` |
 | **2** | Eventos, filas (Redis), integração analítica ampliada |
 | **3** | YOLO/GPU ou delegação coordenada com Python |
-| **4** | Métricas de sistema (CPU/RAM/GPU), S3/mídia se aplicável |
 
 Alterações de contrato Go devem ser documentadas e feitas **no projeto Go**, não aqui sem alinhamento.
 
