@@ -122,6 +122,10 @@ mod tests {
             capacity_safety_factor: 0.80,
             capacity_history_size: 120,
             capacity_sample_interval_sec: 5,
+            decode_runtime_fallback: true,
+            decode_hw_error_threshold: 10,
+            load_policy_mode: crate::load::LoadPolicyMode::Advisory,
+            load_admission_enabled: false,
         }
     }
 

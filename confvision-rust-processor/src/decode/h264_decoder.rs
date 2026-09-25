@@ -9,12 +9,15 @@ use super::acceleration::AccelerationRuntime;
 #[cfg(feature = "ffmpeg-decode")]
 use super::acceleration::PlannedDecodeBackend;
 use super::context::SessionDecodeContext;
+use super::decode_policy::{DecodePolicyCoordinator, H264DecoderSessionState};
 use super::error::DecodeError;
 use super::types::{DecodeInput, DecodeOutcome, DecodedFrame};
 
 /// Decoder H.264 por sessão RTSP (uma instância por consumer / reconexão).
 pub struct H264Decoder {
     acceleration: Option<Arc<AccelerationRuntime>>,
+    decode_policy: Option<Arc<DecodePolicyCoordinator>>,
+    session_state: H264DecoderSessionState,
     #[cfg(feature = "ffmpeg-decode")]
     inner: Option<BackendInstance>,
     #[cfg(feature = "ffmpeg-decode")]
@@ -32,16 +35,28 @@ enum BackendInstance {
 
 impl H264Decoder {
     pub fn new() -> Self {
-        Self::from_acceleration(None)
+        Self::from_parts(None, None)
     }
 
     pub fn with_acceleration(acceleration: Arc<AccelerationRuntime>) -> Self {
-        Self::from_acceleration(Some(acceleration))
+        Self::from_parts(Some(acceleration), None)
     }
 
-    fn from_acceleration(acceleration: Option<Arc<AccelerationRuntime>>) -> Self {
+    pub fn with_acceleration_and_policy(
+        acceleration: Arc<AccelerationRuntime>,
+        decode_policy: Arc<DecodePolicyCoordinator>,
+    ) -> Self {
+        Self::from_parts(Some(acceleration), Some(decode_policy))
+    }
+
+    fn from_parts(
+        acceleration: Option<Arc<AccelerationRuntime>>,
+        decode_policy: Option<Arc<DecodePolicyCoordinator>>,
+    ) -> Self {
         Self {
             acceleration,
+            decode_policy,
+            session_state: H264DecoderSessionState::new(),
             #[cfg(feature = "ffmpeg-decode")]
             inner: None,
             #[cfg(feature = "ffmpeg-decode")]
@@ -106,6 +121,9 @@ impl H264Decoder {
 
         match decode_result {
             Ok(frame) => {
+                if self.active_kind != super::backend::DecodeBackendKind::Cpu {
+                    self.session_state.record_hw_success();
+                }
                 if let Some(accel) = &self.acceleration {
                     match self.active_kind {
                         super::backend::DecodeBackendKind::Cpu => {
@@ -130,9 +148,49 @@ impl H264Decoder {
                     if let Some(accel) = &self.acceleration {
                         accel.record_hw_decode_error();
                     }
+                    if self.try_runtime_fallback_to_cpu(decode_ctx, &extradata, generation) {
+                        return DecodeOutcome::NotReady;
+                    }
                 }
                 DecodeOutcome::Failed(e)
             }
+        }
+    }
+
+    fn try_runtime_fallback_to_cpu(
+        &mut self,
+        decode_ctx: &SessionDecodeContext,
+        extradata: &[u8],
+        generation: u64,
+    ) -> bool {
+        let Some(policy) = self.decode_policy.as_ref() else {
+            return false;
+        };
+        let Some(accel) = self.acceleration.as_ref() else {
+            return false;
+        };
+        let failures = self.session_state.record_hw_failure();
+        if failures < policy.hw_error_threshold() {
+            return false;
+        }
+        if !policy.trigger_runtime_cpu_fallback(accel) {
+            return false;
+        }
+        info!(
+            consecutive_hw_errors = failures,
+            threshold = policy.hw_error_threshold(),
+            "runtime NVDEC→CPU fallback (same RTSP session)"
+        );
+        match super::backend::CpuFfmpegDecoder::try_new(extradata, generation) {
+            Ok(cpu) => {
+                self.inner = Some(BackendInstance::Cpu(cpu));
+                self.active_kind = super::backend::DecodeBackendKind::Cpu;
+                self.nvdec_startup_logged = false;
+                self.session_state.reset();
+                let _ = decode_ctx;
+                true
+            }
+            Err(_) => false,
         }
     }
 
@@ -143,8 +201,20 @@ impl H264Decoder {
             .map(|a| a.planned_decode_backend())
             .unwrap_or(PlannedDecodeBackend::Cpu);
 
+        let attempt_nvdec = matches!(planned, PlannedDecodeBackend::Nvdec)
+            && self
+                .decode_policy
+                .as_ref()
+                .map(|p| {
+                    self.acceleration
+                        .as_ref()
+                        .map(|a| p.should_attempt_nvdec(a))
+                        .unwrap_or(true)
+                })
+                .unwrap_or(true);
+
         #[cfg(all(feature = "ffmpeg-decode", feature = "ffmpeg-nvdec"))]
-        if planned == PlannedDecodeBackend::Nvdec {
+        if attempt_nvdec {
             match super::backend::NvdecH264Decoder::try_new(extradata, generation) {
                 Ok(d) => {
                     self.inner = Some(BackendInstance::Nvdec(d));
@@ -199,5 +269,69 @@ fn backend_needs_reinit(instance: &BackendInstance, generation: u64) -> bool {
         BackendInstance::Cpu(d) => d.needs_reinit(generation),
         #[cfg(all(feature = "ffmpeg-decode", feature = "ffmpeg-nvdec"))]
         BackendInstance::Nvdec(d) => d.needs_reinit(generation),
+    }
+}
+
+#[cfg(all(test, feature = "ffmpeg-decode"))]
+mod fallback_tests {
+    use super::*;
+    use crate::decode::acceleration::MockProbe;
+    use crate::decode::acceleration::{AccelerationPolicy, VideoAccelerationMode, VideoGpuBackend};
+    use crate::decode::DecodeFallbackConfig;
+
+    fn mock_probe() -> MockProbe {
+        MockProbe {
+            nvidia: true,
+            vaapi: false,
+            qsv: false,
+            ffmpeg_hw: true,
+            h264_cuvid: true,
+            nvdec_cuda_init_ok: true,
+        }
+    }
+
+    #[test]
+    fn gpu_mode_does_not_allow_runtime_fallback_trigger() {
+        let accel = AccelerationRuntime::bootstrap_with_probe(
+            AccelerationPolicy::from_parts(VideoAccelerationMode::Gpu, VideoGpuBackend::Auto),
+            &mock_probe(),
+        )
+        .unwrap();
+        let policy = DecodePolicyCoordinator::new(DecodeFallbackConfig {
+            runtime_fallback_enabled: true,
+            hw_error_threshold: 1,
+        });
+        assert!(!policy.runtime_fallback_allowed(accel.as_ref()));
+    }
+
+    #[test]
+    fn fallback_disabled_blocks_trigger() {
+        let accel = AccelerationRuntime::bootstrap_with_probe(
+            AccelerationPolicy::from_parts(VideoAccelerationMode::Auto, VideoGpuBackend::Auto),
+            &mock_probe(),
+        )
+        .unwrap();
+        let policy = DecodePolicyCoordinator::new(DecodeFallbackConfig {
+            runtime_fallback_enabled: false,
+            hw_error_threshold: 1,
+        });
+        assert!(!policy.runtime_fallback_allowed(accel.as_ref()));
+    }
+
+    #[test]
+    fn auto_with_fallback_enabled_allows_once() {
+        let accel = AccelerationRuntime::bootstrap_with_probe(
+            AccelerationPolicy::from_parts(VideoAccelerationMode::Auto, VideoGpuBackend::Auto),
+            &mock_probe(),
+        )
+        .unwrap();
+        let policy = DecodePolicyCoordinator::new(DecodeFallbackConfig {
+            runtime_fallback_enabled: true,
+            hw_error_threshold: 10,
+        });
+        assert!(policy.runtime_fallback_allowed(accel.as_ref()));
+        assert!(policy.trigger_runtime_cpu_fallback(accel.as_ref()));
+        assert!(!policy.runtime_fallback_allowed(accel.as_ref()));
+        assert!(!policy.should_attempt_nvdec(accel.as_ref()));
     }
 }

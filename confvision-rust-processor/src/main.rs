@@ -6,6 +6,7 @@ mod decode;
 mod error;
 mod events;
 mod health;
+mod load;
 mod logging;
 mod media;
 mod metrics;
@@ -29,8 +30,9 @@ use crate::api::{ConfVisionClient, WorkerPingRequest};
 use crate::camera::CameraManager;
 use crate::capacity::{run_capacity_sampler, CapacityEngine};
 use crate::config::Config;
-use crate::decode::{AccelerationPolicy, AccelerationRuntime};
+use crate::decode::{AccelerationPolicy, AccelerationRuntime, DecodePolicyCoordinator};
 use crate::health::{health_handler, metrics_handler, ready_handler, AppState};
+use crate::load::LoadAdmissionGate;
 use crate::metrics::ProcessorMetrics;
 
 #[tokio::main]
@@ -73,13 +75,18 @@ async fn main() {
     );
 
     let metrics = Arc::new(ProcessorMetrics::new(cfg.processor_id.clone()));
+    let decode_policy = DecodePolicyCoordinator::new(cfg.decode_fallback_config());
+    let api_ready = Arc::new(AtomicBool::new(false));
+    let capacity = CapacityEngine::new(&cfg);
+    let load_admission = LoadAdmissionGate::new(capacity.clone(), cfg.load_policy_config());
+
     let manager = Arc::new(CameraManager::new(
         cfg.clone(),
         metrics.clone(),
         acceleration.clone(),
+        decode_policy.clone(),
+        load_admission.clone(),
     ));
-    let api_ready = Arc::new(AtomicBool::new(false));
-    let capacity = CapacityEngine::new(&cfg);
 
     let app_state = AppState {
         metrics: metrics.clone(),
@@ -88,6 +95,8 @@ async fn main() {
         api_ready: api_ready.clone(),
         identity: health::RuntimeIdentity::from_config(&cfg),
         capacity: capacity.clone(),
+        decode_policy: decode_policy.clone(),
+        load_admission: load_admission.clone(),
     };
 
     let cap_metrics = metrics.clone();

@@ -15,8 +15,12 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --de
 ENV PATH="/root/.cargo/bin:${PATH}"
 # FFmpeg com suporte CUDA/NVDEC (Ubuntu 22.04 — ajuste conforme mirror/apt do host).
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
     libavcodec-dev libavutil-dev libavformat-dev \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && ffmpeg -hide_banner -decoders 2>/dev/null | grep -q h264_cuvid \
+    || (echo "BUILD ERROR: FFmpeg desta imagem não expõe h264_cuvid — NVDEC não será confiável" && exit 1)
+# Smoke de decode real em GPU exige `docker run --gpus all` + driver NVIDIA no host (não validado neste build).
 COPY Cargo.toml Cargo.lock* ./
 RUN mkdir src && echo "fn main(){}" > src/main.rs \
     && cargo build --release --features ffmpeg-decode,ffmpeg-nvdec \

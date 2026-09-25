@@ -7,7 +7,8 @@ use tokio::sync::Notify;
 
 use crate::camera::SharedCameraState;
 use crate::decode::{
-    AccelerationRuntime, DecodeInput, DecodeOutcome, H264Decoder, SessionDecodeContext,
+    AccelerationRuntime, DecodeInput, DecodeOutcome, DecodePolicyCoordinator, H264Decoder,
+    SessionDecodeContext,
 };
 use crate::metrics::ProcessorMetrics;
 use crate::motion::{MotionDetector, MotionOutcome};
@@ -453,9 +454,10 @@ pub async fn run_frame_consumer(
     mut global_shutdown: tokio::sync::watch::Receiver<bool>,
     decode_ctx: Arc<SessionDecodeContext>,
     acceleration: Arc<AccelerationRuntime>,
+    decode_policy: Arc<DecodePolicyCoordinator>,
     decode_enabled: bool,
 ) {
-    let mut h264_decoder = H264Decoder::with_acceleration(acceleration);
+    let mut h264_decoder = H264Decoder::with_acceleration_and_policy(acceleration, decode_policy);
     let mut motion_detector = MotionDetector::new();
 
     loop {
@@ -770,7 +772,12 @@ mod tests {
         let decode_ctx = SessionDecodeContext::new();
         let acceleration = test_acceleration_runtime();
         let consumer = tokio::spawn(async move {
-            run_frame_consumer(p, rx, grx, decode_ctx, acceleration, false).await;
+            let decode_policy =
+                crate::decode::DecodePolicyCoordinator::new(crate::decode::DecodeFallbackConfig {
+                    runtime_fallback_enabled: true,
+                    hw_error_threshold: 10,
+                });
+            run_frame_consumer(p, rx, grx, decode_ctx, acceleration, decode_policy, false).await;
         });
         for seq in 1..=5 {
             pipeline.try_enqueue(test_frame(seq, seq as u8, false));

@@ -97,6 +97,11 @@ pub struct Config {
     pub capacity_safety_factor: f64,
     pub capacity_history_size: usize,
     pub capacity_sample_interval_sec: u64,
+    /// Fase 6.2 — fallback runtime NVDEC→CPU (somente VIDEO_ACCELERATION=auto).
+    pub decode_runtime_fallback: bool,
+    pub decode_hw_error_threshold: u32,
+    pub load_policy_mode: crate::load::LoadPolicyMode,
+    pub load_admission_enabled: bool,
 }
 
 impl Config {
@@ -134,6 +139,14 @@ pub fn fill_capacity_defaults(cfg: &mut Config) {
     cfg.capacity_safety_factor = 0.80;
     cfg.capacity_history_size = 120;
     cfg.capacity_sample_interval_sec = 5;
+}
+
+/// Defaults Fase 6.2 — uso em stubs de teste.
+pub fn fill_phase62_defaults(cfg: &mut Config) {
+    cfg.decode_runtime_fallback = true;
+    cfg.decode_hw_error_threshold = 10;
+    cfg.load_policy_mode = crate::load::LoadPolicyMode::Advisory;
+    cfg.load_admission_enabled = false;
 }
 
 impl Config {
@@ -195,7 +208,25 @@ impl Config {
             capacity_safety_factor: env_f64("CAPACITY_SAFETY_FACTOR", 0.80),
             capacity_history_size: env_usize("CAPACITY_HISTORY_SIZE", 120),
             capacity_sample_interval_sec: env_u64("CAPACITY_SAMPLE_INTERVAL_SEC", 5),
+            decode_runtime_fallback: env_bool("DECODE_RUNTIME_FALLBACK", true),
+            decode_hw_error_threshold: env_u32("DECODE_HW_ERROR_THRESHOLD", 10).max(1),
+            load_policy_mode: parse_load_policy_mode(&env_or("LOAD_POLICY_MODE", "advisory"))?,
+            load_admission_enabled: env_bool("LOAD_ADMISSION_ENABLED", false),
         })
+    }
+
+    pub fn load_policy_config(&self) -> crate::load::LoadPolicyConfig {
+        crate::load::LoadPolicyConfig {
+            mode: self.load_policy_mode,
+            admission_enabled: self.load_admission_enabled,
+        }
+    }
+
+    pub fn decode_fallback_config(&self) -> crate::decode::DecodeFallbackConfig {
+        crate::decode::DecodeFallbackConfig::from_env_parts(
+            self.decode_runtime_fallback,
+            self.decode_hw_error_threshold,
+        )
     }
 }
 
@@ -273,6 +304,20 @@ fn env_f64(key: &str, default: f64) -> f64 {
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(default)
+}
+
+fn env_bool(key: &str, default: bool) -> bool {
+    match std::env::var(key) {
+        Ok(v) => matches!(
+            v.trim().to_lowercase().as_str(),
+            "1" | "true" | "yes" | "on"
+        ),
+        Err(_) => default,
+    }
+}
+
+fn parse_load_policy_mode(raw: &str) -> AppResult<crate::load::LoadPolicyMode> {
+    crate::load::LoadPolicyMode::parse(raw).map_err(AppError::Config)
 }
 
 #[cfg(test)]

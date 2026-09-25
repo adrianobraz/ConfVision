@@ -1,5 +1,6 @@
 mod acceleration;
 mod context;
+mod decode_policy;
 mod error;
 mod h264_decoder;
 mod luma;
@@ -18,6 +19,11 @@ pub use acceleration::{
     AccelerationPolicy, AccelerationRuntime, VideoAccelerationMode, VideoGpuBackend,
 };
 pub use context::SessionDecodeContext;
+pub use decode_policy::{
+    decode_backend_effective, evaluate_hw_stack_grade, gpu_decode_state, DecodeBackendEffective,
+    DecodeFallbackConfig, DecodePolicyCoordinator, GpuDecodeState, H264DecoderSessionState,
+    HwStackGrade,
+};
 pub use error::DecodeError;
 pub use h264_decoder::H264Decoder;
 pub use types::{

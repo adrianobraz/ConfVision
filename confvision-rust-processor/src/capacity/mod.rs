@@ -6,7 +6,8 @@ mod types;
 pub use crate::config::CapacityMode;
 pub use policy::CapacityPolicy;
 pub use types::{
-    CapacityEstimate, CapacitySnapshot, CapacityState, LimitingResource, ResourceScope,
+    CapacityEstimate, CapacitySnapshot, CapacityState, LimitingResource, NetworkSnapshot,
+    ResourceMetric, ResourceScope, StorageSnapshot,
 };
 
 use std::collections::VecDeque;
@@ -26,7 +27,6 @@ use collector::ResourceCollector;
 use estimator::{average_history, compute_estimate, EstimateInput};
 use types::{
     CameraCapacityView, CapacityAvailableSummary, CapacityHeadroomSummary, CapacityLoadSummary,
-    NetworkSnapshot, StorageSnapshot,
 };
 
 pub struct CapacityEngine {
@@ -51,6 +51,16 @@ impl CapacityEngine {
             CapacityState::Unknown
         };
         let snap = empty_snapshot(cfg, initial_state, &policy);
+        Self::from_parts(cfg, policy, snap)
+    }
+
+    #[cfg(test)]
+    pub fn new_with_initial_snapshot(cfg: &Config, snap: CapacitySnapshot) -> Arc<Self> {
+        let policy = CapacityPolicy::from_config(cfg);
+        Self::from_parts(cfg, policy, snap)
+    }
+
+    fn from_parts(cfg: &Config, policy: CapacityPolicy, snap: CapacitySnapshot) -> Arc<Self> {
         Arc::new(Self {
             policy,
             worker_id: cfg.worker_id.clone(),
@@ -66,6 +76,11 @@ impl CapacityEngine {
 
     pub async fn snapshot(&self) -> CapacitySnapshot {
         self.snapshot.read().await.clone()
+    }
+
+    #[cfg(test)]
+    pub async fn replace_snapshot_for_test(&self, snap: CapacitySnapshot) {
+        *self.snapshot.write().await = snap;
     }
 
     pub async fn estimate(&self) -> CapacityEstimate {

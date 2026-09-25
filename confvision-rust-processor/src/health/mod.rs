@@ -9,8 +9,12 @@ use tokio::sync::RwLock;
 use crate::camera::{CameraRuntimeState, CameraStatus};
 use crate::capacity::{CapacityEngine, CapacitySnapshot, CapacityState, LimitingResource};
 use crate::config::Config;
-use crate::decode::AccelerationRuntime;
+use crate::decode::{AccelerationRuntime, DecodePolicyCoordinator};
+use crate::load::LoadAdmissionGate;
 use crate::metrics::{MetricsSnapshot, SharedMetrics};
+
+mod runtime_phase62;
+pub use runtime_phase62::{build_phase62_view, Phase62RuntimeView};
 
 #[derive(Clone, Serialize)]
 pub struct RuntimeIdentity {
@@ -48,6 +52,8 @@ pub struct AppState {
     pub api_ready: Arc<std::sync::atomic::AtomicBool>,
     pub identity: RuntimeIdentity,
     pub capacity: Arc<CapacityEngine>,
+    pub decode_policy: Arc<DecodePolicyCoordinator>,
+    pub load_admission: Arc<LoadAdmissionGate>,
 }
 
 #[derive(Serialize)]
@@ -76,6 +82,11 @@ pub struct HealthResponse {
     pub estimated_capacity_cameras: Option<u32>,
     pub estimated_available_cameras: Option<i32>,
     pub limiting_resource: LimitingResource,
+    pub gpu_decode_state: crate::decode::GpuDecodeState,
+    pub hw_stack_grade: crate::decode::HwStackGrade,
+    pub decode_backend_effective: String,
+    pub load_advisory: crate::load::LoadAdvisory,
+    pub load_advisory_reason: String,
 }
 
 #[derive(Serialize)]
@@ -88,6 +99,12 @@ pub async fn health_handler(State(st): State<AppState>) -> Json<HealthResponse> 
     let snap = st.metrics.snapshot();
     let summary = summarize_cameras(&st.camera_states).await;
     let cap = st.capacity.snapshot().await;
+    let phase62 = build_phase62_view(
+        st.acceleration.as_ref(),
+        st.decode_policy.as_ref(),
+        &cap,
+        st.load_admission.config(),
+    );
     Json(HealthResponse {
         status: "ok",
         processor_id: st.identity.processor_id.clone(),
@@ -113,6 +130,11 @@ pub async fn health_handler(State(st): State<AppState>) -> Json<HealthResponse> 
         estimated_capacity_cameras: cap.estimated_capacity_cameras,
         estimated_available_cameras: cap.estimated_available_cameras,
         limiting_resource: cap.limiting_resource,
+        gpu_decode_state: phase62.gpu_decode_state,
+        hw_stack_grade: phase62.hw_stack_grade,
+        decode_backend_effective: phase62.decode_backend_effective,
+        load_advisory: phase62.load_advisory,
+        load_advisory_reason: phase62.load_advisory_reason,
     })
 }
 
@@ -140,6 +162,12 @@ pub async fn metrics_handler(State(st): State<AppState>) -> Json<MetricsBody> {
     let summary = summarize_cameras(&st.camera_states).await;
     let cameras = snapshot_camera_states(&st.camera_states).await;
     let capacity = st.capacity.snapshot().await;
+    let runtime_phase62 = build_phase62_view(
+        st.acceleration.as_ref(),
+        st.decode_policy.as_ref(),
+        &capacity,
+        st.load_admission.config(),
+    );
     Json(MetricsBody {
         identity: st.identity.clone(),
         metrics: snap,
@@ -152,6 +180,11 @@ pub async fn metrics_handler(State(st): State<AppState>) -> Json<MetricsBody> {
         processing_latency_ms: frame_latency_ms,
         cameras,
         capacity,
+        gpu_decode_state: runtime_phase62.gpu_decode_state,
+        decode_backend_effective: runtime_phase62.decode_backend_effective,
+        hw_stack_grade: runtime_phase62.hw_stack_grade,
+        load_advisory: runtime_phase62.load_advisory,
+        load_advisory_reason: runtime_phase62.load_advisory_reason,
         note: "capacity.mode=dynamic: MAX_CAMERAS é apenas hard safety limit",
     })
 }
@@ -170,6 +203,11 @@ pub struct MetricsBody {
     /// Métricas por câmera (mesmos campos que `CameraRuntimeState`).
     pub cameras: Vec<CameraRuntimeState>,
     pub capacity: CapacitySnapshot,
+    pub gpu_decode_state: crate::decode::GpuDecodeState,
+    pub decode_backend_effective: String,
+    pub hw_stack_grade: crate::decode::HwStackGrade,
+    pub load_advisory: crate::load::LoadAdvisory,
+    pub load_advisory_reason: String,
     pub note: &'static str,
 }
 
@@ -279,6 +317,10 @@ mod integration_tests {
             capacity_safety_factor: 0.80,
             capacity_history_size: 120,
             capacity_sample_interval_sec: 5,
+            decode_runtime_fallback: true,
+            decode_hw_error_threshold: 10,
+            load_policy_mode: crate::load::LoadPolicyMode::Advisory,
+            load_admission_enabled: false,
         }
     }
 
@@ -304,6 +346,11 @@ mod integration_tests {
             processing_latency_ms: 0,
             cameras: vec![],
             capacity: capacity.snapshot().await,
+            gpu_decode_state: crate::decode::GpuDecodeState::Unavailable,
+            decode_backend_effective: "cpu".into(),
+            hw_stack_grade: crate::decode::HwStackGrade::None,
+            load_advisory: crate::load::LoadAdvisory::Normal,
+            load_advisory_reason: "test".into(),
             note: "test",
         };
         let v = serde_json::to_value(&body).unwrap();
@@ -341,6 +388,11 @@ mod integration_tests {
             estimated_capacity_cameras: snap.estimated_capacity_cameras,
             estimated_available_cameras: snap.estimated_available_cameras,
             limiting_resource: snap.limiting_resource,
+            gpu_decode_state: crate::decode::GpuDecodeState::Unavailable,
+            hw_stack_grade: crate::decode::HwStackGrade::None,
+            decode_backend_effective: "cpu".into(),
+            load_advisory: crate::load::LoadAdvisory::Normal,
+            load_advisory_reason: "test".into(),
         };
         let v = serde_json::to_value(&health).unwrap();
         assert!(v.get("capacity_state").is_some());

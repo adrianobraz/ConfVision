@@ -9,7 +9,7 @@ use crate::camera::{
     LiveCaptureContext, ReconnectBackoff, SharedCameraState,
 };
 use crate::config::Config;
-use crate::decode::{AccelerationRuntime, SessionDecodeContext};
+use crate::decode::{AccelerationRuntime, DecodePolicyCoordinator, SessionDecodeContext};
 use crate::metrics::ProcessorMetrics;
 use crate::pipeline::{run_frame_consumer, FramePipeline};
 use crate::rtsp::{run_rtsp_frame_loop, simulate_frame_loop};
@@ -20,6 +20,7 @@ async fn run_session_with_pipeline(
     cfg: &Config,
     metrics: Arc<ProcessorMetrics>,
     acceleration: Arc<AccelerationRuntime>,
+    decode_policy: Arc<DecodePolicyCoordinator>,
     state: SharedCameraState,
     cancel: CameraCancel,
     global_frames: Arc<AtomicU64>,
@@ -33,6 +34,7 @@ async fn run_session_with_pipeline(
     let global_shutdown = cancel.global();
     let decode_for_consumer = decode_ctx.clone();
     let acceleration_for_consumer = acceleration.clone();
+    let decode_policy_for_consumer = decode_policy.clone();
     let consumer = tokio::spawn(async move {
         run_frame_consumer(
             consumer_pipeline,
@@ -40,6 +42,7 @@ async fn run_session_with_pipeline(
             global_shutdown,
             decode_for_consumer,
             acceleration_for_consumer,
+            decode_policy_for_consumer,
             !simulate,
         )
         .await;
@@ -82,6 +85,7 @@ pub async fn run_camera_worker(
     cfg: Config,
     metrics: Arc<ProcessorMetrics>,
     acceleration: Arc<AccelerationRuntime>,
+    decode_policy: Arc<DecodePolicyCoordinator>,
     state: SharedCameraState,
     shutdown_rx: &mut watch::Receiver<bool>,
     camera_stop_rx: watch::Receiver<bool>,
@@ -114,6 +118,7 @@ pub async fn run_camera_worker(
                 &cfg,
                 metrics.clone(),
                 acceleration.clone(),
+                decode_policy.clone(),
                 state.clone(),
                 cancel,
                 global_frames.clone(),
@@ -130,6 +135,7 @@ pub async fn run_camera_worker(
             &cfg,
             metrics.clone(),
             acceleration.clone(),
+            decode_policy.clone(),
             state.clone(),
             cancel,
             global_frames.clone(),

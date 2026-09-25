@@ -8,3 +8,6 @@ pub use policy::{
 };
 pub use probe::{DefaultSystemProbe, ProbeResult, SystemProbe};
 pub use runtime::{AccelerationRuntime, PlannedDecodeBackend};
+
+#[cfg(test)]
+pub use probe::MockProbe;
