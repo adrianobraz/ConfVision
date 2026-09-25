@@ -115,10 +115,16 @@ pub fn evaluate_hw_stack_grade(accel: &AccelerationRuntime) -> HwStackGrade {
     if nvdec_planned(accel) {
         return HwStackGrade::Ready;
     }
-    if !accel.gpu_detected() && !accel.ffmpeg_hw_decode_available() && !accel.nvdec_cuda_init_ok() {
+    if !accel.gpu_detected()
+        && !accel.ffmpeg_hw_decode_available()
+        && !accel.nvdec_cuda_init_ok()
+    {
         return HwStackGrade::None;
     }
-    if accel.gpu_detected() || accel.ffmpeg_hw_decode_available() || accel.nvdec_cuda_init_ok() {
+    if accel.gpu_detected()
+        || accel.ffmpeg_hw_decode_available()
+        || accel.nvdec_cuda_init_ok()
+    {
         return HwStackGrade::Partial;
     }
     HwStackGrade::None

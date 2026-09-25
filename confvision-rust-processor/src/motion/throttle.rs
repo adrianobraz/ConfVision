@@ -25,12 +25,8 @@ impl MotionAnalysisThrottle {
         self.min_interval.is_zero()
     }
 
-    /// Keyframes sempre passam (resync H.264 após frames ignorados).
-    pub fn should_analyze(&mut self, is_keyframe: bool) -> bool {
-        if self.is_unlimited() || is_keyframe {
-            if !self.is_unlimited() {
-                self.last_analysis = Some(Instant::now());
-            }
+    pub fn should_analyze(&mut self) -> bool {
+        if self.is_unlimited() {
             return true;
         }
         match self.last_analysis {
@@ -45,6 +41,12 @@ impl MotionAnalysisThrottle {
             Some(_) => false,
         }
     }
+
+    pub fn mark_consumed(&mut self) {
+        if !self.is_unlimited() {
+            self.last_analysis = Some(Instant::now());
+        }
+    }
 }
 
 /// Decisão do produtor RTSP (Fase 6.4): evita enqueue/cópia de AUs descartados.
@@ -54,53 +56,85 @@ pub struct MotionEnqueueDecision {
     pub decoder_reset: bool,
 }
 
-/// Gate no produtor: throttle + sync H.264 (só enfileira após IDR se houve gap).
+/// Gate no produtor: stride (legacy Python) + throttle FPS + sync H.264 após gap.
 #[derive(Debug, Clone)]
 pub struct MotionEnqueueGate {
     throttle: MotionAnalysisThrottle,
+    motion_frame_stride: u64,
+    decode_frame_stride: u64,
+    video_au_index: u64,
     decoder_sync_pending: bool,
 }
 
 impl MotionEnqueueGate {
     pub fn from_max_fps(max_fps: f64) -> Self {
+        Self::from_analysis_config(max_fps, 1, 1)
+    }
+
+    /// Alinhado a `MOTION_FRAME_SKIP` / `FRAME_SKIP` do worker Python (decode+motion no Rust).
+    pub fn from_analysis_config(
+        max_fps: f64,
+        motion_frame_stride: usize,
+        decode_frame_stride: usize,
+    ) -> Self {
         Self {
             throttle: MotionAnalysisThrottle::from_max_fps(max_fps),
+            motion_frame_stride: motion_frame_stride.max(1) as u64,
+            decode_frame_stride: decode_frame_stride.max(1) as u64,
+            video_au_index: 0,
             decoder_sync_pending: false,
         }
     }
 
     pub fn is_unlimited(&self) -> bool {
         self.throttle.is_unlimited()
+            && self.motion_frame_stride <= 1
+            && self.decode_frame_stride <= 1
+    }
+
+    fn strides_allow(&self, index: u64) -> bool {
+        index % self.motion_frame_stride == 0 && index % self.decode_frame_stride == 0
     }
 
     pub fn decide(&mut self, is_keyframe: bool) -> MotionEnqueueDecision {
+        self.video_au_index = self.video_au_index.saturating_add(1);
+
+        if self.decoder_sync_pending {
+            if !is_keyframe {
+                return MotionEnqueueDecision {
+                    enqueue: false,
+                    decoder_reset: false,
+                };
+            }
+            self.decoder_sync_pending = false;
+            self.throttle.mark_consumed();
+            return MotionEnqueueDecision {
+                enqueue: true,
+                decoder_reset: true,
+            };
+        }
+
+        if !self.strides_allow(self.video_au_index) {
+            return MotionEnqueueDecision {
+                enqueue: false,
+                decoder_reset: false,
+            };
+        }
+
         if self.is_unlimited() {
             return MotionEnqueueDecision {
                 enqueue: true,
                 decoder_reset: false,
             };
         }
-        if is_keyframe {
-            let enqueue = self.throttle.should_analyze(true);
-            let decoder_reset = self.decoder_sync_pending;
-            self.decoder_sync_pending = false;
-            return MotionEnqueueDecision {
-                enqueue,
-                decoder_reset,
-            };
-        }
-        if self.decoder_sync_pending {
-            return MotionEnqueueDecision {
-                enqueue: false,
-                decoder_reset: false,
-            };
-        }
-        if self.throttle.should_analyze(false) {
+
+        if self.throttle.should_analyze() {
             return MotionEnqueueDecision {
                 enqueue: true,
                 decoder_reset: false,
             };
         }
+
         self.decoder_sync_pending = true;
         MotionEnqueueDecision {
             enqueue: false,
@@ -117,25 +151,17 @@ mod tests {
     #[test]
     fn unlimited_always_true() {
         let mut t = MotionAnalysisThrottle::from_max_fps(0.0);
-        assert!(t.should_analyze(false));
-        assert!(t.should_analyze(false));
+        assert!(t.should_analyze());
+        assert!(t.should_analyze());
     }
 
     #[test]
-    fn caps_non_keyframes() {
+    fn caps_by_interval() {
         let mut t = MotionAnalysisThrottle::from_max_fps(10.0);
-        assert!(t.should_analyze(false));
-        assert!(!t.should_analyze(false));
-        assert!(t.should_analyze(true));
-    }
-
-    #[test]
-    fn interval_allows_next_after_wait() {
-        let mut t = MotionAnalysisThrottle::from_max_fps(100.0);
-        assert!(t.should_analyze(false));
-        assert!(!t.should_analyze(false));
-        thread::sleep(Duration::from_millis(12));
-        assert!(t.should_analyze(false));
+        assert!(t.should_analyze());
+        assert!(!t.should_analyze());
+        thread::sleep(Duration::from_millis(105));
+        assert!(t.should_analyze());
     }
 
     #[test]
@@ -146,5 +172,29 @@ mod tests {
         let k = g.decide(true);
         assert!(k.enqueue);
         assert!(k.decoder_reset);
+    }
+
+    #[test]
+    fn stride_reduces_enqueues() {
+        let mut g = MotionEnqueueGate::from_analysis_config(1000.0, 3, 1);
+        assert!(!g.decide(false).enqueue);
+        assert!(!g.decide(false).enqueue);
+        assert!(g.decide(false).enqueue);
+    }
+
+    #[test]
+    fn decode_stride_requires_both() {
+        let mut g = MotionEnqueueGate::from_analysis_config(1000.0, 2, 5);
+        for _ in 0..9 {
+            let _ = g.decide(false);
+        }
+        assert!(g.decide(false).enqueue);
+    }
+
+    #[test]
+    fn keyframe_does_not_bypass_fps_cap() {
+        let mut g = MotionEnqueueGate::from_max_fps(10.0);
+        assert!(g.decide(false).enqueue);
+        assert!(!g.decide(true).enqueue);
     }
 }

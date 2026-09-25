@@ -325,6 +325,8 @@ mod integration_tests {
             load_policy_mode: crate::load::LoadPolicyMode::Advisory,
             load_admission_enabled: false,
             motion_analysis_max_fps: 0.0,
+            motion_frame_stride: 1,
+            decode_frame_stride: 1,
         }
     }
 

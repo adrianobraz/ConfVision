@@ -48,10 +48,7 @@ impl LoadPolicyConfig {
     }
 
     /// Bloqueio de novas câmeras em `critical` (Fase 6.2): basta `LOAD_ADMISSION_ENABLED=1`.
-    pub fn admission_blocks_new_cameras(
-        &self,
-        capacity: &crate::capacity::CapacitySnapshot,
-    ) -> bool {
+    pub fn admission_blocks_new_cameras(&self, capacity: &crate::capacity::CapacitySnapshot) -> bool {
         if matches!(self.mode, LoadPolicyMode::Disabled) || !self.admission_enabled {
             return false;
         }

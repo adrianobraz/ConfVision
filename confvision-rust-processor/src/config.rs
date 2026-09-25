@@ -104,6 +104,10 @@ pub struct Config {
     pub load_admission_enabled: bool,
     /// Fase 6.3 — teto de decode+motion por câmera (0 = sem limite).
     pub motion_analysis_max_fps: f64,
+    /// 1 AU a cada N (Python `MOTION_FRAME_SKIP`, default 1 = todos elegíveis).
+    pub motion_frame_stride: usize,
+    /// Decode+motion 1 a cada N AUs elegíveis (Python `FRAME_SKIP`, default 1).
+    pub decode_frame_stride: usize,
 }
 
 impl Config {
@@ -150,6 +154,8 @@ pub fn fill_phase62_defaults(cfg: &mut Config) {
     cfg.load_policy_mode = crate::load::LoadPolicyMode::Advisory;
     cfg.load_admission_enabled = false;
     cfg.motion_analysis_max_fps = 0.0;
+    cfg.motion_frame_stride = 1;
+    cfg.decode_frame_stride = 1;
 }
 
 impl Config {
@@ -215,7 +221,9 @@ impl Config {
             decode_hw_error_threshold: env_u32("DECODE_HW_ERROR_THRESHOLD", 10).max(1),
             load_policy_mode: parse_load_policy_mode(&env_or("LOAD_POLICY_MODE", "advisory"))?,
             load_admission_enabled: env_bool("LOAD_ADMISSION_ENABLED", false),
-            motion_analysis_max_fps: env_f64("MOTION_ANALYSIS_MAX_FPS", 5.0),
+            motion_analysis_max_fps: analysis_max_fps_from_env(),
+            motion_frame_stride: analysis_stride_from_env("MOTION_FRAME_STRIDE", 3, 1),
+            decode_frame_stride: analysis_stride_from_env("DECODE_FRAME_STRIDE", 5, 1),
         })
     }
 
@@ -232,6 +240,29 @@ impl Config {
             self.decode_hw_error_threshold,
         )
     }
+}
+
+/// Perfil VPS alinhado ao worker Python (`FRAME_SKIP`, `MOTION_FRAME_SKIP`, FPS menor).
+fn analysis_legacy_vps_enabled() -> bool {
+    env_bool("ANALYSIS_LEGACY_VPS", false)
+}
+
+fn analysis_max_fps_from_env() -> f64 {
+    let default = if analysis_legacy_vps_enabled() {
+        2.0
+    } else {
+        5.0
+    };
+    env_f64("MOTION_ANALYSIS_MAX_FPS", default)
+}
+
+fn analysis_stride_from_env(key: &str, legacy_default: usize, normal_default: usize) -> usize {
+    let default = if analysis_legacy_vps_enabled() {
+        legacy_default
+    } else {
+        normal_default
+    };
+    env_usize(key, default).max(1)
 }
 
 fn forbid_legacy_xano_env() -> AppResult<()> {

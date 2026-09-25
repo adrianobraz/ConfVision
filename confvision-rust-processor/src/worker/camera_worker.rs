@@ -30,7 +30,11 @@ async fn run_session_with_pipeline(
 ) -> Result<crate::rtsp::RtspLoopStats, crate::error::AppError> {
     let pipeline = FramePipeline::new(cfg.frame_buffer_max, metrics.clone(), state.clone());
     let decode_ctx = SessionDecodeContext::new();
-    let mut enqueue_gate = MotionEnqueueGate::from_max_fps(cfg.motion_analysis_max_fps);
+    let mut enqueue_gate = MotionEnqueueGate::from_analysis_config(
+        cfg.motion_analysis_max_fps,
+        cfg.motion_frame_stride,
+        cfg.decode_frame_stride,
+    );
 
     let mut fps_est = FpsEstimator::new();
     let mut live = LiveCaptureContext {

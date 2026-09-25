@@ -53,8 +53,7 @@ impl RtspHotpathStats {
         let session_next_calls = self.session_next_calls.load(Ordering::Relaxed);
         let session_next_nanos = self.session_next_nanos.load(Ordering::Relaxed);
         let session_next_fast_calls = self.session_next_fast_calls.load(Ordering::Relaxed);
-        let session_next_non_video_items =
-            self.session_next_non_video_items.load(Ordering::Relaxed);
+        let session_next_non_video_items = self.session_next_non_video_items.load(Ordering::Relaxed);
         let video_au_count = self.video_au_count.load(Ordering::Relaxed);
         let post_au_nanos = self.post_au_nanos.load(Ordering::Relaxed);
         let throttle_nanos = self.throttle_nanos.load(Ordering::Relaxed);
