@@ -12,7 +12,7 @@ use crate::camera::{
 use crate::config::Config;
 use crate::decode::{AccelerationRuntime, DecodePolicyCoordinator, SessionDecodeContext};
 use crate::metrics::ProcessorMetrics;
-use crate::motion::MotionEnqueueGate;
+use crate::motion::{MotionEnqueueGate, MotionGatedSession};
 use crate::pipeline::{run_frame_consumer, FramePipeline};
 use crate::rtsp::{connect_rtsp_demuxed, run_rtsp_demux_loop, simulate_frame_loop};
 
@@ -30,11 +30,12 @@ async fn run_session_with_pipeline(
 ) -> Result<crate::rtsp::RtspLoopStats, crate::error::AppError> {
     let pipeline = FramePipeline::new(cfg.frame_buffer_max, metrics.clone(), state.clone());
     let decode_ctx = SessionDecodeContext::new();
-    let mut enqueue_gate = MotionEnqueueGate::from_analysis_config(
-        cfg.motion_analysis_max_fps,
-        cfg.motion_frame_stride,
-        cfg.decode_frame_stride,
-    );
+    let motion_gate = if cfg.analysis_only_on_motion {
+        Some(MotionGatedSession::new(cfg.motion_gate_miss_frames))
+    } else {
+        None
+    };
+    let mut enqueue_gate = MotionEnqueueGate::from_config(cfg, motion_gate.clone());
 
     let mut fps_est = FpsEstimator::new();
     let mut live = LiveCaptureContext {
@@ -53,6 +54,7 @@ async fn run_session_with_pipeline(
         let decode_for_consumer = decode_ctx.clone();
         let acceleration_for_consumer = acceleration.clone();
         let decode_policy_for_consumer = decode_policy.clone();
+        let motion_gate_for_consumer = motion_gate.clone();
         let consumer = tokio::spawn(async move {
             run_frame_consumer(
                 consumer_pipeline,
@@ -62,6 +64,7 @@ async fn run_session_with_pipeline(
                 acceleration_for_consumer,
                 decode_policy_for_consumer,
                 false,
+                motion_gate_for_consumer,
             )
             .await;
         });
@@ -80,6 +83,7 @@ async fn run_session_with_pipeline(
         let decode_for_consumer = decode_ctx.clone();
         let acceleration_for_consumer = acceleration.clone();
         let decode_policy_for_consumer = decode_policy.clone();
+        let motion_gate_for_consumer = motion_gate.clone();
         let consumer = tokio::spawn(async move {
             run_frame_consumer(
                 consumer_pipeline,
@@ -89,6 +93,7 @@ async fn run_session_with_pipeline(
                 acceleration_for_consumer,
                 decode_policy_for_consumer,
                 true,
+                motion_gate_for_consumer,
             )
             .await;
         });

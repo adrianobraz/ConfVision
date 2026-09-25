@@ -119,6 +119,8 @@ Referência completa: [`.env.example`](.env.example) e [`easypanel.env.example`]
 | `RTSP_SIMULATE` | Apenas teste local sem RTSP real |
 | `MOTION_ANALYSIS_MAX_FPS`, `MOTION_FRAME_STRIDE`, `DECODE_FRAME_STRIDE` | Teto e stride de decode+motion ([`docs/ANALYSIS_CPU_LEGACY.md`](docs/ANALYSIS_CPU_LEGACY.md)) |
 | `ANALYSIS_LEGACY_VPS` | `1` = defaults tipo worker Python (FPS 2, strides 3/5) |
+| `ANALYSIS_ONLY_ON_MOTION` | Decode frequente só após movimento (≈ `YOLO_ONLY_ON_MOTION`) |
+| `MOTION_GATE_PROBE_MAX_FPS`, `MOTION_GATE_MISS_FRAMES` | Probe em cena parada / desarmar |
 | `REDIS_URL`, `S3_*` | Reservados — Fase 1 não usa |
 
 ## Integração com Go

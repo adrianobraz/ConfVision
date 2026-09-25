@@ -327,6 +327,9 @@ mod integration_tests {
             motion_analysis_max_fps: 0.0,
             motion_frame_stride: 1,
             decode_frame_stride: 1,
+            analysis_only_on_motion: false,
+            motion_gate_probe_max_fps: 0.5,
+            motion_gate_miss_frames: 10,
         }
     }
 

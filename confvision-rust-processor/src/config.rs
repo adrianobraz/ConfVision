@@ -108,6 +108,12 @@ pub struct Config {
     pub motion_frame_stride: usize,
     /// Decode+motion 1 a cada N AUs elegíveis (Python `FRAME_SKIP`, default 1).
     pub decode_frame_stride: usize,
+    /// Só decode+motion frequente após movimento (Python `YOLO_ONLY_ON_MOTION`).
+    pub analysis_only_on_motion: bool,
+    /// FPS máximo de probe decode+motion com cena parada (`analysis_only_on_motion`).
+    pub motion_gate_probe_max_fps: f64,
+    /// Análises consecutivas sem movimento antes de desarmar (Python `YOLO_MOTION_MISS_FRAMES` × amostras).
+    pub motion_gate_miss_frames: u32,
 }
 
 impl Config {
@@ -156,6 +162,9 @@ pub fn fill_phase62_defaults(cfg: &mut Config) {
     cfg.motion_analysis_max_fps = 0.0;
     cfg.motion_frame_stride = 1;
     cfg.decode_frame_stride = 1;
+    cfg.analysis_only_on_motion = false;
+    cfg.motion_gate_probe_max_fps = 0.5;
+    cfg.motion_gate_miss_frames = 10;
 }
 
 impl Config {
@@ -224,6 +233,9 @@ impl Config {
             motion_analysis_max_fps: analysis_max_fps_from_env(),
             motion_frame_stride: analysis_stride_from_env("MOTION_FRAME_STRIDE", 3, 1),
             decode_frame_stride: analysis_stride_from_env("DECODE_FRAME_STRIDE", 5, 1),
+            analysis_only_on_motion: analysis_only_on_motion_from_env(),
+            motion_gate_probe_max_fps: motion_gate_probe_max_fps_from_env(),
+            motion_gate_miss_frames: motion_gate_miss_frames_from_env(),
         })
     }
 
@@ -263,6 +275,32 @@ fn analysis_stride_from_env(key: &str, legacy_default: usize, normal_default: us
         normal_default
     };
     env_usize(key, default).max(1)
+}
+
+fn analysis_only_on_motion_from_env() -> bool {
+    if std::env::var("ANALYSIS_ONLY_ON_MOTION").is_ok() {
+        return env_bool("ANALYSIS_ONLY_ON_MOTION", true);
+    }
+    analysis_legacy_vps_enabled()
+}
+
+fn motion_gate_probe_max_fps_from_env() -> f64 {
+    let default = if analysis_legacy_vps_enabled() {
+        0.5
+    } else {
+        1.0
+    };
+    env_f64("MOTION_GATE_PROBE_MAX_FPS", default).max(0.01)
+}
+
+fn motion_gate_miss_frames_from_env() -> u32 {
+    let legacy_default = env_u32("YOLO_MOTION_MISS_FRAMES", 2).max(1).saturating_mul(5);
+    let default = if analysis_legacy_vps_enabled() {
+        legacy_default
+    } else {
+        10
+    };
+    env_u32("MOTION_GATE_MISS_FRAMES", default).max(1)
 }
 
 fn forbid_legacy_xano_env() -> AppResult<()> {

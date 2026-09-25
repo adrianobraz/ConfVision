@@ -11,7 +11,7 @@ use crate::decode::{
     SessionDecodeContext,
 };
 use crate::metrics::ProcessorMetrics;
-use crate::motion::{MotionDetector, MotionOutcome};
+use crate::motion::{MotionDetector, MotionGatedSession, MotionOutcome};
 use crate::pipeline::PipelineFrame;
 
 /// Fila bounded com política DROP-OLDEST (testável de forma síncrona).
@@ -448,6 +448,16 @@ pub enum ConsumerFrameOutcome {
 }
 
 /// Consumer: decode H.264 (Fase 3.1) + motion (Fase 3.2) + métricas de pipeline.
+fn apply_motion_gate(
+    gate: Option<&Arc<MotionGatedSession>>,
+    detected: bool,
+    reference_only: bool,
+) {
+    if let Some(g) = gate {
+        g.on_motion_analyzed(detected, reference_only);
+    }
+}
+
 pub async fn run_frame_consumer(
     pipeline: FramePipeline,
     mut session_shutdown: tokio::sync::watch::Receiver<bool>,
@@ -456,6 +466,7 @@ pub async fn run_frame_consumer(
     acceleration: Arc<AccelerationRuntime>,
     decode_policy: Arc<DecodePolicyCoordinator>,
     decode_enabled: bool,
+    motion_gate: Option<Arc<MotionGatedSession>>,
 ) {
     let mut h264_decoder = H264Decoder::with_acceleration_and_policy(acceleration, decode_policy);
     let mut motion_detector = MotionDetector::new();
@@ -510,6 +521,7 @@ pub async fn run_frame_consumer(
                                     match motion_result {
                                         Ok(MotionOutcome::ReferenceSet) => {
                                             tracing::debug!(seq = f.seq, "motion reference set");
+                                            apply_motion_gate(motion_gate.as_ref(), false, true);
                                             ConsumerFrameOutcome::Decoded {
                                                 decode_ms,
                                                 motion: Some(ConsumerMotionStats {
@@ -525,6 +537,11 @@ pub async fn run_frame_consumer(
                                             detected,
                                             score_percent,
                                         }) => {
+                                            apply_motion_gate(
+                                                motion_gate.as_ref(),
+                                                detected,
+                                                false,
+                                            );
                                             if detected {
                                                 tracing::debug!(
                                                     seq = f.seq,
@@ -784,7 +801,8 @@ mod tests {
                     runtime_fallback_enabled: true,
                     hw_error_threshold: 10,
                 });
-            run_frame_consumer(p, rx, grx, decode_ctx, acceleration, decode_policy, false).await;
+            run_frame_consumer(p, rx, grx, decode_ctx, acceleration, decode_policy, false, None)
+                .await;
         });
         for seq in 1..=5 {
             pipeline.try_enqueue(test_frame(seq, seq as u8, false));
