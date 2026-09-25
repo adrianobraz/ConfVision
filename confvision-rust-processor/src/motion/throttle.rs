@@ -51,6 +51,21 @@ impl MotionAnalysisThrottle {
             self.last_analysis = Some(Instant::now());
         }
     }
+
+    /// Próximo slot disponível sem consumir (para suspender RTSP entre probes).
+    pub fn time_until_due(&self) -> Duration {
+        if self.is_unlimited() {
+            return Duration::ZERO;
+        }
+        match self.last_analysis {
+            None => Duration::ZERO,
+            Some(t) => self.min_interval.saturating_sub(t.elapsed()),
+        }
+    }
+
+    pub fn is_due(&self) -> bool {
+        self.time_until_due().is_zero()
+    }
 }
 
 /// Decisão do produtor RTSP (Fase 6.4): evita enqueue/cópia de AUs descartados.
@@ -69,13 +84,15 @@ pub struct MotionEnqueueGate {
     gated_session: Option<Arc<MotionGatedSession>>,
     motion_frame_stride: u64,
     decode_frame_stride: u64,
+    probe_keyframe_only: bool,
+    rtsp_idle_suspend: bool,
     video_au_index: u64,
     decoder_sync_pending: bool,
 }
 
 impl MotionEnqueueGate {
     pub fn from_max_fps(max_fps: f64) -> Self {
-        Self::from_analysis_config(max_fps, 1, 1, false, None, 0.5)
+        Self::from_analysis_config(max_fps, 1, 1, false, None, 0.5, false, false)
     }
 
     pub fn from_config(cfg: &Config, gated_session: Option<Arc<MotionGatedSession>>) -> Self {
@@ -87,6 +104,8 @@ impl MotionEnqueueGate {
             motion_gated,
             gated_session,
             cfg.motion_gate_probe_max_fps,
+            cfg.motion_probe_keyframe_only,
+            cfg.rtsp_idle_suspend,
         )
     }
 
@@ -98,6 +117,8 @@ impl MotionEnqueueGate {
         motion_gated: bool,
         gated_session: Option<Arc<MotionGatedSession>>,
         probe_max_fps: f64,
+        probe_keyframe_only: bool,
+        rtsp_idle_suspend: bool,
     ) -> Self {
         Self {
             active_throttle: MotionAnalysisThrottle::from_max_fps(max_fps),
@@ -106,9 +127,20 @@ impl MotionEnqueueGate {
             gated_session,
             motion_frame_stride: motion_frame_stride.max(1) as u64,
             decode_frame_stride: decode_frame_stride.max(1) as u64,
+            probe_keyframe_only: probe_keyframe_only && motion_gated,
+            rtsp_idle_suspend: rtsp_idle_suspend && motion_gated,
             video_au_index: 0,
             decoder_sync_pending: false,
         }
+    }
+
+    /// Entre probes: desconectar RTSP e dormir até o próximo slot (economia de demux).
+    pub fn should_suspend_rtsp(&self) -> bool {
+        self.rtsp_idle_suspend && self.in_probe_mode() && !self.probe_throttle.is_due()
+    }
+
+    pub fn rtsp_suspend_sleep(&self) -> Duration {
+        self.probe_throttle.time_until_due().max(Duration::from_millis(200))
     }
 
     fn in_probe_mode(&self) -> bool {
@@ -162,6 +194,13 @@ impl MotionEnqueueGate {
         }
 
         if !self.strides_allow(self.video_au_index) {
+            return MotionEnqueueDecision {
+                enqueue: false,
+                decoder_reset: false,
+            };
+        }
+
+        if self.in_probe_mode() && self.probe_keyframe_only && !is_keyframe {
             return MotionEnqueueDecision {
                 enqueue: false,
                 decoder_reset: false,
@@ -223,7 +262,7 @@ mod tests {
 
     #[test]
     fn stride_reduces_enqueues() {
-        let mut g = MotionEnqueueGate::from_analysis_config(1000.0, 3, 1, false, None, 0.5);
+        let mut g = MotionEnqueueGate::from_analysis_config(1000.0, 3, 1, false, None, 0.5, false, false);
         assert!(!g.decide(false).enqueue);
         assert!(!g.decide(false).enqueue);
         assert!(g.decide(false).enqueue);
@@ -231,7 +270,7 @@ mod tests {
 
     #[test]
     fn decode_stride_requires_both() {
-        let mut g = MotionEnqueueGate::from_analysis_config(1000.0, 2, 5, false, None, 0.5);
+        let mut g = MotionEnqueueGate::from_analysis_config(1000.0, 2, 5, false, None, 0.5, false, false);
         for _ in 0..9 {
             let _ = g.decide(false);
         }
@@ -248,7 +287,7 @@ mod tests {
     #[test]
     fn gated_idle_uses_probe_throttle() {
         let session = MotionGatedSession::new(5);
-        let mut g = MotionEnqueueGate::from_analysis_config(1000.0, 1, 1, true, Some(session), 10.0);
+        let mut g = MotionEnqueueGate::from_analysis_config(1000.0, 1, 1, true, Some(session), 10.0, false, false);
         assert!(g.decide(false).enqueue);
         assert!(!g.decide(false).enqueue);
     }
@@ -257,9 +296,26 @@ mod tests {
     fn gated_armed_uses_active_stride() {
         let session = MotionGatedSession::new(5);
         session.on_motion_analyzed(true, false);
-        let mut g = MotionEnqueueGate::from_analysis_config(1000.0, 3, 1, true, Some(session), 0.1);
+        let mut g = MotionEnqueueGate::from_analysis_config(1000.0, 3, 1, true, Some(session), 0.1, false, false);
         assert!(!g.decide(false).enqueue);
         assert!(!g.decide(false).enqueue);
         assert!(g.decide(false).enqueue);
+    }
+
+    #[test]
+    fn probe_keyframe_only_skips_delta() {
+        let session = MotionGatedSession::new(5);
+        let mut g = MotionEnqueueGate::from_analysis_config(
+            1000.0,
+            1,
+            1,
+            true,
+            Some(session),
+            1000.0,
+            true,
+            false,
+        );
+        assert!(!g.decide(false).enqueue);
+        assert!(g.decide(true).enqueue);
     }
 }

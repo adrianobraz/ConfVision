@@ -34,6 +34,14 @@ MEDIAMTX_NODE_ID=1
 
 Paridade Python (piloto Rust ainda **sem YOLO**): MOG2/YOLO no Python ≈ **probe decode + luma diff** idle, **decode frequente** só com movimento.
 
+Com `ANALYSIS_LEGACY_VPS=1` ou `ANALYSIS_ONLY_ON_MOTION=1` (defaults):
+
+| Variável | Efeito |
+|----------|--------|
+| `MOTION_PROBE_KEYFRAME_ONLY=1` | Probe idle só em IDR |
+| `RTSP_IDLE_SUSPEND=1` | Desconecta RTSP entre probes |
+| `MOTION_PIXEL_DIFF_THRESHOLD` / `MOTION_PERCENT_THRESHOLD` | Menos falso “armed” |
+
 Ajuste fino: `MOTION_ANALYSIS_MAX_FPS=2`, `MOTION_FRAME_STRIDE=3`, `DECODE_FRAME_STRIDE=5`.
 
 Monitore `/health` e métricas (`limiting_resource`, FPS estimado, CPU do container). Suba `MAX_CAMERAS` só depois de CPU estável.

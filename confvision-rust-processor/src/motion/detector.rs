@@ -3,19 +3,36 @@ use std::sync::Arc;
 use crate::decode::DecodedFrame;
 
 use super::types::{
-    MotionOutcome, LUMA_HEIGHT, LUMA_PIXELS, LUMA_WIDTH, MOTION_PERCENT_THRESHOLD,
-    PIXEL_DIFF_THRESHOLD,
+    MotionOutcome, MotionSensitivity, LUMA_HEIGHT, LUMA_PIXELS, LUMA_WIDTH,
+    MOTION_PERCENT_THRESHOLD, PIXEL_DIFF_THRESHOLD,
 };
 
 /// Detector frame-a-frame sobre grade Y reduzida (stateful por sessão consumer).
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct MotionDetector {
     reference: Option<Arc<[u8]>>,
+    sensitivity: MotionSensitivity,
+}
+
+impl Default for MotionDetector {
+    fn default() -> Self {
+        Self {
+            reference: None,
+            sensitivity: MotionSensitivity::default(),
+        }
+    }
 }
 
 impl MotionDetector {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn with_sensitivity(sensitivity: MotionSensitivity) -> Self {
+        Self {
+            reference: None,
+            sensitivity,
+        }
     }
 
     /// Analisa o frame decodificado. Primeiro frame válido só define referência.
@@ -41,13 +58,13 @@ impl MotionDetector {
         let mut changed = 0u32;
         for (a, b) in luma.iter().zip(reference.iter()) {
             let diff = a.abs_diff(*b);
-            if diff >= PIXEL_DIFF_THRESHOLD {
+            if diff >= self.sensitivity.pixel_diff_threshold {
                 changed += 1;
             }
         }
 
         let score_percent = (changed * 100) / LUMA_PIXELS as u32;
-        let detected = score_percent >= MOTION_PERCENT_THRESHOLD;
+        let detected = score_percent >= self.sensitivity.motion_percent_threshold;
 
         self.reference = Some(Arc::clone(luma));
 

@@ -11,7 +11,7 @@ use crate::decode::{
     SessionDecodeContext,
 };
 use crate::metrics::ProcessorMetrics;
-use crate::motion::{MotionDetector, MotionGatedSession, MotionOutcome};
+use crate::motion::{MotionDetector, MotionGatedSession, MotionOutcome, MotionSensitivity};
 use crate::pipeline::PipelineFrame;
 
 /// Fila bounded com política DROP-OLDEST (testável de forma síncrona).
@@ -467,9 +467,10 @@ pub async fn run_frame_consumer(
     decode_policy: Arc<DecodePolicyCoordinator>,
     decode_enabled: bool,
     motion_gate: Option<Arc<MotionGatedSession>>,
+    motion_sensitivity: MotionSensitivity,
 ) {
     let mut h264_decoder = H264Decoder::with_acceleration_and_policy(acceleration, decode_policy);
-    let mut motion_detector = MotionDetector::new();
+    let mut motion_detector = MotionDetector::with_sensitivity(motion_sensitivity);
     let mut flush_every: u32 = 0;
 
     loop {
@@ -801,8 +802,18 @@ mod tests {
                     runtime_fallback_enabled: true,
                     hw_error_threshold: 10,
                 });
-            run_frame_consumer(p, rx, grx, decode_ctx, acceleration, decode_policy, false, None)
-                .await;
+            run_frame_consumer(
+                p,
+                rx,
+                grx,
+                decode_ctx,
+                acceleration,
+                decode_policy,
+                false,
+                None,
+                MotionSensitivity::default(),
+            )
+            .await;
         });
         for seq in 1..=5 {
             pipeline.try_enqueue(test_frame(seq, seq as u8, false));

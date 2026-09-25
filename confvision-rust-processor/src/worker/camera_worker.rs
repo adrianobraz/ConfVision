@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::sync::watch;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::camera::{
     redact_rtsp_url, CameraCancel, CameraRuntimeState, CameraStatus, FpsEstimator,
@@ -12,9 +12,11 @@ use crate::camera::{
 use crate::config::Config;
 use crate::decode::{AccelerationRuntime, DecodePolicyCoordinator, SessionDecodeContext};
 use crate::metrics::ProcessorMetrics;
-use crate::motion::{MotionEnqueueGate, MotionGatedSession};
+use crate::motion::{MotionEnqueueGate, MotionGatedSession, MotionSensitivity};
 use crate::pipeline::{run_frame_consumer, FramePipeline};
-use crate::rtsp::{connect_rtsp_demuxed, run_rtsp_demux_loop, simulate_frame_loop};
+use crate::rtsp::{
+    connect_rtsp_demuxed, run_rtsp_demux_loop, simulate_frame_loop, RtspDemuxOutcome, RtspLoopStats,
+};
 
 async fn run_session_with_pipeline(
     camera_id: i64,
@@ -36,6 +38,7 @@ async fn run_session_with_pipeline(
         None
     };
     let mut enqueue_gate = MotionEnqueueGate::from_config(cfg, motion_gate.clone());
+    let motion_sensitivity = MotionSensitivity::from_config(cfg);
 
     let mut fps_est = FpsEstimator::new();
     let mut live = LiveCaptureContext {
@@ -65,6 +68,7 @@ async fn run_session_with_pipeline(
                 decode_policy_for_consumer,
                 false,
                 motion_gate_for_consumer,
+                motion_sensitivity,
             )
             .await;
         });
@@ -74,9 +78,6 @@ async fn run_session_with_pipeline(
         let _ = tokio::time::timeout(Duration::from_secs(5), consumer).await;
         stats
     } else {
-        let (session, video_index) =
-            connect_rtsp_demuxed(rtsp_url, cfg.rtsp_connect_timeout, decode_ctx.as_ref()).await?;
-
         let (session_shutdown_tx, session_shutdown_rx) = watch::channel(false);
         let consumer_pipeline = pipeline.clone();
         let global_shutdown = cancel.global();
@@ -94,28 +95,68 @@ async fn run_session_with_pipeline(
                 decode_policy_for_consumer,
                 true,
                 motion_gate_for_consumer,
+                motion_sensitivity,
             )
             .await;
         });
 
-        let stats = run_rtsp_demux_loop(
-            camera_id,
-            session,
-            video_index,
-            cfg.rtsp_frame_timeout,
-            cancel,
-            Some(&mut live),
-            &pipeline,
-            decode_ctx.as_ref(),
-            &mut enqueue_gate,
-            metrics.rtsp_hotpath.as_ref(),
-        )
-        .await?;
+        let mut session_stats = RtspLoopStats {
+            frames_received: 0,
+            frames_dropped: 0,
+        };
+
+        loop {
+            if cancel.is_cancelled() {
+                break;
+            }
+
+            let (session, video_index) =
+                connect_rtsp_demuxed(rtsp_url, cfg.rtsp_connect_timeout, decode_ctx.as_ref())
+                    .await?;
+
+            match run_rtsp_demux_loop(
+                camera_id,
+                session,
+                video_index,
+                cfg.rtsp_frame_timeout,
+                cancel.clone(),
+                Some(&mut live),
+                &pipeline,
+                decode_ctx.as_ref(),
+                &mut enqueue_gate,
+                metrics.rtsp_hotpath.as_ref(),
+            )
+            .await?
+            {
+                RtspDemuxOutcome::Finished(s) => {
+                    session_stats.frames_received += s.frames_received;
+                    session_stats.frames_dropped += s.frames_dropped;
+                    break;
+                }
+                RtspDemuxOutcome::IdleSuspend(s) => {
+                    session_stats.frames_received += s.frames_received;
+                    session_stats.frames_dropped += s.frames_dropped;
+                    if cancel.is_cancelled() {
+                        break;
+                    }
+                    let sleep_for = enqueue_gate.rtsp_suspend_sleep();
+                    debug!(
+                        camera_id,
+                        sleep_ms = sleep_for.as_millis(),
+                        "rtsp idle suspend until next motion probe"
+                    );
+                    tokio::select! {
+                        _ = tokio::time::sleep(sleep_for) => {}
+                        _ = cancel.wait_until_cancelled() => break,
+                    }
+                }
+            }
+        }
 
         pipeline.close();
         let _ = session_shutdown_tx.send(true);
         let _ = tokio::time::timeout(Duration::from_secs(5), consumer).await;
-        stats
+        session_stats
     };
 
     Ok(stats)

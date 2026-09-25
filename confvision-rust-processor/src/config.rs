@@ -114,6 +114,12 @@ pub struct Config {
     pub motion_gate_probe_max_fps: f64,
     /// Análises consecutivas sem movimento antes de desarmar (Python `YOLO_MOTION_MISS_FRAMES` × amostras).
     pub motion_gate_miss_frames: u32,
+    /// Probe idle: enfileira decode só em IDR (menos CPU entre movimentos).
+    pub motion_probe_keyframe_only: bool,
+    /// Desconecta RTSP entre probes quando `analysis_only_on_motion`.
+    pub rtsp_idle_suspend: bool,
+    pub motion_pixel_diff_threshold: u8,
+    pub motion_percent_threshold: u32,
 }
 
 impl Config {
@@ -165,6 +171,10 @@ pub fn fill_phase62_defaults(cfg: &mut Config) {
     cfg.analysis_only_on_motion = false;
     cfg.motion_gate_probe_max_fps = 0.5;
     cfg.motion_gate_miss_frames = 10;
+    cfg.motion_probe_keyframe_only = false;
+    cfg.rtsp_idle_suspend = false;
+    cfg.motion_pixel_diff_threshold = 8;
+    cfg.motion_percent_threshold = 5;
 }
 
 impl Config {
@@ -236,6 +246,10 @@ impl Config {
             analysis_only_on_motion: analysis_only_on_motion_from_env(),
             motion_gate_probe_max_fps: motion_gate_probe_max_fps_from_env(),
             motion_gate_miss_frames: motion_gate_miss_frames_from_env(),
+            motion_probe_keyframe_only: motion_probe_keyframe_only_from_env(),
+            rtsp_idle_suspend: rtsp_idle_suspend_from_env(),
+            motion_pixel_diff_threshold: motion_pixel_diff_from_env(),
+            motion_percent_threshold: motion_percent_from_env(),
         })
     }
 
@@ -301,6 +315,28 @@ fn motion_gate_miss_frames_from_env() -> u32 {
         10
     };
     env_u32("MOTION_GATE_MISS_FRAMES", default).max(1)
+}
+
+fn motion_probe_keyframe_only_from_env() -> bool {
+    if std::env::var("MOTION_PROBE_KEYFRAME_ONLY").is_ok() {
+        return env_bool("MOTION_PROBE_KEYFRAME_ONLY", true);
+    }
+    analysis_legacy_vps_enabled() || analysis_only_on_motion_from_env()
+}
+
+fn rtsp_idle_suspend_from_env() -> bool {
+    if std::env::var("RTSP_IDLE_SUSPEND").is_ok() {
+        return env_bool("RTSP_IDLE_SUSPEND", true);
+    }
+    analysis_legacy_vps_enabled() || analysis_only_on_motion_from_env()
+}
+
+fn motion_pixel_diff_from_env() -> u8 {
+    env_u32("MOTION_PIXEL_DIFF_THRESHOLD", 8).min(255) as u8
+}
+
+fn motion_percent_from_env() -> u32 {
+    env_u32("MOTION_PERCENT_THRESHOLD", 5).min(100)
 }
 
 fn forbid_legacy_xano_env() -> AppResult<()> {

@@ -140,6 +140,13 @@ pub async fn connect_rtsp_demuxed(
 }
 
 // Lê frames de uma sessão RTSP já conectada.
+#[derive(Debug, Clone, Copy)]
+pub enum RtspDemuxOutcome {
+    Finished(RtspLoopStats),
+    /// Cena parada: pausa RTSP até próximo probe (gate motion).
+    IdleSuspend(RtspLoopStats),
+}
+
 pub async fn run_rtsp_demux_loop(
     camera_id: i64,
     mut session: Demuxed,
@@ -151,7 +158,7 @@ pub async fn run_rtsp_demux_loop(
     decode_ctx: &SessionDecodeContext,
     enqueue_gate: &mut MotionEnqueueGate,
     hotpath: &RtspHotpathStats,
-) -> AppResult<RtspLoopStats> {
+) -> AppResult<RtspDemuxOutcome> {
     debug!(camera_id, "rtsp connected");
     let mut last_frame = Instant::now();
     let mut seq: u64 = 0;
@@ -164,6 +171,16 @@ pub async fn run_rtsp_demux_loop(
             if cancel.is_cancelled() {
                 hotpath.record_loop_iter(loop_start.elapsed().as_nanos() as u64);
                 break;
+            }
+            if enqueue_gate.should_suspend_rtsp() {
+                if let Some(ctx) = live.as_mut() {
+                    flush_pending_camera_state(ctx);
+                }
+                hotpath.record_loop_iter(loop_start.elapsed().as_nanos() as u64);
+                return Ok(RtspDemuxOutcome::IdleSuspend(RtspLoopStats {
+                    frames_received: seq,
+                    frames_dropped: 0,
+                }));
             }
             if last_frame.elapsed() > frame_timeout {
                 hotpath.record_loop_iter(loop_start.elapsed().as_nanos() as u64);
@@ -247,10 +264,10 @@ pub async fn run_rtsp_demux_loop(
         flush_pending_camera_state(ctx);
     }
 
-    Ok(RtspLoopStats {
+    Ok(RtspDemuxOutcome::Finished(RtspLoopStats {
         frames_received: seq,
         frames_dropped: 0,
-    })
+    }))
 }
 
 // Conecta ao RTSP e conta frames de vídeo até cancelamento ou erro.
@@ -268,7 +285,7 @@ pub async fn run_rtsp_frame_loop(
 ) -> AppResult<RtspLoopStats> {
     let (session, video_index) =
         connect_rtsp_demuxed(rtsp_url, connect_timeout, decode_ctx).await?;
-    run_rtsp_demux_loop(
+    match run_rtsp_demux_loop(
         camera_id,
         session,
         video_index,
@@ -280,7 +297,10 @@ pub async fn run_rtsp_frame_loop(
         enqueue_gate,
         hotpath,
     )
-    .await
+    .await?
+    {
+        RtspDemuxOutcome::Finished(s) | RtspDemuxOutcome::IdleSuspend(s) => Ok(s),
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

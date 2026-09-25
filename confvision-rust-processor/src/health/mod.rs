@@ -330,6 +330,10 @@ mod integration_tests {
             analysis_only_on_motion: false,
             motion_gate_probe_max_fps: 0.5,
             motion_gate_miss_frames: 10,
+            motion_probe_keyframe_only: false,
+            rtsp_idle_suspend: false,
+            motion_pixel_diff_threshold: 8,
+            motion_percent_threshold: 5,
         }
     }
 
