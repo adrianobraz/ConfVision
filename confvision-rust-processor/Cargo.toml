@@ -39,3 +39,10 @@ tokio = { version = "1.43", features = ["macros", "rt-multi-thread", "test-util"
 lto = true
 codegen-units = 1
 strip = true
+
+# Binário release com símbolos para `perf`/flamegraph no Linux (Fase 6.9).
+# Não altera o artefato `cargo build --release` de produção.
+[profile.profiling]
+inherits = "release"
+strip = false
+debug = "line-tables-only"
