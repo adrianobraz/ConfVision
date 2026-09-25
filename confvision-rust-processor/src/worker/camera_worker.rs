@@ -1,5 +1,6 @@
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
+use std::time::Duration;
 
 use tokio::sync::watch;
 use tracing::{info, warn};
@@ -13,7 +14,7 @@ use crate::decode::{AccelerationRuntime, DecodePolicyCoordinator, SessionDecodeC
 use crate::metrics::ProcessorMetrics;
 use crate::motion::MotionEnqueueGate;
 use crate::pipeline::{run_frame_consumer, FramePipeline};
-use crate::rtsp::{run_rtsp_frame_loop, simulate_frame_loop};
+use crate::rtsp::{connect_rtsp_demuxed, run_rtsp_demux_loop, simulate_frame_loop};
 
 async fn run_session_with_pipeline(
     camera_id: i64,
@@ -27,28 +28,9 @@ async fn run_session_with_pipeline(
     global_frames: Arc<AtomicU64>,
     simulate: bool,
 ) -> Result<crate::rtsp::RtspLoopStats, crate::error::AppError> {
-    let (session_shutdown_tx, session_shutdown_rx) = watch::channel(false);
     let pipeline = FramePipeline::new(cfg.frame_buffer_max, metrics.clone(), state.clone());
-
     let decode_ctx = SessionDecodeContext::new();
-    let consumer_pipeline = pipeline.clone();
-    let global_shutdown = cancel.global();
-    let decode_for_consumer = decode_ctx.clone();
-    let acceleration_for_consumer = acceleration.clone();
-    let decode_policy_for_consumer = decode_policy.clone();
     let mut enqueue_gate = MotionEnqueueGate::from_max_fps(cfg.motion_analysis_max_fps);
-    let consumer = tokio::spawn(async move {
-        run_frame_consumer(
-            consumer_pipeline,
-            session_shutdown_rx,
-            global_shutdown,
-            decode_for_consumer,
-            acceleration_for_consumer,
-            decode_policy_for_consumer,
-            !simulate,
-        )
-        .await;
-    });
 
     let mut fps_est = FpsEstimator::new();
     let mut live = LiveCaptureContext {
@@ -61,12 +43,56 @@ async fn run_session_with_pipeline(
     };
 
     let stats = if simulate {
-        simulate_frame_loop(camera_id, 5.0, cancel.clone(), Some(&mut live), &pipeline).await
+        let (session_shutdown_tx, session_shutdown_rx) = watch::channel(false);
+        let consumer_pipeline = pipeline.clone();
+        let global_shutdown = cancel.global();
+        let decode_for_consumer = decode_ctx.clone();
+        let acceleration_for_consumer = acceleration.clone();
+        let decode_policy_for_consumer = decode_policy.clone();
+        let consumer = tokio::spawn(async move {
+            run_frame_consumer(
+                consumer_pipeline,
+                session_shutdown_rx,
+                global_shutdown,
+                decode_for_consumer,
+                acceleration_for_consumer,
+                decode_policy_for_consumer,
+                false,
+            )
+            .await;
+        });
+        let stats = simulate_frame_loop(camera_id, 5.0, cancel, Some(&mut live), &pipeline).await;
+        pipeline.close();
+        let _ = session_shutdown_tx.send(true);
+        let _ = tokio::time::timeout(Duration::from_secs(5), consumer).await;
+        stats
     } else {
-        run_rtsp_frame_loop(
+        let (session, video_index) =
+            connect_rtsp_demuxed(rtsp_url, cfg.rtsp_connect_timeout, decode_ctx.as_ref()).await?;
+
+        let (session_shutdown_tx, session_shutdown_rx) = watch::channel(false);
+        let consumer_pipeline = pipeline.clone();
+        let global_shutdown = cancel.global();
+        let decode_for_consumer = decode_ctx.clone();
+        let acceleration_for_consumer = acceleration.clone();
+        let decode_policy_for_consumer = decode_policy.clone();
+        let consumer = tokio::spawn(async move {
+            run_frame_consumer(
+                consumer_pipeline,
+                session_shutdown_rx,
+                global_shutdown,
+                decode_for_consumer,
+                acceleration_for_consumer,
+                decode_policy_for_consumer,
+                true,
+            )
+            .await;
+        });
+
+        let stats = run_rtsp_demux_loop(
             camera_id,
-            rtsp_url,
-            cfg.rtsp_connect_timeout,
+            session,
+            video_index,
             cfg.rtsp_frame_timeout,
             cancel,
             Some(&mut live),
@@ -75,14 +101,29 @@ async fn run_session_with_pipeline(
             &mut enqueue_gate,
             metrics.rtsp_hotpath.as_ref(),
         )
-        .await?
+        .await?;
+
+        pipeline.close();
+        let _ = session_shutdown_tx.send(true);
+        let _ = tokio::time::timeout(Duration::from_secs(5), consumer).await;
+        stats
     };
 
-    pipeline.close();
-    let _ = session_shutdown_tx.send(true);
-    let _ = tokio::time::timeout(std::time::Duration::from_secs(5), consumer).await;
-
     Ok(stats)
+}
+
+/// `true` = encerrar o worker (shutdown/stop da câmera).
+async fn wait_reconnect_delay(
+    delay: Duration,
+    shutdown_rx: &mut watch::Receiver<bool>,
+    camera_stop_rx: watch::Receiver<bool>,
+) -> bool {
+    let mut local_stop = camera_stop_rx;
+    tokio::select! {
+        _ = tokio::time::sleep(delay) => false,
+        _ = shutdown_rx.changed() => true,
+        _ = local_stop.changed() => true,
+    }
 }
 
 pub async fn run_camera_worker(
@@ -155,7 +196,15 @@ pub async fn run_camera_worker(
                 }
                 backoff.reset();
                 info!(camera_id, processor_id = %cfg.processor_id, "rtsp session ended — reconnecting");
-                continue;
+                if wait_reconnect_delay(
+                    backoff.base_interval(),
+                    shutdown_rx,
+                    camera_stop_rx.clone(),
+                )
+                .await
+                {
+                    break;
+                }
             }
             Err(e) => {
                 if *camera_stop_rx.borrow() {
@@ -180,11 +229,8 @@ pub async fn run_camera_worker(
                 })
                 .await;
 
-                let mut local_stop = camera_stop_rx.clone();
-                tokio::select! {
-                    _ = tokio::time::sleep(delay) => {}
-                    _ = shutdown_rx.changed() => { break; }
-                    _ = local_stop.changed() => { break; }
+                if wait_reconnect_delay(delay, shutdown_rx, camera_stop_rx.clone()).await {
+                    break;
                 }
             }
         }
@@ -213,5 +259,31 @@ where
     } else {
         let mut guard = state.write().await;
         f(&mut guard);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Instant;
+
+    #[tokio::test]
+    async fn reconnect_delay_waits_at_least_interval() {
+        let (_tx, mut shutdown_rx) = watch::channel(false);
+        let (_stop_tx, stop_rx) = watch::channel(false);
+        let start = Instant::now();
+        let stop =
+            wait_reconnect_delay(Duration::from_millis(120), &mut shutdown_rx, stop_rx).await;
+        assert!(!stop);
+        assert!(start.elapsed() >= Duration::from_millis(100));
+    }
+
+    #[tokio::test]
+    async fn reconnect_delay_exits_on_camera_stop() {
+        let (_tx, mut shutdown_rx) = watch::channel(false);
+        let (stop_tx, stop_rx) = watch::channel(false);
+        stop_tx.send(true).unwrap();
+        let stop = wait_reconnect_delay(Duration::from_secs(60), &mut shutdown_rx, stop_rx).await;
+        assert!(stop);
     }
 }

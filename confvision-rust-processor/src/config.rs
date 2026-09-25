@@ -198,7 +198,7 @@ impl Config {
             sync_interval: Duration::from_secs(env_u64("SYNC_INTERVAL_SEC", 60)),
             ping_interval: Duration::from_secs(env_u64("PING_INTERVAL_SEC", 30)),
             rtsp_connect_timeout: Duration::from_secs(env_u64("RTSP_CONNECT_TIMEOUT_SEC", 15)),
-            rtsp_reconnect_base: Duration::from_secs(env_u64("RTSP_RECONNECT_SECONDS", 10)),
+            rtsp_reconnect_base: Duration::from_secs(env_u64("RTSP_RECONNECT_SECONDS", 10).max(1)),
             rtsp_frame_timeout: Duration::from_secs(env_u64("RTSP_FRAME_TIMEOUT_SEC", 30)),
             frame_buffer_max: env_usize("FRAME_BUFFER_MAX", 2).max(1),
             queue_backend: env_or("QUEUE_BACKEND", "none"),

@@ -97,19 +97,12 @@ fn handle_video_frame(
     hotpath.record_video_au(post_au_nanos, throttle_nanos, metrics_nanos);
 }
 
-// Conecta ao RTSP e conta frames de vídeo até cancelamento ou erro.
-pub async fn run_rtsp_frame_loop(
-    camera_id: i64,
+/// DESCRIBE → SETUP → PLAY → demux. Falhas (ex.: 404) retornam antes do loop de frames.
+pub async fn connect_rtsp_demuxed(
     rtsp_url: &str,
     connect_timeout: Duration,
-    frame_timeout: Duration,
-    cancel: CameraCancel,
-    mut live: Option<&mut LiveCaptureContext<'_>>,
-    pipeline: &FramePipeline,
     decode_ctx: &SessionDecodeContext,
-    enqueue_gate: &mut MotionEnqueueGate,
-    hotpath: &RtspHotpathStats,
-) -> AppResult<RtspLoopStats> {
+) -> AppResult<(Demuxed, usize)> {
     let url = rtsp_url
         .parse()
         .map_err(|e| AppError::Rtsp(format!("URL inválida: {e}")))?;
@@ -135,16 +128,31 @@ pub async fn run_rtsp_frame_loop(
         .await
         .map_err(|e| AppError::Rtsp(e.to_string()))?;
 
-    let mut session = session
+    let session = session
         .play(PlayOptions::default())
         .await
         .map_err(|e| AppError::Rtsp(e.to_string()))?
         .demuxed()
         .map_err(|e| AppError::Rtsp(e.to_string()))?;
 
-    debug!(camera_id, "rtsp connected");
     sync_h264_extradata(&session, video_index, decode_ctx);
+    Ok((session, video_index))
+}
 
+// Lê frames de uma sessão RTSP já conectada.
+pub async fn run_rtsp_demux_loop(
+    camera_id: i64,
+    mut session: Demuxed,
+    video_index: usize,
+    frame_timeout: Duration,
+    cancel: CameraCancel,
+    mut live: Option<&mut LiveCaptureContext<'_>>,
+    pipeline: &FramePipeline,
+    decode_ctx: &SessionDecodeContext,
+    enqueue_gate: &mut MotionEnqueueGate,
+    hotpath: &RtspHotpathStats,
+) -> AppResult<RtspLoopStats> {
+    debug!(camera_id, "rtsp connected");
     let mut last_frame = Instant::now();
     let mut seq: u64 = 0;
     let mut health_tick: u32 = 0;
@@ -187,10 +195,11 @@ pub async fn run_rtsp_frame_loop(
                         Some(Ok(_)) => {
                             hotpath.record_session_next_non_video();
                             non_video_drained = non_video_drained.wrapping_add(1);
-                            if non_video_drained % SESSION_CANCEL_CHECK_EVERY_NON_VIDEO == 0
-                                && cancel.is_cancelled()
-                            {
-                                return None;
+                            if non_video_drained % SESSION_CANCEL_CHECK_EVERY_NON_VIDEO == 0 {
+                                if cancel.is_cancelled() {
+                                    return None;
+                                }
+                                tokio::task::yield_now().await;
                             }
                         }
                     }
@@ -242,6 +251,36 @@ pub async fn run_rtsp_frame_loop(
         frames_received: seq,
         frames_dropped: 0,
     })
+}
+
+// Conecta ao RTSP e conta frames de vídeo até cancelamento ou erro.
+pub async fn run_rtsp_frame_loop(
+    camera_id: i64,
+    rtsp_url: &str,
+    connect_timeout: Duration,
+    frame_timeout: Duration,
+    cancel: CameraCancel,
+    live: Option<&mut LiveCaptureContext<'_>>,
+    pipeline: &FramePipeline,
+    decode_ctx: &SessionDecodeContext,
+    enqueue_gate: &mut MotionEnqueueGate,
+    hotpath: &RtspHotpathStats,
+) -> AppResult<RtspLoopStats> {
+    let (session, video_index) =
+        connect_rtsp_demuxed(rtsp_url, connect_timeout, decode_ctx).await?;
+    run_rtsp_demux_loop(
+        camera_id,
+        session,
+        video_index,
+        frame_timeout,
+        cancel,
+        live,
+        pipeline,
+        decode_ctx,
+        enqueue_gate,
+        hotpath,
+    )
+    .await
 }
 
 #[derive(Debug, Clone, Copy)]
