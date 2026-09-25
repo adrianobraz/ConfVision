@@ -14,17 +14,18 @@ pub struct LiveCaptureContext<'a> {
 }
 
 /// RTSP recebeu um VideoFrame (contagem live — não inclui drops da pipeline).
-pub async fn record_frame_received(ctx: &mut LiveCaptureContext<'_>) {
+pub fn record_frame_received(ctx: &mut LiveCaptureContext<'_>) {
     ctx.metrics.add_frames_received(1);
     ctx.global_frames.fetch_add(1, Ordering::Relaxed);
 
     let fps_update = ctx.fps_est.record_frame();
 
-    let mut s = ctx.state.write().await;
-    s.frames_received += 1;
-    s.last_frame_at = Some(Utc::now());
-    s.status = CameraStatus::Online;
-    if let Some(fps) = fps_update {
-        s.fps = fps;
+    if let Ok(mut s) = ctx.state.try_write() {
+        s.frames_received += 1;
+        s.last_frame_at = Some(Utc::now());
+        s.status = CameraStatus::Online;
+        if let Some(fps) = fps_update {
+            s.fps = fps;
+        }
     }
 }

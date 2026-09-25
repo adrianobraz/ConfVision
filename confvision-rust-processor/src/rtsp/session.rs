@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use futures::StreamExt;
@@ -11,6 +11,7 @@ use tracing::debug;
 use crate::camera::{record_frame_received, CameraCancel, LiveCaptureContext};
 use crate::decode::SessionDecodeContext;
 use crate::error::{AppError, AppResult};
+use crate::motion::MotionEnqueueGate;
 use crate::pipeline::{FramePipeline, PipelineFrame, RtpTimestamp};
 
 fn sync_h264_extradata(session: &Demuxed, video_index: usize, decode_ctx: &SessionDecodeContext) {
@@ -20,7 +21,7 @@ fn sync_h264_extradata(session: &Demuxed, video_index: usize, decode_ctx: &Sessi
     decode_ctx.update_extradata(params.extra_data());
 }
 
-fn pipeline_frame_from_video(seq: u64, frame: VideoFrame) -> PipelineFrame {
+fn pipeline_frame_from_video(seq: u64, frame: VideoFrame, decoder_reset: bool) -> PipelineFrame {
     let ts = frame.timestamp();
     let rtp_timestamp = RtpTimestamp {
         timestamp: ts.timestamp(),
@@ -30,7 +31,7 @@ fn pipeline_frame_from_video(seq: u64, frame: VideoFrame) -> PipelineFrame {
     let is_keyframe = frame.is_random_access_point();
     // Move do buffer interno do retina — sem cópia extra dos bytes do AU.
     let payload: Arc<[u8]> = Arc::from(frame.into_data());
-    PipelineFrame::new(seq, payload, is_keyframe, rtp_timestamp)
+    PipelineFrame::with_decoder_reset(seq, payload, is_keyframe, rtp_timestamp, decoder_reset)
 }
 
 // Conecta ao RTSP e conta frames de vídeo até cancelamento ou erro.
@@ -43,6 +44,7 @@ pub async fn run_rtsp_frame_loop(
     mut live: Option<&mut LiveCaptureContext<'_>>,
     pipeline: &FramePipeline,
     decode_ctx: &SessionDecodeContext,
+    enqueue_gate: Option<Arc<Mutex<MotionEnqueueGate>>>,
 ) -> AppResult<RtspLoopStats> {
     let url = rtsp_url
         .parse()
@@ -105,9 +107,21 @@ pub async fn run_rtsp_frame_loop(
                 }
                 seq += 1;
                 if let Some(ctx) = live.as_mut() {
-                    record_frame_received(ctx).await;
+                    record_frame_received(ctx);
                 }
-                pipeline.try_enqueue(pipeline_frame_from_video(seq, frame));
+                let is_keyframe = frame.is_random_access_point();
+                let mut decoder_reset = false;
+                let enqueue = match enqueue_gate.as_ref() {
+                    Some(gate) => {
+                        let decision = gate.lock().unwrap().decide(is_keyframe);
+                        decoder_reset = decision.decoder_reset;
+                        decision.enqueue
+                    }
+                    None => true,
+                };
+                if enqueue {
+                    pipeline.try_enqueue(pipeline_frame_from_video(seq, frame, decoder_reset));
+                }
                 last_frame = Instant::now();
                 if seq == 1 || seq % 100 == 0 {
                     debug!(camera_id, seq, "frame received");
@@ -167,7 +181,7 @@ pub async fn simulate_frame_loop(
         }
         seq += 1;
         if let Some(ctx) = live.as_mut() {
-            record_frame_received(ctx).await;
+            record_frame_received(ctx);
         }
         pipeline.try_enqueue(simulated_pipeline_frame(seq));
         if seq % 30 == 0 {

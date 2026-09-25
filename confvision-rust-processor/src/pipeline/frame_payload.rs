@@ -17,6 +17,8 @@ pub struct PipelineFrame {
     pub payload: Arc<[u8]>,
     pub is_keyframe: bool,
     pub rtp_timestamp: RtpTimestamp,
+    /// Reinicializar libavcodec antes de decodificar (após AUs ignorados no RTSP).
+    pub decoder_reset: bool,
 }
 
 impl PipelineFrame {
@@ -26,12 +28,23 @@ impl PipelineFrame {
         is_keyframe: bool,
         rtp_timestamp: RtpTimestamp,
     ) -> Self {
+        Self::with_decoder_reset(seq, payload, is_keyframe, rtp_timestamp, false)
+    }
+
+    pub fn with_decoder_reset(
+        seq: u64,
+        payload: Arc<[u8]>,
+        is_keyframe: bool,
+        rtp_timestamp: RtpTimestamp,
+        decoder_reset: bool,
+    ) -> Self {
         Self {
             seq,
             captured_at: Instant::now(),
             payload,
             is_keyframe,
             rtp_timestamp,
+            decoder_reset,
         }
     }
 }

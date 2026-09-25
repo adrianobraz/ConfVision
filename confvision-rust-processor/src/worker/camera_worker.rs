@@ -1,5 +1,5 @@
 use std::sync::atomic::AtomicU64;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use tokio::sync::watch;
 use tracing::{info, warn};
@@ -11,6 +11,7 @@ use crate::camera::{
 use crate::config::Config;
 use crate::decode::{AccelerationRuntime, DecodePolicyCoordinator, SessionDecodeContext};
 use crate::metrics::ProcessorMetrics;
+use crate::motion::MotionEnqueueGate;
 use crate::pipeline::{run_frame_consumer, FramePipeline};
 use crate::rtsp::{run_rtsp_frame_loop, simulate_frame_loop};
 
@@ -35,7 +36,9 @@ async fn run_session_with_pipeline(
     let decode_for_consumer = decode_ctx.clone();
     let acceleration_for_consumer = acceleration.clone();
     let decode_policy_for_consumer = decode_policy.clone();
-    let motion_analysis_max_fps = cfg.motion_analysis_max_fps;
+    let enqueue_gate = Arc::new(Mutex::new(MotionEnqueueGate::from_max_fps(
+        cfg.motion_analysis_max_fps,
+    )));
     let consumer = tokio::spawn(async move {
         run_frame_consumer(
             consumer_pipeline,
@@ -45,7 +48,6 @@ async fn run_session_with_pipeline(
             acceleration_for_consumer,
             decode_policy_for_consumer,
             !simulate,
-            motion_analysis_max_fps,
         )
         .await;
     });
@@ -70,6 +72,7 @@ async fn run_session_with_pipeline(
             Some(&mut live),
             &pipeline,
             decode_ctx.as_ref(),
+            Some(enqueue_gate),
         )
         .await?
     };

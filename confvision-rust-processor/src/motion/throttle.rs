@@ -47,6 +47,68 @@ impl MotionAnalysisThrottle {
     }
 }
 
+/// Decisão do produtor RTSP (Fase 6.4): evita enqueue/cópia de AUs descartados.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MotionEnqueueDecision {
+    pub enqueue: bool,
+    pub decoder_reset: bool,
+}
+
+/// Gate no produtor: throttle + sync H.264 (só enfileira após IDR se houve gap).
+#[derive(Debug, Clone)]
+pub struct MotionEnqueueGate {
+    throttle: MotionAnalysisThrottle,
+    decoder_sync_pending: bool,
+}
+
+impl MotionEnqueueGate {
+    pub fn from_max_fps(max_fps: f64) -> Self {
+        Self {
+            throttle: MotionAnalysisThrottle::from_max_fps(max_fps),
+            decoder_sync_pending: false,
+        }
+    }
+
+    pub fn is_unlimited(&self) -> bool {
+        self.throttle.is_unlimited()
+    }
+
+    pub fn decide(&mut self, is_keyframe: bool) -> MotionEnqueueDecision {
+        if self.is_unlimited() {
+            return MotionEnqueueDecision {
+                enqueue: true,
+                decoder_reset: false,
+            };
+        }
+        if is_keyframe {
+            let enqueue = self.throttle.should_analyze(true);
+            let decoder_reset = self.decoder_sync_pending;
+            self.decoder_sync_pending = false;
+            return MotionEnqueueDecision {
+                enqueue,
+                decoder_reset,
+            };
+        }
+        if self.decoder_sync_pending {
+            return MotionEnqueueDecision {
+                enqueue: false,
+                decoder_reset: false,
+            };
+        }
+        if self.throttle.should_analyze(false) {
+            return MotionEnqueueDecision {
+                enqueue: true,
+                decoder_reset: false,
+            };
+        }
+        self.decoder_sync_pending = true;
+        MotionEnqueueDecision {
+            enqueue: false,
+            decoder_reset: false,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -74,5 +136,15 @@ mod tests {
         assert!(!t.should_analyze(false));
         thread::sleep(Duration::from_millis(12));
         assert!(t.should_analyze(false));
+    }
+
+    #[test]
+    fn enqueue_gate_skips_copy_until_keyframe_after_throttle() {
+        let mut g = MotionEnqueueGate::from_max_fps(10.0);
+        assert!(g.decide(false).enqueue);
+        assert!(!g.decide(false).enqueue);
+        let k = g.decide(true);
+        assert!(k.enqueue);
+        assert!(k.decoder_reset);
     }
 }
