@@ -24,13 +24,23 @@ Anote o PID ou deixe o script descobrir pelo nome `confvision-rust-processor`.
 
 ## Executar coleta (~30 s)
 
-No repositório (ou copie `scripts/` para o host):
+Na imagem de produção (após rebuild), os scripts ficam em **`/app/scripts/`** (`WORKDIR` = `/app`).
+
+No repositório ou no container:
 
 ```bash
 chmod +x scripts/profile-cpu.sh scripts/rust-process-threads.sh
 ./scripts/profile-cpu.sh          # auto-descobre PID
 ./scripts/profile-cpu.sh 12345    # PID explícito
 sudo ./scripts/profile-cpu.sh     # se perf negar permissão
+```
+
+Dentro do container (threads / preparação; `perf` costuma rodar no **host** com PID do processo no namespace do host):
+
+```bash
+docker exec -it <container> /app/scripts/rust-process-threads.sh
+# No host (exemplo): PID=$(docker inspect -f '{{.State.Pid}}' <container>)
+# sudo perf record -F 99 -g -p "$PID" -o perf.data -- sleep 30
 ```
 
 Só listar threads (PID, TID, nome, %CPU quando `ps` permitir):

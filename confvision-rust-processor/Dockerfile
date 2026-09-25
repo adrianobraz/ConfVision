@@ -22,11 +22,15 @@ RUN touch src/main.rs && cargo build --release --features ffmpeg-decode
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
+    bash \
+    procps \
     libavcodec59 \
     libavutil57 \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /app/target/release/confvision-rust-processor /usr/local/bin/confvision-rust-processor
+COPY scripts/profile-cpu.sh scripts/rust-process-threads.sh /app/scripts/
+RUN chmod 755 /app/scripts/profile-cpu.sh /app/scripts/rust-process-threads.sh
 ENV HTTP_HOST=0.0.0.0
 ENV HTTP_PORT=8090
 EXPOSE 8090
