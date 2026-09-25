@@ -1,6 +1,15 @@
 # Build Rust local
 target/
 
+# Não entram no contexto de build de produção
+Dockerfile.profiling
+docs/
+profile-output/
+*.md
+DEPLOY_EASYPANEL.md
+easypanel.env.example
+.env.example
+
 # Git (se contexto incluir metadados)
 .git/
 .gitignore

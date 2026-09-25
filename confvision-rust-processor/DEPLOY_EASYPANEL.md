@@ -7,6 +7,8 @@ Sem alterar Go, Python, MediaMTX, Postgres ou Xano.
 
 Modelo de variáveis: [`easypanel.env.example`](./easypanel.env.example).
 
+**Câmeras paradas / Rust off / stack ConfVision desligada:** [docs/RECUPERACAO_CAMERAS.md](./docs/RECUPERACAO_CAMERAS.md) (sem Xano).
+
 ---
 
 ## 1. Criar o serviço Docker no EasyPanel
@@ -27,8 +29,8 @@ Não instalar Rust na VPS: o EasyPanel faz **build da imagem** a partir do Docke
 
 O `Dockerfile` atual:
 
-- Stage **builder:** `rust:1.88-bookworm` → `cargo build --release`
-- Stage **runtime:** `debian:bookworm-slim` + `ca-certificates` + binário em `/usr/local/bin/confvision-rust-processor`
+- **cargo-chef** + cache mounts BuildKit (`registry`, `git`, `target`) — deps compiladas uma vez; um `cargo build --release --features ffmpeg-decode` do app
+- Stage **runtime:** `debian:bookworm-slim` + FFmpeg runtime + binário em `/usr/local/bin/confvision-rust-processor`
 
 Tag sugerida após build: `confvision-rust-processor:0.1.0` (ou `:latest` no registry interno do EasyPanel).
 
