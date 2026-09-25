@@ -124,7 +124,7 @@ pub(crate) fn decoded_from_video_frame(
     let y_stride = frame.stride(0);
     let y_data = frame.data(0);
     downscale_y_plane_into(y_data, src_w, src_h, y_stride, luma_scratch)?;
-    let luma = Arc::from(std::mem::take(luma_scratch).into_boxed_slice());
+    let luma: Arc<[u8]> = Arc::from(std::mem::take(luma_scratch).into_boxed_slice());
     *luma_scratch = Vec::with_capacity(luma.len());
 
     Ok(DecodedFrame {

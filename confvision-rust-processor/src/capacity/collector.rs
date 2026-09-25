@@ -89,7 +89,7 @@ impl ResourceCollector {
         out.memory_scope = ResourceScope::Unavailable;
     }
 
-    fn sample_load(&mut self, _out: &mut RawHostSample) {
+    fn sample_load(&mut self, out: &mut RawHostSample) {
         #[cfg(target_os = "linux")]
         {
             out.load_1m = read_proc_loadavg();

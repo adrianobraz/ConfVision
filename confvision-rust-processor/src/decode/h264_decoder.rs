@@ -201,7 +201,7 @@ impl H264Decoder {
             .map(|a| a.planned_decode_backend())
             .unwrap_or(PlannedDecodeBackend::Cpu);
 
-        let attempt_nvdec = matches!(planned, PlannedDecodeBackend::Nvdec)
+        let attempt_nvdec = planned_backend_is_nvdec(planned)
             && self
                 .decode_policy
                 .as_ref()
@@ -259,6 +259,19 @@ impl H264Decoder {
             Some(BackendInstance::Nvdec(d)) => d.last_transfer_to_cpu_ms,
             _ => 0,
         }
+    }
+}
+
+#[cfg(feature = "ffmpeg-decode")]
+fn planned_backend_is_nvdec(planned: PlannedDecodeBackend) -> bool {
+    #[cfg(all(feature = "ffmpeg-decode", feature = "ffmpeg-nvdec"))]
+    {
+        matches!(planned, PlannedDecodeBackend::Nvdec)
+    }
+    #[cfg(not(all(feature = "ffmpeg-decode", feature = "ffmpeg-nvdec")))]
+    {
+        let _ = planned;
+        false
     }
 }
 
