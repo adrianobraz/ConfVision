@@ -73,6 +73,7 @@ async fn run_session_with_pipeline(
             &pipeline,
             decode_ctx.as_ref(),
             &mut enqueue_gate,
+            metrics.rtsp_hotpath.as_ref(),
         )
         .await?
     };

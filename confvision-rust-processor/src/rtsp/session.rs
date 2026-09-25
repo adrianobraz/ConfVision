@@ -16,6 +16,7 @@ use crate::decode::SessionDecodeContext;
 use crate::error::{AppError, AppResult};
 use crate::motion::MotionEnqueueGate;
 use crate::pipeline::{FramePipeline, PipelineFrame, RtpTimestamp};
+use crate::rtsp_hotpath::RtspHotpathStats;
 
 /// Checagens de cancel/timeout a cada N AUs (retina já entrega ~15 FPS/câmera).
 const SESSION_HEALTH_CHECK_EVERY: u32 = 8;
@@ -53,12 +54,18 @@ fn handle_video_frame(
     enqueue_gate: &mut MotionEnqueueGate,
     live: &mut Option<&mut LiveCaptureContext<'_>>,
     pipeline: &FramePipeline,
+    hotpath: &RtspHotpathStats,
 ) {
+    let au_start = Instant::now();
     if frame.has_new_parameters() {
         sync_h264_extradata(session, video_index, decode_ctx);
     }
+    let throttle_start = Instant::now();
     let is_keyframe = frame.is_random_access_point();
     let decision = enqueue_gate.decide(is_keyframe);
+    let throttle_nanos = throttle_start.elapsed().as_nanos() as u64;
+
+    let metrics_start = Instant::now();
     if decision.enqueue {
         if let Some(ctx) = live.as_mut() {
             record_frame_enqueued(ctx);
@@ -72,6 +79,9 @@ fn handle_video_frame(
     } else if let Some(ctx) = live.as_mut() {
         record_rtsp_au_throttled(ctx);
     }
+    let metrics_nanos = metrics_start.elapsed().as_nanos() as u64;
+    let post_au_nanos = au_start.elapsed().as_nanos() as u64;
+    hotpath.record_video_au(post_au_nanos, throttle_nanos, metrics_nanos);
 }
 
 // Conecta ao RTSP e conta frames de vídeo até cancelamento ou erro.
@@ -85,6 +95,7 @@ pub async fn run_rtsp_frame_loop(
     pipeline: &FramePipeline,
     decode_ctx: &SessionDecodeContext,
     enqueue_gate: &mut MotionEnqueueGate,
+    hotpath: &RtspHotpathStats,
 ) -> AppResult<RtspLoopStats> {
     let url = rtsp_url
         .parse()
@@ -129,12 +140,15 @@ pub async fn run_rtsp_frame_loop(
     let mut health_tick: u32 = 0;
 
     loop {
+        let loop_start = Instant::now();
         health_tick = health_tick.wrapping_add(1);
         if health_tick % SESSION_HEALTH_CHECK_EVERY == 0 {
             if cancel.is_cancelled() {
+                hotpath.record_loop_iter(loop_start.elapsed().as_nanos() as u64);
                 break;
             }
             if last_frame.elapsed() > frame_timeout {
+                hotpath.record_loop_iter(loop_start.elapsed().as_nanos() as u64);
                 return Err(AppError::Rtsp(format!(
                     "frame timeout após {}s",
                     frame_timeout.as_secs()
@@ -142,14 +156,17 @@ pub async fn run_rtsp_frame_loop(
             }
         }
 
+        let session_next_start = Instant::now();
         tokio::select! {
             biased;
             () = cancel.wait_until_cancelled(), if !cancel.is_cancelled() => {
                 if cancel.is_cancelled() {
+                    hotpath.record_loop_iter(loop_start.elapsed().as_nanos() as u64);
                     break;
                 }
             }
             item = session.next() => {
+                hotpath.record_session_next(session_next_start.elapsed().as_nanos() as u64);
                 match item {
                     Some(Ok(CodecItem::VideoFrame(frame))) => {
                         seq += 1;
@@ -162,6 +179,7 @@ pub async fn run_rtsp_frame_loop(
                             enqueue_gate,
                             &mut live,
                             pipeline,
+                            hotpath,
                         );
                         last_frame = Instant::now();
                         if seq == 1 || seq % 100 == 0 {
@@ -170,14 +188,17 @@ pub async fn run_rtsp_frame_loop(
                     }
                     Some(Ok(_)) => {}
                     Some(Err(e)) => {
+                        hotpath.record_loop_iter(loop_start.elapsed().as_nanos() as u64);
                         return Err(AppError::Rtsp(e.to_string()));
                     }
                     None => {
+                        hotpath.record_loop_iter(loop_start.elapsed().as_nanos() as u64);
                         return Err(AppError::Rtsp("stream RTSP encerrado".into()));
                     }
                 }
             }
         }
+        hotpath.record_loop_iter(loop_start.elapsed().as_nanos() as u64);
     }
 
     if let Some(ctx) = live.as_mut() {

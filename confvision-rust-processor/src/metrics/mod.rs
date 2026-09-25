@@ -4,6 +4,8 @@ use std::time::Instant;
 
 use serde::Serialize;
 
+use crate::rtsp_hotpath::RtspHotpathStats;
+
 #[derive(Debug)]
 pub struct ProcessorMetrics {
     pub processor_id: String,
@@ -26,6 +28,7 @@ pub struct ProcessorMetrics {
     pub reconnects: AtomicU64,
     pub rtsp_errors: AtomicU64,
     pub errors: AtomicU64,
+    pub rtsp_hotpath: Arc<RtspHotpathStats>,
 }
 
 impl ProcessorMetrics {
@@ -50,6 +53,7 @@ impl ProcessorMetrics {
             reconnects: AtomicU64::new(0),
             rtsp_errors: AtomicU64::new(0),
             errors: AtomicU64::new(0),
+            rtsp_hotpath: Arc::new(RtspHotpathStats::default()),
         }
     }
 

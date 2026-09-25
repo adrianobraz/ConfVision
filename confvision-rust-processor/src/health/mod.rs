@@ -12,6 +12,7 @@ use crate::config::Config;
 use crate::decode::{AccelerationRuntime, DecodePolicyCoordinator};
 use crate::load::LoadAdmissionGate;
 use crate::metrics::{MetricsSnapshot, SharedMetrics};
+use crate::rtsp_hotpath::RtspHotpathMetrics;
 
 mod runtime_phase62;
 pub use runtime_phase62::{build_phase62_view, Phase62RuntimeView};
@@ -185,6 +186,7 @@ pub async fn metrics_handler(State(st): State<AppState>) -> Json<MetricsBody> {
         hw_stack_grade: runtime_phase62.hw_stack_grade,
         load_advisory: runtime_phase62.load_advisory,
         load_advisory_reason: runtime_phase62.load_advisory_reason,
+        rtsp_hotpath: st.metrics.rtsp_hotpath.snapshot(),
         note: "capacity.mode=dynamic: MAX_CAMERAS é apenas hard safety limit",
     })
 }
@@ -208,6 +210,7 @@ pub struct MetricsBody {
     pub hw_stack_grade: crate::decode::HwStackGrade,
     pub load_advisory: crate::load::LoadAdvisory,
     pub load_advisory_reason: String,
+    pub rtsp_hotpath: RtspHotpathMetrics,
     pub note: &'static str,
 }
 
@@ -352,6 +355,7 @@ mod integration_tests {
             hw_stack_grade: crate::decode::HwStackGrade::None,
             load_advisory: crate::load::LoadAdvisory::Normal,
             load_advisory_reason: "test".into(),
+            rtsp_hotpath: metrics.rtsp_hotpath.snapshot(),
             note: "test",
         };
         let v = serde_json::to_value(&body).unwrap();

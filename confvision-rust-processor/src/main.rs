@@ -14,6 +14,7 @@ mod motion;
 mod pipeline;
 mod redis;
 mod rtsp;
+mod rtsp_hotpath;
 mod sharding;
 mod worker;
 
