@@ -11,6 +11,8 @@ Documentação dos serviços Python/MediaMTX do ConfVision no EasyPanel.
 
 > **Migração Xano → Postgres:** valores de `XANO_BASE_URL` e `EVENT_STORE` na VPS explicados em [`VARIAVEIS_VPS.md`](VARIAVEIS_VPS.md).
 
+> **Stack mínima por tenant (Proxmox / `ct_cli_*`):** [`deploy/tenant-stack/README.md`](deploy/tenant-stack/README.md) — Fase 0 checklist + Compose de referência + Rust.
+
 ---
 
 ## Visão geral dos serviços

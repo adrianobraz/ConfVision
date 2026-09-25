@@ -2,6 +2,8 @@
 
 Guia operacional **sem alterar Xano**. Tudo abaixo é EasyPanel, Postgres (`vis_camera`) e env dos serviços existentes.
 
+**Checklist Fase 0 / provisionamento tenant (Proxmox):** [`../../deploy/tenant-stack/README.md`](../../deploy/tenant-stack/README.md).
+
 ---
 
 ## Sintomas comuns

@@ -1,0 +1,58 @@
+# Stack mínima por tenant — referência (Proxmox CT / lab).
+# Uso:
+#   cd deploy/tenant-stack
+#   ./scripts/tenant-init-env.sh
+#   # editar .env.tenant (segredos)
+#   docker compose -f docker-compose.tenant.example.yml --env-file .env.tenant up -d --build
+#
+# Build context: raiz do repositório ConfVision (../../).
+
+name: ${TENANT_ID:-ct_cli_example}
+
+services:
+  mtx:
+    container_name: ${TENANT_ID:-ct_cli_example}-mtx
+    build:
+      context: ../..
+      dockerfile: Dockerfile-mediamtx
+    restart: unless-stopped
+    env_file:
+      - ${MTX_ENV_FILE:-./.env.mtx}
+    ports:
+      - "${MTX_RTMP_PORT:-1935}:1935"
+      - "${MTX_RTSP_PORT:-8554}:8554"
+    networks:
+      - tenant
+
+  publisher:
+    container_name: ${TENANT_ID:-ct_cli_example}-publisher
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    command: ["python", "-u", "main.py"]
+    restart: unless-stopped
+    env_file:
+      - ${PUBLISHER_ENV_FILE:-./.env.publisher}
+    depends_on:
+      - mtx
+    networks:
+      - tenant
+
+  rust-processor:
+    container_name: ${TENANT_ID:-ct_cli_example}-rust
+    build:
+      context: ../../confvision-rust-processor
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ${RUST_ENV_FILE:-./.env.rust}
+    depends_on:
+      - mtx
+    ports:
+      - "${RUST_HTTP_PORT:-8090}:8090"
+    networks:
+      - tenant
+
+networks:
+  tenant:
+    name: ${TENANT_ID:-ct_cli_example}-net

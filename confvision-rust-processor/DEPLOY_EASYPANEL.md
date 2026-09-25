@@ -9,6 +9,8 @@ Modelo de variáveis: [`easypanel.env.example`](./easypanel.env.example).
 
 **Câmeras paradas / Rust off / stack ConfVision desligada:** [docs/RECUPERACAO_CAMERAS.md](./docs/RECUPERACAO_CAMERAS.md) (sem Xano).
 
+**Fase 0 checklist + Fase 1 tenant `ct_cli_*` (Compose/Proxmox):** [../deploy/tenant-stack/README.md](../deploy/tenant-stack/README.md).
+
 ---
 
 ## 1. Criar o serviço Docker no EasyPanel
