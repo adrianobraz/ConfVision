@@ -24,6 +24,7 @@ Variáveis de ambiente:
   PROC_NAME            nome do binário
   OUT_DIR              diretório base de saída (default: ./profile-output)
   PERF                 caminho do perf (default: perf)
+  CONFVISION_BINARY    binário com DWARF (build --profile profiling); registra build-id no perf
 
 Saída (em OUT_DIR/run_YYYYMMDD_HHMMSS/):
   perf.data            gravação bruta
@@ -64,6 +65,30 @@ check_perf() {
     echo "Aviso: perf list falhou — verifique permissões (sudo ou sysctl kernel.perf_event_paranoid)." >&2
   fi
   echo "$perf_bin"
+}
+
+register_profiling_binary() {
+  local perf_bin="$1"
+  local run_dir="$2"
+  local bin="${CONFVISION_BINARY:-}"
+  if [[ -z "$bin" ]]; then
+    return 0
+  fi
+  if [[ ! -f "$bin" ]]; then
+    echo "Erro: CONFVISION_BINARY='$bin' não encontrado." >&2
+    exit 1
+  fi
+  bin="$(readlink -f "$bin" 2>/dev/null || realpath "$bin" 2>/dev/null || echo "$bin")"
+  echo "confvision_binary=$bin" >>"$run_dir/meta.txt"
+  if command -v file >/dev/null 2>&1; then
+    file "$bin" | tee "$run_dir/binary-file.txt"
+    if file "$bin" | grep -q ' stripped'; then
+      echo "Erro: CONFVISION_BINARY está stripped — use build --profile profiling." >&2
+      exit 1
+    fi
+  fi
+  echo "Registrando build-id em perf buildid-cache..."
+  "$perf_bin" buildid-cache --add "$bin" >>"$run_dir/buildid-cache.log" 2>&1 || true
 }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -114,6 +139,8 @@ echo "Profiling PID=$PID por ${DURATION}s @ ${FREQ}Hz -> $RUN_DIR"
 
 "$SCRIPT_DIR/rust-process-threads.sh" "$PID" >"$RUN_DIR/threads.txt" 2>&1 || true
 
+register_profiling_binary "$PERF_BIN" "$RUN_DIR"
+
 echo "Gravando perf.data (pode exigir sudo)..."
 set +e
 "$PERF_BIN" record \
@@ -132,10 +159,15 @@ if [[ "$RECORD_RC" -ne 0 ]]; then
 fi
 
 echo "Gerando relatórios..."
-"$PERF_BIN" report -i "$RUN_DIR/perf.data" --stdio --no-children >"$RUN_DIR/perf-report.txt" 2>&1 || true
-"$PERF_BIN" report -i "$RUN_DIR/perf.data" --stdio --sort dso,symbol --percent-limit 0.5 \
+REPORT_EXTRA=()
+if [[ -n "${CONFVISION_BINARY:-}" ]]; then
+  REPORT_EXTRA=(--buildid-all)
+fi
+"$PERF_BIN" report -i "$RUN_DIR/perf.data" "${REPORT_EXTRA[@]}" --stdio --no-children \
+  >"$RUN_DIR/perf-report.txt" 2>&1 || true
+"$PERF_BIN" report -i "$RUN_DIR/perf.data" "${REPORT_EXTRA[@]}" --stdio --sort dso,symbol --percent-limit 0.5 \
   >"$RUN_DIR/perf-top-dso.txt" 2>&1 || true
-"$PERF_BIN" script -i "$RUN_DIR/perf.data" >"$RUN_DIR/perf-script.txt" 2>&1 || true
+"$PERF_BIN" script -i "$RUN_DIR/perf.data" "${REPORT_EXTRA[@]}" >"$RUN_DIR/perf-script.txt" 2>&1 || true
 
 FLAMEGRAPH_SVG="$RUN_DIR/flamegraph.svg"
 if command -v stackcollapse-perf.pl >/dev/null 2>&1 && command -v flamegraph.pl >/dev/null 2>&1; then

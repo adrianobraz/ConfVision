@@ -40,9 +40,9 @@ lto = true
 codegen-units = 1
 strip = true
 
-# Binário release com símbolos para `perf`/flamegraph no Linux (Fase 6.9).
-# Não altera o artefato `cargo build --release` de produção.
+# Binário otimizado (LTO/release) com DWARF para `perf` no Linux (Fase 6.9+).
+# Não altera `cargo build --release` (continua strip=true).
 [profile.profiling]
 inherits = "release"
 strip = false
-debug = "line-tables-only"
+debug = 2

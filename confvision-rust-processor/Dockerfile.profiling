@@ -1,0 +1,48 @@
+# syntax=docker/dockerfile:1
+#
+# Imagem SOMENTE para janela de profiling CPU (símbolos DWARF, sem strip).
+# Produção continua usando `Dockerfile` (release stripped).
+#
+# Build:
+#   docker build -f Dockerfile.profiling -t confvision-rust-processor:profiling .
+# Extrair binário (host):
+#   docker create --name cv-prof-tmp confvision-rust-processor:profiling
+#   docker cp cv-prof-tmp:/usr/local/bin/confvision-rust-processor ./confvision-rust-processor-profiling
+#   docker rm cv-prof-tmp
+#   file ./confvision-rust-processor-profiling
+
+FROM rust:1.88-bookworm AS builder
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config \
+    libavcodec-dev \
+    libavutil-dev \
+    libavformat-dev \
+    libclang-dev \
+    && rm -rf /var/lib/apt/lists/*
+COPY Cargo.toml Cargo.lock* ./
+RUN mkdir src && echo "fn main(){}" > src/main.rs \
+    && cargo build --profile profiling --features ffmpeg-decode \
+    && rm -rf src
+COPY src ./src
+RUN touch src/main.rs && cargo build --profile profiling --features ffmpeg-decode
+
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    bash \
+    procps \
+    file \
+    libavcodec59 \
+    libavutil57 \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=builder /app/target/profiling/confvision-rust-processor /usr/local/bin/confvision-rust-processor
+COPY --from=builder /app/target/profiling/confvision-rust-processor /app/confvision-rust-processor-profiling
+COPY scripts/profile-cpu.sh scripts/rust-process-threads.sh /app/scripts/
+RUN chmod 755 /app/scripts/profile-cpu.sh /app/scripts/rust-process-threads.sh \
+    && file /usr/local/bin/confvision-rust-processor | grep -qv stripped
+ENV HTTP_HOST=0.0.0.0
+ENV HTTP_PORT=8090
+EXPOSE 8090
+ENTRYPOINT ["/usr/local/bin/confvision-rust-processor"]
