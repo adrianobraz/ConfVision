@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
@@ -66,6 +66,18 @@ impl DropOldestQueue {
     }
 }
 
+/// Contadores do producer quando `try_write` no estado da câmera falha (consumer faz flush).
+#[derive(Debug, Default)]
+struct PendingProducerStats {
+    enqueued: AtomicU64,
+    dropped: AtomicU64,
+    buffer_full_events: AtomicU64,
+    buffer_size: AtomicUsize,
+    buffer_size_pending: AtomicBool,
+    decode_errors: AtomicU64,
+    motion_errors: AtomicU64,
+}
+
 struct FramePipelineInner {
     queue: Mutex<DropOldestQueue>,
     closed: AtomicBool,
@@ -73,6 +85,7 @@ struct FramePipelineInner {
     buffer_size: AtomicUsize,
     metrics: Arc<ProcessorMetrics>,
     state: SharedCameraState,
+    pending_producer: PendingProducerStats,
 }
 
 /// Pipeline assíncrona por câmera (producer RTSP / consumer dedicado).
@@ -92,10 +105,129 @@ impl FramePipeline {
                 buffer_size: AtomicUsize::new(0),
                 metrics,
                 state,
+                pending_producer: PendingProducerStats::default(),
             }),
         };
         pipeline.set_camera_buffer_capacity(cap);
         pipeline
+    }
+
+    fn apply_producer_enqueue_stats(&self, new_len: usize, buffer_was_full: bool) {
+        if let Ok(mut s) = self.inner.state.try_write() {
+            s.buffer_size = new_len as u64;
+            s.frames_enqueued += 1;
+            if buffer_was_full {
+                s.frames_dropped += 1;
+                s.buffer_full_events += 1;
+            }
+            return;
+        }
+
+        self.inner
+            .pending_producer
+            .enqueued
+            .fetch_add(1, Ordering::Relaxed);
+        if buffer_was_full {
+            self.inner
+                .pending_producer
+                .dropped
+                .fetch_add(1, Ordering::Relaxed);
+            self.inner
+                .pending_producer
+                .buffer_full_events
+                .fetch_add(1, Ordering::Relaxed);
+        }
+        self.inner
+            .pending_producer
+            .buffer_size
+            .store(new_len, Ordering::Relaxed);
+        self.inner
+            .pending_producer
+            .buffer_size_pending
+            .store(true, Ordering::Relaxed);
+    }
+
+    fn apply_producer_buffer_size(&self, new_len: usize) {
+        if let Ok(mut s) = self.inner.state.try_write() {
+            s.buffer_size = new_len as u64;
+            return;
+        }
+        self.inner
+            .pending_producer
+            .buffer_size
+            .store(new_len, Ordering::Relaxed);
+        self.inner
+            .pending_producer
+            .buffer_size_pending
+            .store(true, Ordering::Relaxed);
+    }
+
+    /// Mescla estatísticas enfileiradas pelo producer RTSP (chamar no consumer).
+    pub async fn flush_producer_stats(&self) {
+        let enqueued = self
+            .inner
+            .pending_producer
+            .enqueued
+            .swap(0, Ordering::Relaxed);
+        let dropped = self
+            .inner
+            .pending_producer
+            .dropped
+            .swap(0, Ordering::Relaxed);
+        let full_events = self
+            .inner
+            .pending_producer
+            .buffer_full_events
+            .swap(0, Ordering::Relaxed);
+        let buffer_dirty = self
+            .inner
+            .pending_producer
+            .buffer_size_pending
+            .swap(false, Ordering::Relaxed);
+        let decode_errors = self
+            .inner
+            .pending_producer
+            .decode_errors
+            .swap(0, Ordering::Relaxed);
+        let motion_errors = self
+            .inner
+            .pending_producer
+            .motion_errors
+            .swap(0, Ordering::Relaxed);
+
+        if enqueued == 0
+            && dropped == 0
+            && full_events == 0
+            && !buffer_dirty
+            && decode_errors == 0
+            && motion_errors == 0
+        {
+            return;
+        }
+
+        let mut s = self.inner.state.write().await;
+        if enqueued > 0 {
+            s.frames_enqueued += enqueued;
+        }
+        if dropped > 0 {
+            s.frames_dropped += dropped;
+        }
+        if full_events > 0 {
+            s.buffer_full_events += full_events;
+        }
+        if buffer_dirty {
+            s.buffer_size = self
+                .inner
+                .pending_producer
+                .buffer_size
+                .load(Ordering::Relaxed) as u64;
+        }
+        if decode_errors > 0 {
+            s.decode_errors += decode_errors;
+        }
+        if motion_errors > 0 {
+            s.motion_errors += motion_errors;
+        }
     }
 
     pub fn capacity(&self) -> usize {
@@ -129,7 +261,7 @@ impl FramePipeline {
         drop(guard);
 
         self.inner.buffer_size.store(new_len, Ordering::Relaxed);
-        self.sync_after_enqueue(new_len, was_full);
+        self.apply_producer_enqueue_stats(new_len, was_full);
         self.inner.notify.notify_one();
         true
     }
@@ -140,7 +272,7 @@ impl FramePipeline {
         let new_len = guard.len();
         drop(guard);
         self.inner.buffer_size.store(new_len, Ordering::Relaxed);
-        self.sync_camera_buffer(new_len);
+        self.apply_producer_buffer_size(new_len);
         frame
     }
 
@@ -165,37 +297,14 @@ impl FramePipeline {
             guard.clear();
         }
         self.inner.buffer_size.store(0, Ordering::Relaxed);
-        self.sync_camera_buffer(0);
+        self.apply_producer_buffer_size(0);
         self.inner.notify.notify_waiters();
     }
 
     fn set_camera_buffer_capacity(&self, cap: usize) {
-        let state = self.inner.state.clone();
-        tokio::spawn(async move {
-            let mut s = state.write().await;
+        if let Ok(mut s) = self.inner.state.try_write() {
             s.buffer_capacity = cap as u64;
-        });
-    }
-
-    fn sync_camera_buffer(&self, size: usize) {
-        let state = self.inner.state.clone();
-        tokio::spawn(async move {
-            let mut s = state.write().await;
-            s.buffer_size = size as u64;
-        });
-    }
-
-    fn sync_after_enqueue(&self, size: usize, buffer_was_full: bool) {
-        let state = self.inner.state.clone();
-        tokio::spawn(async move {
-            let mut s = state.write().await;
-            s.buffer_size = size as u64;
-            s.frames_enqueued += 1;
-            if buffer_was_full {
-                s.frames_dropped += 1;
-                s.buffer_full_events += 1;
-            }
-        });
+        }
     }
 
     pub async fn record_processed(&self, frame: &PipelineFrame) {
@@ -216,11 +325,14 @@ impl FramePipeline {
 
     pub fn record_decode_error(&self) {
         self.inner.metrics.record_decode_error();
-        let state = self.inner.state.clone();
-        tokio::spawn(async move {
-            let mut s = state.write().await;
+        if let Ok(mut s) = self.inner.state.try_write() {
             s.decode_errors += 1;
-        });
+        } else {
+            self.inner
+                .pending_producer
+                .decode_errors
+                .fetch_add(1, Ordering::Relaxed);
+        }
     }
 
     pub async fn record_motion_analyzed(
@@ -243,12 +355,95 @@ impl FramePipeline {
 
     pub fn record_motion_error(&self) {
         self.inner.metrics.record_motion_error();
-        let state = self.inner.state.clone();
-        tokio::spawn(async move {
-            let mut s = state.write().await;
+        if let Ok(mut s) = self.inner.state.try_write() {
             s.motion_errors += 1;
-        });
+        } else {
+            self.inner
+                .pending_producer
+                .motion_errors
+                .fetch_add(1, Ordering::Relaxed);
+        }
     }
+
+    /// Atualiza métricas globais e estado da câmera com um único lock por frame processado.
+    pub async fn record_consumer_frame(
+        &self,
+        frame: &PipelineFrame,
+        outcome: ConsumerFrameOutcome,
+    ) {
+        let latency_ms = frame.captured_at.elapsed().as_millis() as u64;
+        self.inner.metrics.record_processed(latency_ms);
+
+        match outcome {
+            ConsumerFrameOutcome::Decoded { decode_ms, motion } => {
+                self.inner.metrics.record_decode_success(decode_ms);
+                if let Some(m) = motion {
+                    self.inner.metrics.record_motion_analyzed(
+                        m.score_percent,
+                        m.detected,
+                        m.latency_ms,
+                    );
+                }
+            }
+            ConsumerFrameOutcome::DecodeFailed => {
+                self.inner.metrics.record_decode_error();
+            }
+            ConsumerFrameOutcome::MotionFailed { decode_ms } => {
+                self.inner.metrics.record_decode_success(decode_ms);
+                self.inner.metrics.record_motion_error();
+            }
+            ConsumerFrameOutcome::ProcessedOnly | ConsumerFrameOutcome::NotReady => {}
+        }
+
+        let mut s = self.inner.state.write().await;
+        s.frames_processed += 1;
+        s.last_frame_latency_ms = latency_ms;
+
+        match outcome {
+            ConsumerFrameOutcome::Decoded { decode_ms, motion } => {
+                s.frames_decoded += 1;
+                s.last_decode_ms = decode_ms;
+                if let Some(m) = motion {
+                    s.frames_motion_analyzed += 1;
+                    s.last_motion_score = m.score_percent as u64;
+                    s.last_motion_ms = m.latency_ms;
+                    if m.detected {
+                        s.motion_detected += 1;
+                    }
+                }
+            }
+            ConsumerFrameOutcome::DecodeFailed => {
+                s.decode_errors += 1;
+            }
+            ConsumerFrameOutcome::MotionFailed { decode_ms } => {
+                s.frames_decoded += 1;
+                s.last_decode_ms = decode_ms;
+                s.motion_errors += 1;
+            }
+            ConsumerFrameOutcome::NotReady | ConsumerFrameOutcome::ProcessedOnly => {}
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ConsumerMotionStats {
+    pub score_percent: u32,
+    pub detected: bool,
+    pub latency_ms: u64,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ConsumerFrameOutcome {
+    ProcessedOnly,
+    NotReady,
+    DecodeFailed,
+    Decoded {
+        decode_ms: u64,
+        motion: Option<ConsumerMotionStats>,
+    },
+    MotionFailed {
+        decode_ms: u64,
+    },
 }
 
 /// Consumer: decode H.264 (Fase 3.1) + motion (Fase 3.2) + métricas de pipeline.
@@ -282,7 +477,9 @@ pub async fn run_frame_consumer(
             frame = pipeline.dequeue() => {
                 match frame {
                     Some(f) => {
-                        if decode_enabled {
+                        pipeline.flush_producer_stats().await;
+
+                        let outcome = if decode_enabled {
                             let started = Instant::now();
                             let decode_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                                 h264_decoder.decode(
@@ -295,36 +492,30 @@ pub async fn run_frame_consumer(
                                 )
                             }));
                             match decode_result {
-                                Ok(DecodeOutcome::Decoded(frame)) => {
+                                Ok(DecodeOutcome::Decoded(decoded)) => {
                                     let decode_ms = started.elapsed().as_millis() as u64;
-                                    pipeline.record_decode_success(decode_ms).await;
-
                                     let motion_started = Instant::now();
                                     let motion_result = std::panic::catch_unwind(
-                                        std::panic::AssertUnwindSafe(|| motion_detector.analyze(&frame)),
+                                        std::panic::AssertUnwindSafe(|| motion_detector.analyze(&decoded)),
                                     );
                                     match motion_result {
                                         Ok(MotionOutcome::ReferenceSet) => {
-                                            pipeline
-                                                .record_motion_analyzed(
-                                                    0,
-                                                    false,
-                                                    motion_started.elapsed().as_millis() as u64,
-                                                )
-                                                .await;
                                             tracing::debug!(seq = f.seq, "motion reference set");
+                                            ConsumerFrameOutcome::Decoded {
+                                                decode_ms,
+                                                motion: Some(ConsumerMotionStats {
+                                                    score_percent: 0,
+                                                    detected: false,
+                                                    latency_ms: motion_started
+                                                        .elapsed()
+                                                        .as_millis() as u64,
+                                                }),
+                                            }
                                         }
                                         Ok(MotionOutcome::Analyzed {
                                             detected,
                                             score_percent,
                                         }) => {
-                                            pipeline
-                                                .record_motion_analyzed(
-                                                    score_percent,
-                                                    detected,
-                                                    motion_started.elapsed().as_millis() as u64,
-                                                )
-                                                .await;
                                             if detected {
                                                 tracing::debug!(
                                                     seq = f.seq,
@@ -332,29 +523,42 @@ pub async fn run_frame_consumer(
                                                     "motion detected"
                                                 );
                                             }
+                                            ConsumerFrameOutcome::Decoded {
+                                                decode_ms,
+                                                motion: Some(ConsumerMotionStats {
+                                                    score_percent,
+                                                    detected,
+                                                    latency_ms: motion_started
+                                                        .elapsed()
+                                                        .as_millis() as u64,
+                                                }),
+                                            }
                                         }
                                         Ok(MotionOutcome::Error) => {
                                             tracing::debug!(seq = f.seq, "motion luma error");
-                                            pipeline.record_motion_error();
+                                            ConsumerFrameOutcome::MotionFailed { decode_ms }
                                         }
                                         Err(_) => {
                                             tracing::warn!(seq = f.seq, "motion analyze panicked");
-                                            pipeline.record_motion_error();
+                                            ConsumerFrameOutcome::MotionFailed { decode_ms }
                                         }
                                     }
                                 }
-                                Ok(DecodeOutcome::NotReady) => {}
+                                Ok(DecodeOutcome::NotReady) => ConsumerFrameOutcome::NotReady,
                                 Ok(DecodeOutcome::Failed(e)) => {
                                     tracing::debug!(error = %e, seq = f.seq, "h264 decode");
-                                    pipeline.record_decode_error();
+                                    ConsumerFrameOutcome::DecodeFailed
                                 }
                                 Err(_) => {
                                     tracing::warn!(seq = f.seq, "h264 decode panicked");
-                                    pipeline.record_decode_error();
+                                    ConsumerFrameOutcome::DecodeFailed
                                 }
                             }
-                        }
-                        pipeline.record_processed(&f).await;
+                        } else {
+                            ConsumerFrameOutcome::ProcessedOnly
+                        };
+
+                        pipeline.record_consumer_frame(&f, outcome).await;
                     }
                     None if pipeline.is_closed() => break,
                     None => continue,
@@ -362,6 +566,8 @@ pub async fn run_frame_consumer(
             }
         }
     }
+
+    pipeline.flush_producer_stats().await;
 }
 
 #[cfg(test)]
@@ -505,8 +711,7 @@ mod tests {
         pipeline.try_enqueue(test_frame(1, 1, false));
         pipeline.try_enqueue(test_frame(2, 2, false));
         assert_eq!(pipeline.len(), 2);
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-        assert_eq!(state.read().await.buffer_size, 2);
+        assert_eq!(state.try_read().unwrap().buffer_size, 2);
     }
 
     #[tokio::test]

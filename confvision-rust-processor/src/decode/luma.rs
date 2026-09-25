@@ -3,6 +3,8 @@ use std::sync::Arc;
 use super::error::DecodeError;
 use super::types::{DECODED_LUMA_HEIGHT, DECODED_LUMA_WIDTH};
 
+const LUMA_PIXELS: usize = DECODED_LUMA_WIDTH as usize * DECODED_LUMA_HEIGHT as usize;
+
 /// Reduz o plano Y (com stride) para grade fixa 160×120 (média por célula).
 pub fn downscale_y_plane(
     data: &[u8],
@@ -10,6 +12,19 @@ pub fn downscale_y_plane(
     src_height: u32,
     stride: usize,
 ) -> Result<Arc<[u8]>, DecodeError> {
+    let mut scratch = Vec::with_capacity(LUMA_PIXELS);
+    downscale_y_plane_into(data, src_width, src_height, stride, &mut scratch)?;
+    Ok(Arc::from(scratch.into_boxed_slice()))
+}
+
+/// Escreve a grade 160×120 em `out`, reutilizando capacidade do buffer quando possível.
+pub fn downscale_y_plane_into(
+    data: &[u8],
+    src_width: u32,
+    src_height: u32,
+    stride: usize,
+    out: &mut Vec<u8>,
+) -> Result<(), DecodeError> {
     if src_width == 0 || src_height == 0 {
         return Err(DecodeError::Ffmpeg("dimensão de vídeo inválida".into()));
     }
@@ -17,9 +32,10 @@ pub fn downscale_y_plane(
         return Err(DecodeError::Ffmpeg("stride Y menor que largura".into()));
     }
 
+    out.resize(LUMA_PIXELS, 0);
+
     let dst_w = DECODED_LUMA_WIDTH as usize;
     let dst_h = DECODED_LUMA_HEIGHT as usize;
-    let mut out = vec![0u8; dst_w * dst_h];
     let sw = src_width as usize;
     let sh = src_height as usize;
 
@@ -44,7 +60,7 @@ pub fn downscale_y_plane(
         }
     }
 
-    Ok(Arc::from(out.into_boxed_slice()))
+    Ok(())
 }
 
 #[cfg(test)]

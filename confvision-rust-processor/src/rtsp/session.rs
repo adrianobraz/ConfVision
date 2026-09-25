@@ -107,7 +107,6 @@ pub async fn run_rtsp_frame_loop(
                 if let Some(ctx) = live.as_mut() {
                     record_frame_received(ctx).await;
                 }
-                sync_h264_extradata(&session, video_index, decode_ctx);
                 pipeline.try_enqueue(pipeline_frame_from_video(seq, frame));
                 last_frame = Instant::now();
                 if seq == 1 || seq % 100 == 0 {

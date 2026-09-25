@@ -28,20 +28,18 @@ impl MotionDetector {
             return MotionOutcome::Error;
         }
 
-        let current = Arc::clone(luma);
-
         let Some(reference) = self.reference.as_ref() else {
-            self.reference = Some(current);
+            self.reference = Some(Arc::clone(luma));
             return MotionOutcome::ReferenceSet;
         };
 
         if reference.len() != LUMA_PIXELS {
-            self.reference = Some(current);
+            self.reference = Some(Arc::clone(luma));
             return MotionOutcome::ReferenceSet;
         }
 
         let mut changed = 0u32;
-        for (a, b) in current.iter().zip(reference.iter()) {
+        for (a, b) in luma.iter().zip(reference.iter()) {
             let diff = a.abs_diff(*b);
             if diff >= PIXEL_DIFF_THRESHOLD {
                 changed += 1;
@@ -51,7 +49,7 @@ impl MotionDetector {
         let score_percent = (changed * 100) / LUMA_PIXELS as u32;
         let detected = score_percent >= MOTION_PERCENT_THRESHOLD;
 
-        self.reference = Some(current);
+        self.reference = Some(Arc::clone(luma));
 
         MotionOutcome::Analyzed {
             detected,

@@ -188,9 +188,11 @@ impl VideoDecodeBackend for NvdecH264Decoder {
                 }
             }
             self.last_transfer_to_cpu_ms = started.elapsed().as_millis() as u64;
-            decoded_from_video_frame(&sw_frame)
+            let mut luma_scratch = Vec::new();
+            decoded_from_video_frame(&sw_frame, &mut luma_scratch)
         } else {
-            decoded_from_video_frame(&frame)
+            let mut luma_scratch = Vec::new();
+            decoded_from_video_frame(&frame, &mut luma_scratch)
         }
     }
 }

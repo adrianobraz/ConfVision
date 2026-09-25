@@ -1,13 +1,15 @@
 //! Decode H.264 via libavcodec (CPU).
 
+use std::sync::Arc;
 use std::sync::Once;
 
 use ffmpeg_next as ffmpeg;
 use ffmpeg_next::util::error::{Error as FfmpegError, EAGAIN};
 
 use super::super::error::DecodeError;
-use super::super::luma::downscale_y_plane;
+use super::super::luma::downscale_y_plane_into;
 use super::super::types::{DecodedFrame, PixelFormat};
+use super::super::types::{DECODED_LUMA_HEIGHT, DECODED_LUMA_WIDTH};
 use super::VideoDecodeBackend;
 
 static FFMPEG_INIT: Once = Once::new();
@@ -45,6 +47,8 @@ pub(crate) fn set_extradata(
 pub struct CpuFfmpegDecoder {
     decoder: ffmpeg::decoder::Video,
     extradata_generation: u64,
+    receive_frame: ffmpeg::util::frame::Video,
+    luma_scratch: Vec<u8>,
 }
 
 impl CpuFfmpegDecoder {
@@ -70,6 +74,10 @@ impl CpuFfmpegDecoder {
         Ok(Self {
             decoder,
             extradata_generation: generation,
+            receive_frame: ffmpeg::util::frame::Video::empty(),
+            luma_scratch: Vec::with_capacity(
+                DECODED_LUMA_WIDTH as usize * DECODED_LUMA_HEIGHT as usize,
+            ),
         })
     }
 }
@@ -91,17 +99,17 @@ impl VideoDecodeBackend for CpuFfmpegDecoder {
         let packet = ffmpeg::Packet::copy(data);
         self.decoder.send_packet(&packet).map_err(map_ffmpeg_err)?;
 
-        let mut frame = ffmpeg::util::frame::Video::empty();
         self.decoder
-            .receive_frame(&mut frame)
+            .receive_frame(&mut self.receive_frame)
             .map_err(map_ffmpeg_err)?;
 
-        decoded_from_video_frame(&frame)
+        decoded_from_video_frame(&self.receive_frame, &mut self.luma_scratch)
     }
 }
 
 pub(crate) fn decoded_from_video_frame(
     frame: &ffmpeg::util::frame::Video,
+    luma_scratch: &mut Vec<u8>,
 ) -> Result<DecodedFrame, DecodeError> {
     let format = match frame.format() {
         ffmpeg::format::Pixel::YUV420P | ffmpeg::format::Pixel::YUVJ420P => PixelFormat::Yuv420p,
@@ -115,7 +123,9 @@ pub(crate) fn decoded_from_video_frame(
     let src_h = frame.height();
     let y_stride = frame.stride(0);
     let y_data = frame.data(0);
-    let luma = downscale_y_plane(y_data, src_w, src_h, y_stride)?;
+    downscale_y_plane_into(y_data, src_w, src_h, y_stride, luma_scratch)?;
+    let luma = Arc::from(std::mem::take(luma_scratch).into_boxed_slice());
+    *luma_scratch = Vec::with_capacity(luma.len());
 
     Ok(DecodedFrame {
         width: src_w,
