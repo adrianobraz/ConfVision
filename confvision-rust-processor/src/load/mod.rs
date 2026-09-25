@@ -161,7 +161,21 @@ mod admission_tests {
     }
 
     #[tokio::test]
-    async fn advisory_never_blocks_new_cameras() {
+    async fn advisory_with_admission_disabled_allows_new_cameras() {
+        let cfg = test_cfg();
+        let engine = CapacityEngine::new_with_initial_snapshot(&cfg, critical_snapshot());
+        let gate = LoadAdmissionGate::new(
+            engine,
+            LoadPolicyConfig {
+                mode: LoadPolicyMode::Advisory,
+                admission_enabled: false,
+            },
+        );
+        assert!(gate.allow_new_camera().await);
+    }
+
+    #[tokio::test]
+    async fn advisory_with_load_admission_enabled_blocks_on_critical() {
         let cfg = test_cfg();
         let engine = CapacityEngine::new_with_initial_snapshot(&cfg, critical_snapshot());
         let gate = LoadAdmissionGate::new(
@@ -171,6 +185,6 @@ mod admission_tests {
                 admission_enabled: true,
             },
         );
-        assert!(gate.allow_new_camera().await);
+        assert!(!gate.allow_new_camera().await);
     }
 }

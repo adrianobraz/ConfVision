@@ -82,8 +82,7 @@ pub fn evaluate_load(capacity: &CapacitySnapshot, config: &LoadPolicyConfig) -> 
 }
 
 pub fn allow_new_camera(capacity: &CapacitySnapshot, config: &LoadPolicyConfig) -> bool {
-    let result = evaluate_load(capacity, config);
-    !matches!(result.advisory, LoadAdvisory::RejectAdmission)
+    !config.admission_blocks_new_cameras(capacity)
 }
 
 #[cfg(test)]
@@ -197,14 +196,23 @@ mod tests {
 
     #[test]
     fn critical_admission_enabled_rejects() {
-        let r = evaluate_load(
-            &empty_snapshot(CapacityState::Critical),
-            &cfg(LoadPolicyMode::Admission, true),
-        );
+        let snap = empty_snapshot(CapacityState::Critical);
+        let r = evaluate_load(&snap, &cfg(LoadPolicyMode::Admission, true));
         assert_eq!(r.advisory, LoadAdvisory::RejectAdmission);
         assert!(!allow_new_camera(
-            &empty_snapshot(CapacityState::Critical),
-            &cfg(LoadPolicyMode::Admission, true),
+            &snap,
+            &cfg(LoadPolicyMode::Admission, true)
+        ));
+    }
+
+    #[test]
+    fn critical_advisory_admission_enabled_blocks_but_stays_saturated() {
+        let snap = empty_snapshot(CapacityState::Critical);
+        let r = evaluate_load(&snap, &cfg(LoadPolicyMode::Advisory, true));
+        assert_eq!(r.advisory, LoadAdvisory::Saturated);
+        assert!(!allow_new_camera(
+            &snap,
+            &cfg(LoadPolicyMode::Advisory, true)
         ));
     }
 
