@@ -57,6 +57,7 @@ async fn run_session_with_pipeline(
         state: &state,
         fps_est: &mut fps_est,
         pending_received: 0,
+        pending_fps_frames: 0,
     };
 
     let stats = if simulate {

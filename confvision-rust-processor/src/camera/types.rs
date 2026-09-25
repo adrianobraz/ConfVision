@@ -90,7 +90,15 @@ impl FpsEstimator {
     }
 
     pub fn record_frame(&mut self) -> Option<f64> {
-        self.frames_in_window += 1;
+        self.record_frames(1)
+    }
+
+    /// Contabiliza vários AUs RTSP em uma única checagem de janela (hot path throttled).
+    pub fn record_frames(&mut self, count: u32) -> Option<f64> {
+        if count == 0 {
+            return None;
+        }
+        self.frames_in_window += count as u64;
         let elapsed = self.window_start.elapsed().as_secs_f64();
         if elapsed >= 1.0 {
             let fps = self.frames_in_window as f64 / elapsed;
@@ -126,5 +134,14 @@ mod tests {
         thread::sleep(Duration::from_millis(1100));
         let fps = est.record_frame().unwrap();
         assert!(fps > 0.0);
+    }
+
+    #[test]
+    fn fps_estimator_record_frames_batches_window() {
+        let mut est = FpsEstimator::new();
+        assert!(est.record_frames(50).is_none());
+        thread::sleep(Duration::from_millis(1100));
+        let fps = est.record_frames(1).unwrap();
+        assert!(fps > 40.0);
     }
 }

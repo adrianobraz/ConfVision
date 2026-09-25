@@ -32,4 +32,22 @@ impl CameraCancel {
     pub fn global(&self) -> watch::Receiver<bool> {
         self.global.clone()
     }
+
+    /// Aguarda shutdown global ou stop local (para `select!` no loop RTSP).
+    pub async fn wait_until_cancelled(&self) {
+        if self.is_cancelled() {
+            return;
+        }
+        let mut global = self.global.clone();
+        let mut local = self.local.clone();
+        tokio::select! {
+            biased;
+            res = global.changed() => {
+                let _ = res;
+            }
+            res = local.changed() => {
+                let _ = res;
+            }
+        }
+    }
 }

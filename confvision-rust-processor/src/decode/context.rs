@@ -17,7 +17,9 @@ impl SessionDecodeContext {
         if data.is_empty() {
             return;
         }
-        let mut guard = self.extradata.write().expect("decode extradata lock");
+        let Ok(mut guard) = self.extradata.try_write() else {
+            return;
+        };
         let changed = guard.as_deref() != Some(data);
         if changed {
             *guard = Some(Arc::from(data));

@@ -17,6 +17,9 @@ use crate::error::{AppError, AppResult};
 use crate::motion::MotionEnqueueGate;
 use crate::pipeline::{FramePipeline, PipelineFrame, RtpTimestamp};
 
+/// Checagens de cancel/timeout a cada N AUs (retina já entrega ~15 FPS/câmera).
+const SESSION_HEALTH_CHECK_EVERY: u32 = 8;
+
 fn sync_h264_extradata(session: &Demuxed, video_index: usize, decode_ctx: &SessionDecodeContext) {
     let Some(ParametersRef::Video(params)) = session.streams()[video_index].parameters() else {
         return;
@@ -39,6 +42,36 @@ fn pipeline_frame_from_video(
     // Move do buffer interno do retina — sem cópia extra dos bytes do AU.
     let payload: Arc<[u8]> = Arc::from(frame.into_data());
     PipelineFrame::with_decoder_reset(seq, payload, is_keyframe, rtp_timestamp, decoder_reset)
+}
+
+fn handle_video_frame(
+    frame: VideoFrame,
+    seq: u64,
+    session: &Demuxed,
+    video_index: usize,
+    decode_ctx: &SessionDecodeContext,
+    enqueue_gate: &mut MotionEnqueueGate,
+    live: &mut Option<&mut LiveCaptureContext<'_>>,
+    pipeline: &FramePipeline,
+) {
+    if frame.has_new_parameters() {
+        sync_h264_extradata(session, video_index, decode_ctx);
+    }
+    let is_keyframe = frame.is_random_access_point();
+    let decision = enqueue_gate.decide(is_keyframe);
+    if decision.enqueue {
+        if let Some(ctx) = live.as_mut() {
+            record_frame_enqueued(ctx);
+        }
+        pipeline.try_enqueue(pipeline_frame_from_video(
+            seq,
+            frame,
+            is_keyframe,
+            decision.decoder_reset,
+        ));
+    } else if let Some(ctx) = live.as_mut() {
+        record_rtsp_au_throttled(ctx);
+    }
 }
 
 // Conecta ao RTSP e conta frames de vídeo até cancelamento ou erro.
@@ -93,56 +126,57 @@ pub async fn run_rtsp_frame_loop(
 
     let mut last_frame = Instant::now();
     let mut seq: u64 = 0;
+    let mut health_tick: u32 = 0;
+
     loop {
-        if cancel.is_cancelled() {
-            break;
+        health_tick = health_tick.wrapping_add(1);
+        if health_tick % SESSION_HEALTH_CHECK_EVERY == 0 {
+            if cancel.is_cancelled() {
+                break;
+            }
+            if last_frame.elapsed() > frame_timeout {
+                return Err(AppError::Rtsp(format!(
+                    "frame timeout após {}s",
+                    frame_timeout.as_secs()
+                )));
+            }
         }
 
-        if last_frame.elapsed() > frame_timeout {
-            return Err(AppError::Rtsp(format!(
-                "frame timeout após {}s",
-                frame_timeout.as_secs()
-            )));
-        }
-
-        let item = tokio::time::timeout(Duration::from_secs(2), session.next()).await;
-
-        match item {
-            Ok(Some(Ok(CodecItem::VideoFrame(frame)))) => {
-                if frame.has_new_parameters() {
-                    sync_h264_extradata(&session, video_index, decode_ctx);
+        tokio::select! {
+            biased;
+            () = cancel.wait_until_cancelled(), if !cancel.is_cancelled() => {
+                if cancel.is_cancelled() {
+                    break;
                 }
-                seq += 1;
-                let is_keyframe = frame.is_random_access_point();
-                let decision = enqueue_gate.decide(is_keyframe);
-                if decision.enqueue {
-                    if let Some(ctx) = live.as_mut() {
-                        record_frame_enqueued(ctx);
+            }
+            item = session.next() => {
+                match item {
+                    Some(Ok(CodecItem::VideoFrame(frame))) => {
+                        seq += 1;
+                        handle_video_frame(
+                            frame,
+                            seq,
+                            &session,
+                            video_index,
+                            decode_ctx,
+                            enqueue_gate,
+                            &mut live,
+                            pipeline,
+                        );
+                        last_frame = Instant::now();
+                        if seq == 1 || seq % 100 == 0 {
+                            debug!(camera_id, seq, "frame received");
+                        }
                     }
-                    pipeline.try_enqueue(pipeline_frame_from_video(
-                        seq,
-                        frame,
-                        is_keyframe,
-                        decision.decoder_reset,
-                    ));
-                } else {
-                    if let Some(ctx) = live.as_mut() {
-                        record_rtsp_au_throttled(ctx);
+                    Some(Ok(_)) => {}
+                    Some(Err(e)) => {
+                        return Err(AppError::Rtsp(e.to_string()));
+                    }
+                    None => {
+                        return Err(AppError::Rtsp("stream RTSP encerrado".into()));
                     }
                 }
-                last_frame = Instant::now();
-                if seq == 1 || seq % 100 == 0 {
-                    debug!(camera_id, seq, "frame received");
-                }
             }
-            Ok(Some(Ok(_))) => {}
-            Ok(Some(Err(e))) => {
-                return Err(AppError::Rtsp(e.to_string()));
-            }
-            Ok(None) => {
-                return Err(AppError::Rtsp("stream RTSP encerrado".into()));
-            }
-            Err(_) => continue,
         }
     }
 
