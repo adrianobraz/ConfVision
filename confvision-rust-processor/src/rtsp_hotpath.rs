@@ -2,11 +2,16 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::Serialize;
 
+/// Chamadas `session.next()` com duração abaixo disto contam como retorno imediato (sem espera I/O).
+const SESSION_NEXT_FAST_MAX_NANOS: u64 = 500_000;
+
 /// Acumuladores atômicos do hot path RTSP (Fase 6.7 — diagnóstico, sem locks).
 #[derive(Debug, Default)]
 pub struct RtspHotpathStats {
     session_next_calls: AtomicU64,
     session_next_nanos: AtomicU64,
+    session_next_fast_calls: AtomicU64,
+    session_next_non_video_items: AtomicU64,
     video_au_count: AtomicU64,
     post_au_nanos: AtomicU64,
     throttle_nanos: AtomicU64,
@@ -19,6 +24,14 @@ impl RtspHotpathStats {
     pub fn record_session_next(&self, nanos: u64) {
         self.session_next_calls.fetch_add(1, Ordering::Relaxed);
         self.session_next_nanos.fetch_add(nanos, Ordering::Relaxed);
+        if nanos < SESSION_NEXT_FAST_MAX_NANOS {
+            self.session_next_fast_calls.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    pub fn record_session_next_non_video(&self) {
+        self.session_next_non_video_items
+            .fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn record_video_au(&self, post_au_nanos: u64, throttle_nanos: u64, metrics_nanos: u64) {
@@ -39,6 +52,9 @@ impl RtspHotpathStats {
     pub fn snapshot(&self) -> RtspHotpathMetrics {
         let session_next_calls = self.session_next_calls.load(Ordering::Relaxed);
         let session_next_nanos = self.session_next_nanos.load(Ordering::Relaxed);
+        let session_next_fast_calls = self.session_next_fast_calls.load(Ordering::Relaxed);
+        let session_next_non_video_items =
+            self.session_next_non_video_items.load(Ordering::Relaxed);
         let video_au_count = self.video_au_count.load(Ordering::Relaxed);
         let post_au_nanos = self.post_au_nanos.load(Ordering::Relaxed);
         let throttle_nanos = self.throttle_nanos.load(Ordering::Relaxed);
@@ -61,10 +77,15 @@ impl RtspHotpathStats {
         let denom = (session_next_nanos + post_au_nanos + loop_overhead_nanos).max(1) as f64;
         let pct = |part: u64| (part as f64 / denom) * 100.0;
 
+        let session_next_slow_calls = session_next_calls.saturating_sub(session_next_fast_calls);
+
         RtspHotpathMetrics {
             session_next_calls,
             session_next_elapsed_ms: ms(session_next_nanos),
             session_next_avg_us: us_avg(session_next_nanos, session_next_calls),
+            session_next_fast_calls,
+            session_next_slow_calls,
+            session_next_non_video_items,
             video_au_count,
             post_au_elapsed_ms: ms(post_au_nanos),
             post_au_avg_us: us_avg(post_au_nanos, video_au_count),
@@ -87,6 +108,11 @@ pub struct RtspHotpathMetrics {
     pub session_next_calls: u64,
     pub session_next_elapsed_ms: f64,
     pub session_next_avg_us: f64,
+    /// Retornos rápidos (menos de 500µs): demux/RTCP sem bloquear em I/O.
+    pub session_next_fast_calls: u64,
+    /// Retornos lentos: tipicamente inclui espera por dados TCP.
+    pub session_next_slow_calls: u64,
+    pub session_next_non_video_items: u64,
     pub video_au_count: u64,
     pub post_au_elapsed_ms: f64,
     pub post_au_avg_us: f64,

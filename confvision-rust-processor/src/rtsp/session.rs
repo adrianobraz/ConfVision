@@ -4,8 +4,9 @@ use std::time::{Duration, Instant};
 use futures::StreamExt;
 use retina::client::{
     Credentials, Demuxed, PlayOptions, Session, SessionOptions, SetupOptions, Transport,
+    UnassignedChannelDataPolicy,
 };
-use retina::codec::{CodecItem, ParametersRef, VideoFrame};
+use retina::codec::{CodecItem, FrameFormat, ParametersRef, VideoFrame};
 use tracing::debug;
 
 use crate::camera::{
@@ -20,6 +21,18 @@ use crate::rtsp_hotpath::RtspHotpathStats;
 
 /// Checagens de cancel/timeout a cada N AUs (retina já entrega ~15 FPS/câmera).
 const SESSION_HEALTH_CHECK_EVERY: u32 = 8;
+/// Cancelamento durante drenagem de RTCP/outros itens não-vídeo.
+const SESSION_CANCEL_CHECK_EVERY_NON_VIDEO: u32 = 32;
+
+fn video_setup_options() -> SetupOptions {
+    SetupOptions::default()
+        .transport(Transport::Tcp(
+            retina::client::TcpTransportOptions::default(),
+        ))
+        // Default do depacketizer retina = ParameterSetInsertion::EachKeyFrame (copia SPS/PPS
+        // em todo IDR). Decode usa extradata out-of-band — alinhar ao MP4 evita trabalho extra.
+        .frame_format(FrameFormat::MP4)
+}
 
 fn sync_h264_extradata(session: &Demuxed, video_index: usize, decode_ctx: &SessionDecodeContext) {
     let Some(ParametersRef::Video(params)) = session.streams()[video_index].parameters() else {
@@ -101,7 +114,9 @@ pub async fn run_rtsp_frame_loop(
         .parse()
         .map_err(|e| AppError::Rtsp(format!("URL inválida: {e}")))?;
 
-    let session_options = SessionOptions::default().creds(None::<Credentials>);
+    let session_options = SessionOptions::default()
+        .creds(None::<Credentials>)
+        .unassigned_channel_data(UnassignedChannelDataPolicy::Ignore);
 
     let mut session =
         tokio::time::timeout(connect_timeout, Session::describe(url, session_options))
@@ -116,12 +131,7 @@ pub async fn run_rtsp_frame_loop(
         .ok_or_else(|| AppError::Rtsp("nenhum stream de video no RTSP".into()))?;
 
     session
-        .setup(
-            video_index,
-            SetupOptions::default().transport(Transport::Tcp(
-                retina::client::TcpTransportOptions::default(),
-            )),
-        )
+        .setup(video_index, video_setup_options())
         .await
         .map_err(|e| AppError::Rtsp(e.to_string()))?;
 
@@ -156,7 +166,6 @@ pub async fn run_rtsp_frame_loop(
             }
         }
 
-        let session_next_start = Instant::now();
         tokio::select! {
             biased;
             () = cancel.wait_until_cancelled(), if !cancel.is_cancelled() => {
@@ -165,8 +174,28 @@ pub async fn run_rtsp_frame_loop(
                     break;
                 }
             }
-            item = session.next() => {
-                hotpath.record_session_next(session_next_start.elapsed().as_nanos() as u64);
+            item = async {
+                let mut non_video_drained = 0u32;
+                loop {
+                    let session_next_start = Instant::now();
+                    let item = session.next().await;
+                    hotpath.record_session_next(session_next_start.elapsed().as_nanos() as u64);
+                    match item {
+                        Some(Ok(CodecItem::VideoFrame(_))) | Some(Err(_)) | None => {
+                            return item;
+                        }
+                        Some(Ok(_)) => {
+                            hotpath.record_session_next_non_video();
+                            non_video_drained = non_video_drained.wrapping_add(1);
+                            if non_video_drained % SESSION_CANCEL_CHECK_EVERY_NON_VIDEO == 0
+                                && cancel.is_cancelled()
+                            {
+                                return None;
+                            }
+                        }
+                    }
+                }
+            } => {
                 match item {
                     Some(Ok(CodecItem::VideoFrame(frame))) => {
                         seq += 1;
@@ -192,6 +221,10 @@ pub async fn run_rtsp_frame_loop(
                         return Err(AppError::Rtsp(e.to_string()));
                     }
                     None => {
+                        if cancel.is_cancelled() {
+                            hotpath.record_loop_iter(loop_start.elapsed().as_nanos() as u64);
+                            break;
+                        }
                         hotpath.record_loop_iter(loop_start.elapsed().as_nanos() as u64);
                         return Err(AppError::Rtsp("stream RTSP encerrado".into()));
                     }
