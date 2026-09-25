@@ -1,5 +1,5 @@
 use std::sync::atomic::AtomicU64;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use tokio::sync::watch;
 use tracing::{info, warn};
@@ -36,9 +36,7 @@ async fn run_session_with_pipeline(
     let decode_for_consumer = decode_ctx.clone();
     let acceleration_for_consumer = acceleration.clone();
     let decode_policy_for_consumer = decode_policy.clone();
-    let enqueue_gate = Arc::new(Mutex::new(MotionEnqueueGate::from_max_fps(
-        cfg.motion_analysis_max_fps,
-    )));
+    let mut enqueue_gate = MotionEnqueueGate::from_max_fps(cfg.motion_analysis_max_fps);
     let consumer = tokio::spawn(async move {
         run_frame_consumer(
             consumer_pipeline,
@@ -58,6 +56,7 @@ async fn run_session_with_pipeline(
         global_frames: global_frames.as_ref(),
         state: &state,
         fps_est: &mut fps_est,
+        pending_received: 0,
     };
 
     let stats = if simulate {
@@ -72,7 +71,7 @@ async fn run_session_with_pipeline(
             Some(&mut live),
             &pipeline,
             decode_ctx.as_ref(),
-            Some(enqueue_gate),
+            &mut enqueue_gate,
         )
         .await?
     };
