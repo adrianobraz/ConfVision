@@ -11,7 +11,7 @@ use crate::decode::{
     SessionDecodeContext,
 };
 use crate::metrics::ProcessorMetrics;
-use crate::motion::{MotionDetector, MotionOutcome};
+use crate::motion::{MotionAnalysisThrottle, MotionDetector, MotionOutcome};
 use crate::pipeline::PipelineFrame;
 
 /// Fila bounded com política DROP-OLDEST (testável de forma síncrona).
@@ -456,9 +456,12 @@ pub async fn run_frame_consumer(
     acceleration: Arc<AccelerationRuntime>,
     decode_policy: Arc<DecodePolicyCoordinator>,
     decode_enabled: bool,
+    motion_analysis_max_fps: f64,
 ) {
     let mut h264_decoder = H264Decoder::with_acceleration_and_policy(acceleration, decode_policy);
     let mut motion_detector = MotionDetector::new();
+    let mut analysis_throttle = MotionAnalysisThrottle::from_max_fps(motion_analysis_max_fps);
+    let mut decoder_gap = false;
 
     loop {
         if *global_shutdown.borrow() {
@@ -482,6 +485,19 @@ pub async fn run_frame_consumer(
                         pipeline.flush_producer_stats().await;
 
                         let outcome = if decode_enabled {
+                            let analyze_now =
+                                analysis_throttle.should_analyze(f.is_keyframe);
+                            if !analyze_now {
+                                decoder_gap = true;
+                                ConsumerFrameOutcome::ProcessedOnly
+                            } else if decoder_gap && !f.is_keyframe {
+                                decoder_gap = true;
+                                ConsumerFrameOutcome::ProcessedOnly
+                            } else {
+                            if decoder_gap && f.is_keyframe {
+                                h264_decoder.discard_session_state();
+                                decoder_gap = false;
+                            }
                             let started = Instant::now();
                             let decode_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                                 h264_decoder.decode(
@@ -555,6 +571,7 @@ pub async fn run_frame_consumer(
                                     tracing::warn!(seq = f.seq, "h264 decode panicked");
                                     ConsumerFrameOutcome::DecodeFailed
                                 }
+                            }
                             }
                         } else {
                             ConsumerFrameOutcome::ProcessedOnly
@@ -777,7 +794,17 @@ mod tests {
                     runtime_fallback_enabled: true,
                     hw_error_threshold: 10,
                 });
-            run_frame_consumer(p, rx, grx, decode_ctx, acceleration, decode_policy, false).await;
+            run_frame_consumer(
+                p,
+                rx,
+                grx,
+                decode_ctx,
+                acceleration,
+                decode_policy,
+                false,
+                0.0,
+            )
+            .await;
         });
         for seq in 1..=5 {
             pipeline.try_enqueue(test_frame(seq, seq as u8, false));

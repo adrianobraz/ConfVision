@@ -102,6 +102,8 @@ pub struct Config {
     pub decode_hw_error_threshold: u32,
     pub load_policy_mode: crate::load::LoadPolicyMode,
     pub load_admission_enabled: bool,
+    /// Fase 6.3 — teto de decode+motion por câmera (0 = sem limite).
+    pub motion_analysis_max_fps: f64,
 }
 
 impl Config {
@@ -147,6 +149,7 @@ pub fn fill_phase62_defaults(cfg: &mut Config) {
     cfg.decode_hw_error_threshold = 10;
     cfg.load_policy_mode = crate::load::LoadPolicyMode::Advisory;
     cfg.load_admission_enabled = false;
+    cfg.motion_analysis_max_fps = 0.0;
 }
 
 impl Config {
@@ -212,6 +215,7 @@ impl Config {
             decode_hw_error_threshold: env_u32("DECODE_HW_ERROR_THRESHOLD", 10).max(1),
             load_policy_mode: parse_load_policy_mode(&env_or("LOAD_POLICY_MODE", "advisory"))?,
             load_admission_enabled: env_bool("LOAD_ADMISSION_ENABLED", false),
+            motion_analysis_max_fps: env_f64("MOTION_ANALYSIS_MAX_FPS", 5.0),
         })
     }
 

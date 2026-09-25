@@ -35,6 +35,7 @@ async fn run_session_with_pipeline(
     let decode_for_consumer = decode_ctx.clone();
     let acceleration_for_consumer = acceleration.clone();
     let decode_policy_for_consumer = decode_policy.clone();
+    let motion_analysis_max_fps = cfg.motion_analysis_max_fps;
     let consumer = tokio::spawn(async move {
         run_frame_consumer(
             consumer_pipeline,
@@ -44,6 +45,7 @@ async fn run_session_with_pipeline(
             acceleration_for_consumer,
             decode_policy_for_consumer,
             !simulate,
+            motion_analysis_max_fps,
         )
         .await;
     });

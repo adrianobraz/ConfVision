@@ -268,6 +268,7 @@ mod tests {
             decode_hw_error_threshold: 10,
             load_policy_mode: crate::load::LoadPolicyMode::Advisory,
             load_admission_enabled: false,
+            motion_analysis_max_fps: 0.0,
         }
     }
 }

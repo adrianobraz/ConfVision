@@ -141,6 +141,7 @@ mod admission_tests {
             decode_hw_error_threshold: 10,
             load_policy_mode: LoadPolicyMode::Admission,
             load_admission_enabled: true,
+            motion_analysis_max_fps: 0.0,
         };
         let _ = &mut cfg;
         cfg

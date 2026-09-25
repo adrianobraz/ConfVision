@@ -66,6 +66,16 @@ impl H264Decoder {
         }
     }
 
+    /// Descarta estado libavcodec após AUs ignorados (resync no próximo IDR).
+    #[cfg(feature = "ffmpeg-decode")]
+    pub fn discard_session_state(&mut self) {
+        self.inner = None;
+        self.nvdec_startup_logged = false;
+    }
+
+    #[cfg(not(feature = "ffmpeg-decode"))]
+    pub fn discard_session_state(&mut self) {}
+
     /// Decodifica um access unit. Não propaga panic; erros viram `DecodeOutcome::Failed`.
     pub fn decode(
         &mut self,
