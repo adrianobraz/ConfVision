@@ -16,6 +16,7 @@ mod redis;
 mod rtsp;
 mod rtsp_hotpath;
 mod sharding;
+mod stream_policy;
 mod worker;
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -249,7 +250,11 @@ async fn run_ping_loop(
             None
         };
 
-        let ping = build_worker_ping(&cfg, cameras_ativas, true, node_id);
+        let mut ping = build_worker_ping(&cfg, cameras_ativas, true, node_id);
+        let reports = manager.drain_stream_health_reports().await;
+        if !reports.is_empty() {
+            ping.camera_stream_health = Some(reports);
+        }
 
         if let Err(e) = client.worker_ping(&ping).await {
             warn!(processor_id = %cfg.processor_id, error = %e, "worker ping failed");
@@ -302,6 +307,7 @@ fn build_worker_ping(
         queue_backend: cfg.queue_backend.clone(),
         vis_mediamtx_node_id,
         max_cameras: cfg.max_cameras_for_ping(),
+        camera_stream_health: None,
         shard_index,
         shard_total,
     }

@@ -42,6 +42,10 @@ pub struct CameraRuntimeState {
     pub motion_errors: u64,
     pub last_motion_score: u64,
     pub last_motion_ms: u64,
+    pub stream_failures_consecutive: u32,
+    pub stream_hourly_attempts: u32,
+    pub stream_next_probe_at: Option<DateTime<Utc>>,
+    pub stream_local_paused: bool,
 }
 
 impl CameraRuntimeState {
@@ -72,6 +76,10 @@ impl CameraRuntimeState {
             motion_errors: 0,
             last_motion_score: 0,
             last_motion_ms: 0,
+            stream_failures_consecutive: 0,
+            stream_hourly_attempts: 0,
+            stream_next_probe_at: None,
+            stream_local_paused: false,
         }
     }
 }

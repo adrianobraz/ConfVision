@@ -7,8 +7,9 @@ use tokio::sync::{watch, RwLock};
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
-use crate::api::CameraRecord;
+use crate::api::{CameraRecord, CameraStreamHealthReport};
 use crate::camera::stream_url::{redact_rtsp_url, resolve_rtsp_url};
+use crate::stream_policy::StreamPolicyState;
 use crate::camera::types::{CameraRuntimeState, SharedCameraState};
 use crate::camera::worker_control::CameraWorkerControl;
 use crate::config::Config;
@@ -29,6 +30,8 @@ pub struct CameraManager {
     shutdown_rx: watch::Receiver<bool>,
     handles: Arc<RwLock<HashMap<i64, CameraWorkerControl>>>,
     global_frames: Arc<AtomicU64>,
+    stream_policies: Arc<RwLock<HashMap<i64, Arc<RwLock<StreamPolicyState>>>>>,
+    pending_stream_health: Arc<RwLock<Vec<CameraStreamHealthReport>>>,
 }
 
 impl CameraManager {
@@ -51,7 +54,46 @@ impl CameraManager {
             shutdown_rx,
             handles: Arc::new(RwLock::new(HashMap::new())),
             global_frames: Arc::new(AtomicU64::new(0)),
+            stream_policies: Arc::new(RwLock::new(HashMap::new())),
+            pending_stream_health: Arc::new(RwLock::new(Vec::new())),
         }
+    }
+
+    pub async fn drain_stream_health_reports(&self) -> Vec<CameraStreamHealthReport> {
+        std::mem::take(&mut *self.pending_stream_health.write().await)
+    }
+
+    async fn policy_for_camera(&self, cam: &CameraRecord) -> Arc<RwLock<StreamPolicyState>> {
+        let mut map = self.stream_policies.write().await;
+        let entry = map
+            .entry(cam.id)
+            .or_insert_with(|| Arc::new(RwLock::new(StreamPolicyState::default())));
+        let arc = entry.clone();
+        drop(map);
+        {
+            let mut pol = arc.write().await;
+            pol.apply_camera_metadata(
+                cam.stream_policy_generation.unwrap_or(0),
+                cam.ultimo_stream_ok_em.as_deref(),
+            );
+            if let Some(f) = cam.stream_falhas_consecutivas {
+                pol.failures_consecutive = f;
+            }
+            if let Some(h) = cam.stream_tentativas_horarias {
+                pol.hourly_attempts = h;
+            }
+        }
+        arc
+    }
+
+    async fn push_stream_health(&self, report: CameraStreamHealthReport) {
+        self.pending_stream_health.write().await.push(report);
+    }
+
+    fn parse_camera_created_at(raw: &Option<String>) -> Option<chrono::DateTime<chrono::Utc>> {
+        raw.as_ref()
+            .and_then(|s| chrono::DateTime::parse_from_rfc3339(s.trim()).ok())
+            .map(|t| t.with_timezone(&chrono::Utc))
     }
 
     pub fn states_handle(&self) -> Arc<RwLock<HashMap<i64, SharedCameraState>>> {
@@ -86,6 +128,10 @@ impl CameraManager {
             if !desired_ids.contains(&id) {
                 self.stop_camera(id).await;
             }
+        }
+
+        for cam in &limited {
+            let _ = self.policy_for_camera(cam).await;
         }
 
         for cam in limited {
@@ -127,6 +173,10 @@ impl CameraManager {
             "worker started"
         );
 
+        let stream_policy = self.policy_for_camera(&cam).await;
+        let camera_created_at = Self::parse_camera_created_at(&cam.created_at);
+        let health_queue = self.pending_stream_health.clone();
+
         let cfg = self.cfg.clone();
         let metrics = self.metrics.clone();
         let acceleration = self.acceleration.clone();
@@ -145,6 +195,9 @@ impl CameraManager {
                 acceleration,
                 decode_policy,
                 state,
+                stream_policy,
+                camera_created_at,
+                health_queue,
                 &mut shutdown_rx,
                 camera_stop_rx,
                 global_frames,
@@ -172,6 +225,7 @@ impl CameraManager {
             }
         }
         self.states.write().await.remove(&camera_id);
+        self.stream_policies.write().await.remove(&camera_id);
         info!(camera_id, processor_id = %self.cfg.processor_id, "worker stopped");
     }
 
@@ -203,58 +257,13 @@ mod tests {
     use std::time::Duration;
 
     fn test_cfg() -> Config {
-        Config {
-            confvision_api_url: "http://localhost".into(),
-            vis_worker_api_key: String::new(),
-            mediamtx_rtsp_base: "rtsp://localhost:8554".into(),
-            rtmp_publish_secret: Some("secret".into()),
-            processor_id: "test-proc".into(),
-            processor_hostname: "host".into(),
-            processor_version: "0.1.0".into(),
-            worker_tipo: "rust_processor".into(),
-            worker_id: "worker-01".into(),
-            shard_mode: crate::config::ShardMode::Auto,
-            worker_shard_index: -1,
-            worker_shard_total: 0,
-            mediamtx_node_id: 0,
-            redis_url: None,
-            s3_endpoint: None,
-            s3_bucket: None,
-            http_host: "127.0.0.1".into(),
-            http_port: 8090,
-            log_level: "info".into(),
-            max_cameras: 2,
-            sync_interval: Duration::from_secs(60),
-            ping_interval: Duration::from_secs(30),
-            rtsp_connect_timeout: Duration::from_secs(1),
-            rtsp_reconnect_base: Duration::from_secs(1),
-            rtsp_frame_timeout: Duration::from_secs(1),
-            frame_buffer_max: 2,
-            queue_backend: "none".into(),
-            capacity_mode: crate::config::CapacityMode::Dynamic,
-            capacity_cpu_target_percent: 80.0,
-            capacity_memory_target_percent: 80.0,
-            capacity_gpu_target_percent: 80.0,
-            capacity_vram_target_percent: 80.0,
-            capacity_min_sample_sec: 30,
-            capacity_safety_factor: 0.80,
-            capacity_history_size: 120,
-            capacity_sample_interval_sec: 5,
-            decode_runtime_fallback: true,
-            decode_hw_error_threshold: 10,
-            load_policy_mode: crate::load::LoadPolicyMode::Advisory,
-            load_admission_enabled: false,
-            motion_analysis_max_fps: 0.0,
-            motion_frame_stride: 1,
-            decode_frame_stride: 1,
-            analysis_only_on_motion: false,
-            motion_gate_probe_max_fps: 0.5,
-            motion_gate_miss_frames: 10,
-            motion_probe_keyframe_only: false,
-            rtsp_idle_suspend: false,
-            motion_pixel_diff_threshold: 8,
-            motion_percent_threshold: 5,
-        }
+        let mut cfg = Config::test_stub();
+        cfg.max_cameras = 2;
+        cfg.rtmp_publish_secret = Some("secret".into());
+        cfg.rtsp_connect_timeout = Duration::from_secs(1);
+        cfg.rtsp_reconnect_base = Duration::from_secs(1);
+        cfg.rtsp_frame_timeout = Duration::from_secs(1);
+        cfg
     }
 
     #[tokio::test]
@@ -282,6 +291,11 @@ mod tests {
                 analitico_pausado: None,
                 deteccao_humano: Some(true),
                 worker_id: None,
+                created_at: None,
+                stream_policy_generation: None,
+                ultimo_stream_ok_em: None,
+                stream_falhas_consecutivas: None,
+                stream_tentativas_horarias: None,
                 extra: json!({}),
             })
             .collect();
@@ -422,6 +436,11 @@ mod tests {
             analitico_pausado: None,
             deteccao_humano: Some(true),
             worker_id: None,
+            created_at: None,
+            stream_policy_generation: None,
+            ultimo_stream_ok_em: None,
+            stream_falhas_consecutivas: None,
+            stream_tentativas_horarias: None,
             extra: json!({}),
         };
         mgr.sync_cameras(vec![cam1.clone()]).await;

@@ -120,6 +120,8 @@ pub struct Config {
     pub rtsp_idle_suspend: bool,
     pub motion_pixel_diff_threshold: u8,
     pub motion_percent_threshold: u32,
+    pub sync_filter_worker_id: bool,
+    pub stream_retry: crate::stream_policy::StreamRetryConfig,
 }
 
 impl Config {
@@ -250,7 +252,67 @@ impl Config {
             rtsp_idle_suspend: rtsp_idle_suspend_from_env(),
             motion_pixel_diff_threshold: motion_pixel_diff_from_env(),
             motion_percent_threshold: motion_percent_from_env(),
+            sync_filter_worker_id: env_bool("SYNC_FILTER_WORKER_ID", true),
+            stream_retry: stream_retry_config_from_env(),
         })
+    }
+
+    /// Config mínima para testes unitários.
+    pub fn test_stub() -> Self {
+        Self {
+            confvision_api_url: "http://localhost".into(),
+            vis_worker_api_key: String::new(),
+            mediamtx_rtsp_base: "rtsp://x".into(),
+            rtmp_publish_secret: None,
+            processor_id: "proc".into(),
+            processor_hostname: "h".into(),
+            processor_version: "0.1.0".into(),
+            worker_id: "worker".into(),
+            worker_tipo: "rust_processor".into(),
+            shard_mode: ShardMode::Auto,
+            worker_shard_index: -1,
+            worker_shard_total: 0,
+            mediamtx_node_id: 0,
+            redis_url: None,
+            s3_endpoint: None,
+            s3_bucket: None,
+            http_host: "127.0.0.1".into(),
+            http_port: 8090,
+            log_level: "info".into(),
+            max_cameras: 10,
+            sync_interval: Duration::from_secs(60),
+            ping_interval: Duration::from_secs(30),
+            rtsp_connect_timeout: Duration::from_secs(5),
+            rtsp_reconnect_base: Duration::from_secs(10),
+            rtsp_frame_timeout: Duration::from_secs(30),
+            frame_buffer_max: 2,
+            queue_backend: "none".into(),
+            capacity_mode: CapacityMode::Dynamic,
+            capacity_cpu_target_percent: 80.0,
+            capacity_memory_target_percent: 80.0,
+            capacity_gpu_target_percent: 80.0,
+            capacity_vram_target_percent: 80.0,
+            capacity_min_sample_sec: 30,
+            capacity_safety_factor: 0.80,
+            capacity_history_size: 120,
+            capacity_sample_interval_sec: 5,
+            decode_runtime_fallback: true,
+            decode_hw_error_threshold: 10,
+            load_policy_mode: crate::load::LoadPolicyMode::Advisory,
+            load_admission_enabled: false,
+            motion_analysis_max_fps: 0.0,
+            motion_frame_stride: 1,
+            decode_frame_stride: 1,
+            analysis_only_on_motion: false,
+            motion_gate_probe_max_fps: 0.5,
+            motion_gate_miss_frames: 10,
+            motion_probe_keyframe_only: false,
+            rtsp_idle_suspend: false,
+            motion_pixel_diff_threshold: 8,
+            motion_percent_threshold: 5,
+            sync_filter_worker_id: true,
+            stream_retry: crate::stream_policy::StreamRetryConfig::defaults(),
+        }
     }
 
     pub fn load_policy_config(&self) -> crate::load::LoadPolicyConfig {
@@ -337,6 +399,25 @@ fn motion_pixel_diff_from_env() -> u8 {
 
 fn motion_percent_from_env() -> u32 {
     env_u32("MOTION_PERCENT_THRESHOLD", 5).min(100)
+}
+
+fn stream_retry_config_from_env() -> crate::stream_policy::StreamRetryConfig {
+    let d = crate::stream_policy::StreamRetryConfig::defaults();
+    crate::stream_policy::StreamRetryConfig {
+        enabled: env_bool("STREAM_RETRY_ENABLED", d.enabled),
+        never_ok_grace_hours: env_u64("STREAM_NEVER_OK_GRACE_HOURS", d.never_ok_grace_hours),
+        hourly_failures_threshold: env_u32(
+            "STREAM_HOURLY_FAIL_THRESHOLD",
+            d.hourly_failures_threshold,
+        ),
+        hourly_max_attempts: env_u32("STREAM_HOURLY_MAX_ATTEMPTS", d.hourly_max_attempts),
+        delay_fail_1_5_secs: env_u64("STREAM_DELAY_1_5_SEC", d.delay_fail_1_5_secs),
+        delay_fail_6_9_secs: env_u64("STREAM_DELAY_6_9_SEC", d.delay_fail_6_9_secs),
+        delay_fail_10_19_secs: env_u64("STREAM_DELAY_10_19_SEC", d.delay_fail_10_19_secs),
+        delay_fail_20_29_secs: env_u64("STREAM_DELAY_20_29_SEC", d.delay_fail_20_29_secs),
+        delay_fail_30_59_secs: env_u64("STREAM_DELAY_30_59_SEC", d.delay_fail_30_59_secs),
+        delay_fail_60_plus_secs: env_u64("STREAM_DELAY_60_PLUS_SEC", d.delay_fail_60_plus_secs),
+    }
 }
 
 fn forbid_legacy_xano_env() -> AppResult<()> {

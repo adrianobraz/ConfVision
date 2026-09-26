@@ -32,8 +32,32 @@ pub struct CameraRecord {
     pub deteccao_humano: Option<bool>,
     #[serde(default)]
     pub worker_id: Option<String>,
+    #[serde(default)]
+    pub created_at: Option<String>,
+    #[serde(default)]
+    pub stream_policy_generation: Option<u64>,
+    #[serde(default)]
+    pub ultimo_stream_ok_em: Option<String>,
+    #[serde(default)]
+    pub stream_falhas_consecutivas: Option<u32>,
+    #[serde(default)]
+    pub stream_tentativas_horarias: Option<u32>,
     #[serde(flatten)]
     pub extra: Value,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CameraStreamHealthReport {
+    pub camera_id: i64,
+    pub event: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub failures_consecutive: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hourly_attempts: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pause_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -65,6 +89,8 @@ pub struct WorkerPingRequest {
     pub shard_index: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shard_total: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub camera_stream_health: Option<Vec<CameraStreamHealthReport>>,
 }
 
 impl ConfVisionClient {
@@ -227,57 +253,10 @@ mod tests {
     }
 
     fn test_config(base: &str) -> Config {
-        Config {
-            confvision_api_url: base.to_string(),
-            vis_worker_api_key: "test-key".into(),
-            mediamtx_rtsp_base: "rtsp://localhost:8554".into(),
-            rtmp_publish_secret: None,
-            processor_id: "test".into(),
-            processor_hostname: "host".into(),
-            processor_version: "0.1.0".into(),
-            worker_tipo: "rust_processor".into(),
-            worker_id: "worker-01".into(),
-            shard_mode: crate::config::ShardMode::Auto,
-            worker_shard_index: -1,
-            worker_shard_total: 0,
-            mediamtx_node_id: 0,
-            redis_url: None,
-            s3_endpoint: None,
-            s3_bucket: None,
-            http_host: "127.0.0.1".into(),
-            http_port: 8090,
-            log_level: "info".into(),
-            max_cameras: 5,
-            sync_interval: Duration::from_secs(60),
-            ping_interval: Duration::from_secs(30),
-            rtsp_connect_timeout: Duration::from_secs(5),
-            rtsp_reconnect_base: Duration::from_secs(10),
-            rtsp_frame_timeout: Duration::from_secs(30),
-            frame_buffer_max: 2,
-            queue_backend: "none".into(),
-            capacity_mode: crate::config::CapacityMode::Dynamic,
-            capacity_cpu_target_percent: 80.0,
-            capacity_memory_target_percent: 80.0,
-            capacity_gpu_target_percent: 80.0,
-            capacity_vram_target_percent: 80.0,
-            capacity_min_sample_sec: 30,
-            capacity_safety_factor: 0.80,
-            capacity_history_size: 120,
-            capacity_sample_interval_sec: 5,
-            decode_runtime_fallback: true,
-            decode_hw_error_threshold: 10,
-            load_policy_mode: crate::load::LoadPolicyMode::Advisory,
-            load_admission_enabled: false,
-            motion_analysis_max_fps: 0.0,
-            motion_frame_stride: 1,
-            decode_frame_stride: 1,
-            analysis_only_on_motion: false,
-            motion_gate_probe_max_fps: 0.5,
-            motion_gate_miss_frames: 10,
-            motion_probe_keyframe_only: false,
-            rtsp_idle_suspend: false,
-            motion_pixel_diff_threshold: 8,
-            motion_percent_threshold: 5,
-        }
+        let mut cfg = Config::test_stub();
+        cfg.confvision_api_url = base.to_string();
+        cfg.vis_worker_api_key = "test-key".into();
+        cfg.max_cameras = 5;
+        cfg
     }
 }

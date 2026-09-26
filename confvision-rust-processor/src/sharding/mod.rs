@@ -31,6 +31,9 @@ pub fn camera_belongs_to_shard(cfg: &Config, camera_id: i64) -> bool {
 
 /// `worker_id` para query HTTP — somente `SHARD_MODE=worker_id` (como `query_params()`).
 pub fn sync_query_worker_id(cfg: &Config) -> Option<&str> {
+    if cfg.sync_filter_worker_id && !cfg.worker_id.is_empty() {
+        return Some(cfg.worker_id.as_str());
+    }
     if cfg.shard_mode == ShardMode::WorkerId && !cfg.worker_id.is_empty() {
         Some(cfg.worker_id.as_str())
     } else {
@@ -45,6 +48,7 @@ pub fn filter_analytic_cameras(cfg: &Config, cameras: Vec<CameraRecord>) -> Vec<
         .filter(|cam| {
             cam.ativo
                 && cam.deteccao_humano.unwrap_or(false)
+                && !cam.analitico_pausado.unwrap_or(false)
                 && camera_belongs_to_shard(cfg, cam.id)
         })
         .collect();
@@ -85,58 +89,10 @@ mod tests {
     use crate::config::ShardMode;
 
     fn base_cfg() -> Config {
-        Config {
-            confvision_api_url: "http://test".into(),
-            vis_worker_api_key: String::new(),
-            mediamtx_rtsp_base: "rtsp://localhost".into(),
-            rtmp_publish_secret: None,
-            processor_id: "proc-1".into(),
-            processor_hostname: "host".into(),
-            processor_version: "0.1.0".into(),
-            worker_id: String::new(),
-            worker_tipo: "rust_processor".into(),
-            shard_mode: ShardMode::Auto,
-            worker_shard_index: -1,
-            worker_shard_total: 0,
-            mediamtx_node_id: 0,
-            redis_url: None,
-            s3_endpoint: None,
-            s3_bucket: None,
-            http_host: "127.0.0.1".into(),
-            http_port: 8090,
-            log_level: "info".into(),
-            max_cameras: 50,
-            sync_interval: std::time::Duration::from_secs(60),
-            ping_interval: std::time::Duration::from_secs(30),
-            rtsp_connect_timeout: std::time::Duration::from_secs(5),
-            rtsp_reconnect_base: std::time::Duration::from_secs(10),
-            rtsp_frame_timeout: std::time::Duration::from_secs(30),
-            frame_buffer_max: 2,
-            queue_backend: "none".into(),
-            capacity_mode: crate::config::CapacityMode::Dynamic,
-            capacity_cpu_target_percent: 80.0,
-            capacity_memory_target_percent: 80.0,
-            capacity_gpu_target_percent: 80.0,
-            capacity_vram_target_percent: 80.0,
-            capacity_min_sample_sec: 30,
-            capacity_safety_factor: 0.80,
-            capacity_history_size: 120,
-            capacity_sample_interval_sec: 5,
-            decode_runtime_fallback: true,
-            decode_hw_error_threshold: 10,
-            load_policy_mode: crate::load::LoadPolicyMode::Advisory,
-            load_admission_enabled: false,
-            motion_analysis_max_fps: 0.0,
-            motion_frame_stride: 1,
-            decode_frame_stride: 1,
-            analysis_only_on_motion: false,
-            motion_gate_probe_max_fps: 0.5,
-            motion_gate_miss_frames: 10,
-            motion_probe_keyframe_only: false,
-            rtsp_idle_suspend: false,
-            motion_pixel_diff_threshold: 8,
-            motion_percent_threshold: 5,
-        }
+        let mut cfg = Config::test_stub();
+        cfg.worker_id = String::new();
+        cfg.max_cameras = 50;
+        cfg
     }
 
     fn cam(id: i64, ativo: bool, deteccao: bool) -> CameraRecord {
@@ -149,6 +105,11 @@ mod tests {
             analitico_pausado: None,
             deteccao_humano: Some(deteccao),
             worker_id: None,
+            created_at: None,
+            stream_policy_generation: None,
+            ultimo_stream_ok_em: None,
+            stream_falhas_consecutivas: None,
+            stream_tentativas_horarias: None,
             extra: serde_json::Value::Null,
         }
     }
@@ -157,6 +118,7 @@ mod tests {
     fn sync_query_worker_id_only_in_worker_id_mode() {
         let mut cfg = base_cfg();
         cfg.worker_id = "w-1".into();
+        cfg.sync_filter_worker_id = false;
         cfg.shard_mode = ShardMode::Hash;
         assert!(sync_query_worker_id(&cfg).is_none());
 
@@ -248,10 +210,12 @@ mod tests {
     }
 
     #[test]
-    fn auto_with_worker_id_does_not_send_worker_id_query() {
+    fn auto_with_worker_id_sends_query_when_sync_filter_on() {
         let mut cfg = base_cfg();
         cfg.shard_mode = ShardMode::Auto;
         cfg.worker_id = "w-auto".into();
+        assert_eq!(sync_query_worker_id(&cfg), Some("w-auto"));
+        cfg.sync_filter_worker_id = false;
         assert!(sync_query_worker_id(&cfg).is_none());
         assert!(shard_enabled(&cfg));
         assert!(camera_belongs_to_shard(&cfg, 99));

@@ -2,8 +2,15 @@ use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use std::time::Duration;
 
-use tokio::sync::watch;
+use chrono::{DateTime, Utc};
+use tokio::sync::{watch, RwLock};
 use tracing::{debug, info, warn};
+
+use crate::stream_policy::{
+    classify_rtsp_error, delay_after_failure, StreamFailureClass, StreamHealthAction,
+    StreamPolicyState,
+};
+use crate::worker::stream_health_queue::{enqueue_stream_action, enqueue_stream_failure};
 
 use crate::camera::{
     redact_rtsp_url, CameraCancel, CameraRuntimeState, CameraStatus, FpsEstimator,
@@ -176,6 +183,16 @@ async fn wait_reconnect_delay(
     }
 }
 
+async fn mirror_policy_to_state(state: &SharedCameraState, pol: &StreamPolicyState) {
+    update_state(state, |s| {
+        s.stream_failures_consecutive = pol.failures_consecutive;
+        s.stream_hourly_attempts = pol.hourly_attempts;
+        s.stream_next_probe_at = pol.next_probe_at;
+        s.stream_local_paused = pol.local_paused;
+    })
+    .await;
+}
+
 pub async fn run_camera_worker(
     camera_id: i64,
     rtsp_url: String,
@@ -184,12 +201,16 @@ pub async fn run_camera_worker(
     acceleration: Arc<AccelerationRuntime>,
     decode_policy: Arc<DecodePolicyCoordinator>,
     state: SharedCameraState,
+    stream_policy: Arc<RwLock<StreamPolicyState>>,
+    camera_created_at: Option<DateTime<Utc>>,
+    health_queue: Arc<RwLock<Vec<crate::api::CameraStreamHealthReport>>>,
     shutdown_rx: &mut watch::Receiver<bool>,
     camera_stop_rx: watch::Receiver<bool>,
     global_frames: Arc<AtomicU64>,
 ) {
     let redacted = redact_rtsp_url(&rtsp_url);
     let mut backoff = ReconnectBackoff::new(cfg.rtsp_reconnect_base);
+    let stream_cfg = cfg.stream_retry;
 
     let simulate = std::env::var("RTSP_SIMULATE")
         .map(|v| matches!(v.as_str(), "1" | "true" | "yes"))
@@ -198,6 +219,26 @@ pub async fn run_camera_worker(
     loop {
         if *shutdown_rx.borrow() || *camera_stop_rx.borrow() {
             break;
+        }
+
+        {
+            let pol = stream_policy.read().await;
+            if pol.local_paused {
+                update_state(&state, |s| {
+                    s.status = CameraStatus::Offline;
+                    s.stream_local_paused = true;
+                })
+                .await;
+                break;
+            }
+            if let Some(wait) = pol.wait_before_probe() {
+                drop(pol);
+                update_state(&state, |s| s.status = CameraStatus::Offline).await;
+                if wait_reconnect_delay(wait, shutdown_rx, camera_stop_rx.clone()).await {
+                    break;
+                }
+                continue;
+            }
         }
 
         update_state(&state, |s| {
@@ -245,6 +286,12 @@ pub async fn run_camera_worker(
                     break;
                 }
                 backoff.reset();
+                {
+                    let mut pol = stream_policy.write().await;
+                    let action = pol.on_success(&stream_cfg);
+                    mirror_policy_to_state(&state, &pol).await;
+                    enqueue_stream_action(&health_queue, camera_id, action, None).await;
+                }
                 info!(camera_id, processor_id = %cfg.processor_id, "rtsp session ended — reconnecting");
                 if wait_reconnect_delay(
                     backoff.base_interval(),
@@ -262,23 +309,68 @@ pub async fn run_camera_worker(
                 }
                 metrics.record_reconnect();
                 metrics.record_rtsp_error();
-                let delay = backoff.next_delay();
+                let err_text = e.to_string();
+                let failure_class = classify_rtsp_error(&err_text);
+                let delay = if stream_cfg.enabled && failure_class != StreamFailureClass::Transient {
+                    let mut pol = stream_policy.write().await;
+                    let action = pol.on_failure(&stream_cfg, failure_class, camera_created_at);
+                    mirror_policy_to_state(&state, &pol).await;
+                    if failure_class == StreamFailureClass::PathAbsent {
+                        enqueue_stream_failure(
+                            &health_queue,
+                            camera_id,
+                            pol.failures_consecutive,
+                            pol.hourly_attempts,
+                            Some(err_text.clone()),
+                        )
+                        .await;
+                    }
+                    match action {
+                        StreamHealthAction::PauseAnalytic { reason } => {
+                            enqueue_stream_action(
+                                &health_queue,
+                                camera_id,
+                                StreamHealthAction::PauseAnalytic { reason },
+                                Some(err_text.clone()),
+                            )
+                            .await;
+                            Duration::ZERO
+                        }
+                        StreamHealthAction::RetryAfter(d) => d,
+                        StreamHealthAction::ReportStreamOk => backoff.next_delay(),
+                        StreamHealthAction::ReportFailure { .. } => delay_after_failure(
+                            pol.failures_consecutive,
+                            &stream_cfg,
+                        ),
+                    }
+                } else {
+                    let d = backoff.next_delay();
+                    update_state(&state, |s| {
+                        s.reconnect_count += 1;
+                        s.rtsp_errors += 1;
+                    })
+                    .await;
+                    d
+                };
                 warn!(
                     camera_id,
                     processor_id = %cfg.processor_id,
-                    error = %e,
+                    error = %err_text,
                     delay_secs = delay.as_secs(),
                     "rtsp reconnect"
                 );
                 update_state(&state, |s| {
                     s.status = CameraStatus::Offline;
                     s.fps = 0.0;
-                    s.last_error = Some(e.to_string());
+                    s.last_error = Some(err_text);
                     s.reconnect_count += 1;
                     s.rtsp_errors += 1;
                 })
                 .await;
 
+                if delay.is_zero() {
+                    break;
+                }
                 if wait_reconnect_delay(delay, shutdown_rx, camera_stop_rx.clone()).await {
                     break;
                 }

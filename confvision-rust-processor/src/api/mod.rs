@@ -1,3 +1,6 @@
 mod client;
 
-pub use client::{CameraRecord, ConfVisionClient, SyncCamerasResponse, WorkerPingRequest};
+pub use client::{
+    CameraRecord, CameraStreamHealthReport, ConfVisionClient, SyncCamerasResponse,
+    WorkerPingRequest,
+};

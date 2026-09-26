@@ -20,13 +20,18 @@ curl -fsS "$BASE/capacity-report" | jq '{summary, recommended_actions, cameras: 
 
 Ou script: `confvision-rust-processor/scripts/capacity-report.sh "$BASE"`.
 
-## Ações (escolha uma por câmera)
+## Comportamento automático (Rust + API)
+
+Com `STREAM_RETRY_ENABLED=1`, câmeras 404 entram em backoff (1–5 min → … → 1 h) e podem pausar analítico sozinhas (`analitico_pausado`). Ver **`docs/STREAM_RETRY_POLICY.md`**.
+
+Reativar após corrigir DVR: `POST /vis_camera_stream_reactivate?camera_id=` ou usuário desliga/liga `ativo` (zera contadores).
+
+## Ações manuais (emergência)
 
 | Objetivo | Ação |
 |----------|------|
-| Liberar CPU do Rust | `UPDATE vis_camera SET worker_id = '<PYTHON_WORKER_ID>' WHERE id = ?;` |
-| Parar tentativas RTSP | `UPDATE vis_camera SET ativo = false WHERE id = ?;` (só se negócio permitir) |
 | Corrigir stream | Garantir publish RTMP no path `cam/{hash}` (sem barra extra após deploy do guard) |
+| Forçar pausa | `analitico_pausado=true` via painel/API |
 
 SQL pronto (revise IDs e `PYTHON_WORKER_ID`):  
 `confvision-rust-processor/sql/cameras_404_worker_python.sql`
