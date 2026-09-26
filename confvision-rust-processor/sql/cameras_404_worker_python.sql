@@ -35,10 +35,15 @@ WHERE worker_id = 'rust-processor-pilot-01'
 -- ---------------------------------------------------------------------------
 BEGIN;
 
+-- Por id (404 no /capacity-report). Inclui worker_id vazio — Go/Rust ainda podiam syncar essas câmeras.
 UPDATE vis_camera
 SET worker_id = 'worker-docker-21'   -- <<< PYTHON_WORKER_ID
-WHERE worker_id = 'rust-processor-pilot-01'
-  AND id IN (2, 4, 8, 9);            -- <<< ajuste conforme /capacity-report
+WHERE id IN (2, 4, 8, 9)             -- <<< ajuste conforme /capacity-report
+  AND (
+    worker_id = 'rust-processor-pilot-01'
+    OR worker_id IS NULL
+    OR btrim(worker_id) = ''
+  );
 
 SELECT id, nome, worker_id
 FROM vis_camera
