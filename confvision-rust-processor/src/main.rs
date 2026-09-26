@@ -32,7 +32,9 @@ use crate::camera::CameraManager;
 use crate::capacity::{run_capacity_sampler, CapacityEngine};
 use crate::config::Config;
 use crate::decode::{AccelerationPolicy, AccelerationRuntime, DecodePolicyCoordinator};
-use crate::health::{health_handler, metrics_handler, ready_handler, AppState};
+use crate::health::{
+    capacity_report_handler, health_handler, metrics_handler, ready_handler, AppState,
+};
 use crate::load::LoadAdmissionGate;
 use crate::metrics::ProcessorMetrics;
 
@@ -112,6 +114,7 @@ async fn main() {
         .route("/health", get(health_handler))
         .route("/ready", get(ready_handler))
         .route("/metrics", get(metrics_handler))
+        .route("/capacity-report", get(capacity_report_handler))
         .with_state(app_state);
 
     let bind = format!("{}:{}", cfg.http_host, cfg.http_port);

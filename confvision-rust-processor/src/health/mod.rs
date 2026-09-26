@@ -14,7 +14,9 @@ use crate::load::LoadAdmissionGate;
 use crate::metrics::{MetricsSnapshot, SharedMetrics};
 use crate::rtsp_hotpath::RtspHotpathMetrics;
 
+mod capacity_report;
 mod runtime_phase62;
+pub use capacity_report::capacity_report_handler;
 pub use runtime_phase62::{build_phase62_view, Phase62RuntimeView};
 
 #[derive(Clone, Serialize)]

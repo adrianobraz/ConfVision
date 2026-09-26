@@ -73,7 +73,7 @@ class RtmpGuard:
         ip = str(payload.get("ip") or "").strip()
         user = str(payload.get("user") or "").strip()
         password = str(payload.get("password") or "").strip()
-        path = str(payload.get("path") or "").strip().lstrip("/")
+        path = str(payload.get("path") or "").strip().lstrip("/").rstrip("/")
         base_meta = _meta(path=path)
 
         if ip and self.bans.is_banned(ip):

@@ -27,6 +27,8 @@ metrics="$(curl -fsS "${BASE}/metrics")" || {
   exit 1
 }
 
+capacity_report="$(curl -fsS "${BASE}/capacity-report" 2>/dev/null || true)"
+
 if command -v jq >/dev/null 2>&1; then
   echo "--- /health ---"
   echo "$health" | jq '{status, processor_id, cameras_total, cameras_online, cameras_offline, frames_received, fps_total, capacity_state, load_advisory}'
@@ -43,6 +45,12 @@ if command -v jq >/dev/null 2>&1; then
   if [[ "$on" == "0" && "$ct" != "0" ]]; then
     echo "WARN: cameras_online=0 com cameras_total=$ct — RTSP/sync"
     exit 2
+  fi
+  if [[ -n "$capacity_report" ]]; then
+    echo "--- /capacity-report (actions) ---"
+    echo "$capacity_report" | jq '{summary, recommended_actions: [.recommended_actions[]? | {code, title}]}'
+  else
+    echo "SKIP: /capacity-report (deploy ainda sem rota — rebuild rust-pilot)"
   fi
 else
   echo "$health"
