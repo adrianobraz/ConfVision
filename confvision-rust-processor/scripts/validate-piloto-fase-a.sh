@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Valida endpoints do piloto Fase A (1 câmera).
+# Valida endpoints do piloto Fase A.
 # Uso: validate-piloto-fase-a.sh [BASE_URL]
+#      MAX_CAMERAS=10 validate-piloto-fase-a.sh https://...
 # Ex.: validate-piloto-fase-a.sh https://foxpro-rust-pilot.rkr351.easypanel.host
 
 set -euo pipefail
 
+MAX_EXPECT="${MAX_CAMERAS:-10}"
 BASE="${1:-http://127.0.0.1:8090}"
 BASE="${BASE%/}"
 
@@ -34,12 +36,12 @@ if command -v jq >/dev/null 2>&1; then
   echo "$metrics" | jq '{cameras_total, cameras_online, fps_total, load_advisory, cameras: [.cameras[]? | {camera_id, status, fps, rtsp_errors, last_error: (.last_error | if . then .[0:80] else null end)}]}'
   ct="$(echo "$health" | jq -r '.cameras_total // empty')"
   on="$(echo "$health" | jq -r '.cameras_online // empty')"
-  if [[ "$ct" != "1" ]]; then
-    echo "WARN: cameras_total=$ct (esperado 1 para Fase A — revise Postgres worker_id e MAX_CAMERAS)"
+  if [[ -n "$ct" && "$ct" -gt "$MAX_EXPECT" ]]; then
+    echo "WARN: cameras_total=$ct > MAX_CAMERAS=$MAX_EXPECT (truncagem no Rust ou ajuste env)"
     exit 2
   fi
-  if [[ "$on" != "1" ]]; then
-    echo "WARN: cameras_online=$on (esperado 1 — RTSP ou sync)"
+  if [[ "$on" == "0" && "$ct" != "0" ]]; then
+    echo "WARN: cameras_online=0 com cameras_total=$ct — RTSP/sync"
     exit 2
   fi
 else

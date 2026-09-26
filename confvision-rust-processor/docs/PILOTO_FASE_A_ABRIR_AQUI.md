@@ -13,6 +13,12 @@ Worker Python (**confvision-worker**) fica **parado** até rust-pilot passar na 
 | **Cursor / disco (worktree rust-pilot)** | `c:\sistemaconfmonit\core4-rust-pilot\confvision-rust-processor\sql\piloto_fase_a_isolamento.sql` |
 | **Repo (branch rust-pilot)** | `confvision-rust-processor/sql/piloto_fase_a_isolamento.sql` |
 
+### Liberar IP no firewall (PC → Postgres)
+
+Guia: [`POSTGRES_ACESSO_IP.md`](./POSTGRES_ACESSO_IP.md) · script no servidor DB: [`../scripts/postgres-allow-client-ip.sh`](../scripts/postgres-allow-client-ip.sh)
+
+**Sem abrir IP:** túnel `ssh -L 15432:191.96.156.116:5432 root@31.97.173.119` e conecte em `127.0.0.1:15432`.
+
 ### Como executar
 
 **Opção A — cliente `psql` (Postgres central ConfVision)**
