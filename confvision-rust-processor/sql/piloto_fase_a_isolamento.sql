@@ -1,5 +1,8 @@
 -- Piloto Fase A: 1 câmera no Rust (rust-processor-pilot-01), demais no worker Python.
--- Executar no Postgres ConfVision (vis_camera).
+-- NÃO cria tabela — apenas UPDATE em vis_camera.worker_id (tabela já existe).
+-- Executar no Postgres ConfVision (banco confmonit).
+-- Caminho: confvision-rust-processor/sql/piloto_fase_a_isolamento.sql
+-- Guia: confvision-rust-processor/docs/PILOTO_FASE_A_ABRIR_AQUI.md
 --
 -- ANTES DE UPDATE: substituir placeholders e conferir SELECTs.
 --

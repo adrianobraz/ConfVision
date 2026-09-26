@@ -7,7 +7,7 @@ Sem alterar Go, Python, MediaMTX, Postgres ou Xano.
 
 Modelo de variáveis: [`easypanel.env.example`](./easypanel.env.example).
 
-**Fase A — 1 câmera oficial (Postgres + env + validação):** [`docs/PILOTO_FASE_A.md`](./docs/PILOTO_FASE_A.md) · env: [`easypanel.env.fase-a.example`](./easypanel.env.fase-a.example)
+**Fase A — 1 câmera oficial:** caminhos para abrir [`docs/PILOTO_FASE_A_ABRIR_AQUI.md`](./docs/PILOTO_FASE_A_ABRIR_AQUI.md) · checklist [`docs/PILOTO_FASE_A.md`](./docs/PILOTO_FASE_A.md) · env [`easypanel.env.fase-a.example`](./easypanel.env.fase-a.example)
 
 **Câmeras paradas / Rust off / stack ConfVision desligada:** [docs/RECUPERACAO_CAMERAS.md](./docs/RECUPERACAO_CAMERAS.md) (sem Xano).
 

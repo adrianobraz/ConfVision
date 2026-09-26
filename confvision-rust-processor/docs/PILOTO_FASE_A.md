@@ -14,14 +14,18 @@ Isolar **uma** câmera no Rust, devolver as demais ao worker Python, alinhar env
 | A2 | `MAX_CAMERAS=1`, `LOG_LEVEL=info`, `SYNC_FILTER_WORKER_ID=true` | EasyPanel → rust-pilot |
 | A3 | Câmeras **3, 4** (e outras) de volta ao `WORKER_ID` do Python | Postgres |
 | A4 | **confvision** (MediaMTX) running | EasyPanel |
-| A5 | **confvision-worker** running (demais câmeras) | EasyPanel |
+| A5 | **confvision-worker** — **só depois** de A7 ok | EasyPanel (Play por último) |
 | A6 | Restart **rust-pilot** (sem rebuild) | EasyPanel |
 | A7 | Validar `/health`, `/metrics`, logs | Script ou curl |
 | A8 | Baseline CPU 30–60 min (parado vs movimento) | EasyPanel gráficos |
 
 ---
 
-## A1 + A3 — Postgres
+**Abrir arquivos / caminhos:** [`PILOTO_FASE_A_ABRIR_AQUI.md`](./PILOTO_FASE_A_ABRIR_AQUI.md)
+
+---
+
+## A1 + A3 — Postgres (`vis_camera` — sem CREATE TABLE)
 
 Arquivo: [`../sql/piloto_fase_a_isolamento.sql`](../sql/piloto_fase_a_isolamento.sql)
 
@@ -43,8 +47,8 @@ Arquivo: [`../sql/piloto_fase_a_isolamento.sql`](../sql/piloto_fase_a_isolamento
    - Remover `RUST_LOG` se existir
    - `LOAD_ADMISSION_ENABLED=0` (admission = fase C)
 3. **Salvar** → **Restart** rust-pilot.
-4. **confvision-worker:** **Play** / 1 réplica; env `WORKER_ID` = mesmo usado no SQL.
-5. **confvision:** MediaMTX on.
+4. **confvision:** MediaMTX **on** (RTSP da câmera piloto).
+5. **confvision-worker:** manter **parado** até A7 passar; depois Play com `WORKER_ID` = mesmo valor usado no SQL (`PYTHON_WORKER_ID`).
 
 ---
 
