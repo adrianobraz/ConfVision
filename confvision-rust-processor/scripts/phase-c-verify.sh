@@ -1,14 +1,23 @@
 #!/usr/bin/env bash
 # Fase C — verificação operacional (C2 + C3 + stream + capacity)
 # Uso: phase-c-verify.sh [BASE_URL]
+#      phase-c-verify.sh --strict-c3 [BASE_URL]
 #      phase-c-verify.sh --prometheus-text [BASE_URL]
 set -euo pipefail
 
 PROM=0
-BASE="${1:-https://foxpro-rust-pilot.rkr351.easypanel.host}"
-if [[ "${1:-}" == "--prometheus-text" ]]; then
-  PROM=1
-  BASE="${2:-https://foxpro-rust-pilot.rkr351.easypanel.host}"
+STRICT_C3=0
+ARGS=()
+for a in "$@"; do
+  case "$a" in
+    --prometheus-text) PROM=1 ;;
+    --strict-c3) STRICT_C3=1 ;;
+    *) ARGS+=("$a") ;;
+  esac
+done
+BASE="${ARGS[0]:-https://foxpro-rust-pilot.rkr351.easypanel.host}"
+if [[ "$PROM" -eq 1 && -n "${ARGS[0]:-}" ]]; then
+  BASE="${ARGS[0]}"
 fi
 BASE="${BASE%/}"
 
@@ -76,12 +85,26 @@ if command -v jq >/dev/null 2>&1; then
   echo "$report" | jq -e '.load.allow_new_camera' >/dev/null 2>&1 && {
     allow="$(echo "$report" | jq -r '.load.allow_new_camera')"
     admission="$(echo "$report" | jq -r '.load.load_admission_enabled // empty')"
-    echo "INFO load.allow_new_camera=$allow admission_enabled=${admission:-unknown}"
-    if [[ "${admission:-}" == "true" && "$allow" == "true" ]]; then
-      cap="$(echo "$health" | jq -r '.capacity_state')"
-      if [[ "$cap" == "critical" ]]; then
-        echo "WARN admission ON mas allow_new_camera=true em critical — revisar LOAD_ADMISSION_ENABLED"
+    cap="$(echo "$health" | jq -r '.capacity_state')"
+    maxc="$(echo "$health" | jq -r '.max_cameras // empty')"
+    echo "INFO load.allow_new_camera=$allow load_admission_enabled=${admission:-unknown} capacity_state=$cap max_cameras=${maxc:-?}"
+    if [[ "$STRICT_C3" -eq 1 ]]; then
+      if [[ "${admission:-}" != "true" ]]; then
+        echo "FAIL C3: LOAD_ADMISSION_ENABLED não refletido (esperado true) — aplicar easypanel.env.fase-c.vps.example"
+        fail=1
+      elif [[ "$cap" == "critical" && "$allow" == "true" ]]; then
+        echo "FAIL C3: critical mas allow_new_camera=true com admission — revisar LOAD_POLICY_MODE=admission"
+        fail=1
+      else
+        echo "OK  C3 admission configurado"
       fi
+      if [[ -n "$maxc" && "$maxc" -gt 15 ]]; then
+        echo "WARN C3: max_cameras=$maxc alto — recomendado 10 por instância CPU"
+      fi
+    elif [[ "${admission:-}" == "true" && "$allow" == "true" && "$cap" == "critical" ]]; then
+      echo "WARN admission ON mas allow_new_camera=true em critical"
+    elif [[ "${admission:-}" != "true" && "$cap" == "critical" ]]; then
+      echo "WARN C3 pendente: critical sem admission — enable_load_admission no capacity-report"
     fi
   } || true
 

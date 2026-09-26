@@ -47,10 +47,14 @@ Referência env GPU: [`easypanel/worker.env.gex44-gpu.example`](../../easypanel/
 6. **C4 (opcional VPS):** segundo serviço + env [`easypanel.env.fase-c.processor-02.example`](../easypanel.env.fase-c.processor-02.example) + SQL split.
 7. **C6 (opcional VPS):** `deploy/phase-c/redis-compose.example.yml` na rede foxpro; manter `QUEUE_BACKEND=none` até Fase D.
 
+Implantação passo a passo: **`docs/FASE_C_IMPLANTACAO_EASYPANEL.md`**  
+Análise 2026-09-26: **`docs/FASE_C_ANALISE_2026-09-26.md`**
+
 Validação única:
 
 ```bash
-bash scripts/phase-c-verify.sh https://foxpro-rust-pilot.rkr351.easypanel.host
+bash scripts/phase-c-run-all.sh https://foxpro-rust-pilot.rkr351.easypanel.host
+bash scripts/phase-c-verify.sh --strict-c3 https://foxpro-rust-pilot.rkr351.easypanel.host
 ```
 
 ---

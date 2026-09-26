@@ -1,0 +1,10 @@
+# Copiar para /etc/cron.d/confvision-rust-pilot (Debian)
+# Ajuste URL e caminho do script
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+*/5 * * * * root /home/confmonit/v4.0/confvision-rust-processor/scripts/phase-c-verify.sh https://foxpro-rust-pilot.rkr351.easypanel.host >> /var/log/rust-pilot-verify.log 2>&1
+
+# Opcional pilot-02:
+# */5 * * * * root .../phase-c-verify.sh https://foxpro-rust-pilot-02.example.host >> /var/log/rust-pilot-02-verify.log 2>&1
