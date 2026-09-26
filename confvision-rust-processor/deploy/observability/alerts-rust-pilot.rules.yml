@@ -1,0 +1,39 @@
+# Alertas sugeridos (Fase C2) — requer métricas derivadas ou blackbox
+# Exemplos para Uptime Kuma / Grafana Infinity / script verify
+
+groups:
+  - name: confvision_rust_pilot
+    rules:
+      - alert: RustPilotHealthDown
+        expr: probe_success{job="rust_pilot_health"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: rust-pilot /health indisponível
+
+      - alert: RustPilotNoCamerasOnline
+        expr: rust_cameras_online == 0 and rust_cameras_total > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Todas câmeras offline no processor
+
+      - alert: RustPilotRtsp404
+        expr: rust_rtsp_404_count > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: RTSP 404 no capacity-report — runbook RUNBOOK_CAMERAS_404_ATIVO
+
+      - alert: RustPilotCapacityCritical
+        expr: rust_capacity_state == 1
+        for: 30m
+        labels:
+          severity: info
+        annotations:
+          summary: capacity critical — não adicionar câmeras; admission deve estar ON
+
+# Métricas rust_* podem ser exportadas via scripts/phase-c-verify.sh --prometheus-text

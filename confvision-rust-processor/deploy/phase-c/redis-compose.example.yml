@@ -1,0 +1,20 @@
+# Redis preparatório Fase C6 — rede foxpro EasyPanel ou core-4
+# Uso imediato: worker Python distributed (GEX44); Rust ainda QUEUE_BACKEND=none
+
+services:
+  confvision-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - confvision_redis_data:/data
+    networks:
+      - foxpro_internal
+    # Não exponha 6379 na internet pública
+
+networks:
+  foxpro_internal:
+    external: true
+
+volumes:
+  confvision_redis_data:

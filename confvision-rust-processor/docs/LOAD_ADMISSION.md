@@ -15,6 +15,8 @@ Controla **entrada de novas câmeras** no sync quando a capacidade está **criti
 - **ON** (`LOAD_ADMISSION_ENABLED=1`): em `capacity_state=critical`, `allow_new_camera()` retorna false → log `load admission rejected new camera`.
 - **`LOAD_POLICY_MODE=disabled`**: desliga política de advisory; admission ainda depende de `LOAD_ADMISSION_ENABLED` para bloqueio.
 
+Fase C na VPS: env completo em `easypanel.env.fase-c.vps.example` e checklist `scripts/phase-c-verify.sh`.
+
 ## Piloto EasyPanel (recomendado)
 
 1. Subir carga / medir com `/metrics` e **`GET /capacity-report`**.
