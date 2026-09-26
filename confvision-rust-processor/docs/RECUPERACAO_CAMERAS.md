@@ -11,6 +11,8 @@ Guia operacional **sem alterar Xano**. Tudo abaixo é EasyPanel, Postgres (`vis_
 | Sintoma | Causa provável |
 |--------|----------------|
 | `/health` e `/metrics` do Rust não respondem | Serviço **`rust-pilot` parado** (normal: HTTP só existe com container rodando) |
+| Domínio retorna **502** + HTML EasyPanel *Service is not reachable* | Proxy OK, **backend off** — container não escuta na porta do domínio (**8090**) |
+| **0% CPU**, log vazio no painel, botão **Parar** | Container **não está processando** (crash instantâneo, OOM, disco cheio ou só log de build). Ver [§ Diagnóstico 502 sem log](#diagnóstico-502-sem-log-no-easypanel) |
 | `Name or service not known` em `foxpro_confvision` | **`confvision` (MediaMTX) parado** ou Rust **fora da rede Docker** foxpro |
 | RTSP **404** no DESCRIBE | Path `cam/{hash}` **sem publisher RTMP** (worker parado ou `RTMP_PUBLISH_SECRET` diferente) |
 | Câmera “sumiu” do Python | `worker_id` no Postgres aponta para **`rust-processor-pilot-01`** e Rust está off |
@@ -142,3 +144,32 @@ Com Rust desligado, Traefik/domínio não tem backend — **não é bug de confi
 
 O `Dockerfile` usa **cargo-chef** + cache BuildKit para evitar compilação duplicada.  
 Revisar diff local antes de deploy; não usar `Dockerfile.profiling` em produção.
+
+---
+
+## Diagnóstico 502 sem log no EasyPanel
+
+Sintoma: **Implantar** verde, **Play/Parar** no painel, mas **CPU 0%**, **Logs vazios**, URL pública **502**.
+
+1. **Não** dispare vários **Implantar** seguidos (1–7 s) — isso recria container e zera log visível.
+2. **Domínios** → destino HTTP porta **8090** (container), path `/`.
+3. **Health check** → desligar temporariamente **ou** `/health` na porta **8090**, start period **≥ 120 s**.
+4. **Environment** mínimo: `CONFVISION_API_URL` (API Go, não Xano), `HTTP_PORT=8090`. Evite `VIDEO_ACCELERATION=gpu` na VPS sem NVIDIA.
+5. Teste externo (qualquer máquina):
+
+   ```bash
+   curl -sS -w "\nHTTP=%{http_code}\n" "https://foxpro-rust-pilot.rkr351.easypanel.host/health"
+   ```
+
+   - **502** + HTML EasyPanel → container ainda off (situação atual até subir de verdade).
+   - **200** + JSON `"status":"ok"` → OK.
+
+6. Com **SSH na VPS**, rode o script (mostra log mesmo de container **Exited**):
+
+   ```bash
+   cd confvision-rust-processor && bash scripts/diagnose-rust-pilot-host.sh rust-pilot
+   ```
+
+   Procure: `config error`, `error while loading shared libraries`, `OOMKilled=true`, disco **100%**.
+
+7. Sidebar com **vários serviços vermelhos** (ollama, viseron, etc.) → host pode estar **sem RAM/disco**; libere recursos antes de insistir no Rust.

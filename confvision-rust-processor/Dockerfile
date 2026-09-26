@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.4
 #
-# FFmpeg Bookworm: libavcodec59 / libavutil57 (FFmpeg 5.1.x).
+# FFmpeg Bookworm: libavcodec59 / libavutil57 / libavformat59 (FFmpeg 5.1.x; decode usa feature "format").
 # Build: cargo-chef (deps cache) + BuildKit cache mounts + um único cargo build do crate app.
 # Produção: cargo build --release --features ffmpeg-decode
 
@@ -41,11 +41,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     procps \
     libavcodec59 \
     libavutil57 \
+    libavformat59 \
+    libswresample4 \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /app/confvision-rust-processor /usr/local/bin/confvision-rust-processor
 COPY scripts/profile-cpu.sh scripts/rust-process-threads.sh /app/scripts/
-RUN chmod 755 /app/scripts/profile-cpu.sh /app/scripts/rust-process-threads.sh
+RUN chmod 755 /app/scripts/profile-cpu.sh /app/scripts/rust-process-threads.sh \
+    && ldd /usr/local/bin/confvision-rust-processor | grep 'not found' && exit 1 || true
 ENV HTTP_HOST=0.0.0.0
 ENV HTTP_PORT=8090
 EXPOSE 8090
