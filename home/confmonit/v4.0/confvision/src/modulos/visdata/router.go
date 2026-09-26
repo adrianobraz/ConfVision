@@ -106,6 +106,22 @@ func Dispatch(ctx context.Context, method, pathWithQuery string, body io.Reader)
 		}
 		return okJSON(out)
 
+	case method == http.MethodPost && path == "/vis_camera_stream_reactivate":
+		cameraID := parseIntQuery(q.Get("camera_id"))
+		if cameraID <= 0 {
+			if v, ok := payload["camera_id"]; ok {
+				cameraID = intVal(map[string]any{"camera_id": v}, "camera_id")
+			}
+		}
+		if cameraID <= 0 {
+			return http.StatusBadRequest, []byte(`{"erro":"camera_id obrigatorio"}`), nil
+		}
+		out, err := ReactivateCameraStream(ctx, cameraID)
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(out)
+
 	case method == http.MethodGet && strings.HasPrefix(path, "/vis_camera/rtmp_auth/"):
 		id := pathID(path, "/vis_camera/rtmp_auth/")
 		out, err := GetCameraRTMPAuth(ctx, id)
@@ -113,6 +129,14 @@ func Dispatch(ctx context.Context, method, pathWithQuery string, body io.Reader)
 			return http.StatusNotFound, []byte(`{"erro":"camera nao encontrada"}`), nil
 		}
 		return okJSON(out)
+
+	case method == http.MethodGet && path == "/vis_camera_rtmp_auth_sync":
+		nodeID := parseIntQuery(q.Get("vis_mediamtx_node_id"))
+		list, err := ListCamerasRTMPAuthSync(ctx, nodeID)
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"dados": list, "total": len(list)})
 
 	case method == http.MethodGet && path == "/vis_camera_by_franqueado":
 		list, err := ListCamerasByFranqueado(ctx, q.Get("id_franqueado"))
@@ -213,7 +237,8 @@ func Dispatch(ctx context.Context, method, pathWithQuery string, body io.Reader)
 
 	case method == http.MethodPost && strings.HasPrefix(path, "/vis_camera/analitico/pausar/"):
 		id := pathID(path, "/vis_camera/analitico/pausar/")
-		pausa := boolDefault(payload, "analitico_pausado", true)
+		// UI e API Xano enviam "pausado"; fallback legado "analitico_pausado".
+		pausa := boolDefault(payload, "pausado", boolDefault(payload, "analitico_pausado", false))
 		out, err := SetAnaliticoPausado(ctx, id, pausa)
 		if err != nil {
 			return errJSON(err)
@@ -520,7 +545,7 @@ func Dispatch(ctx context.Context, method, pathWithQuery string, body io.Reader)
 		return okJSON(out)
 
 	case method == http.MethodPost && path == "/vis_integracao_franqueado/test":
-		out, err := TestIntegracaoFranqueado(ctx, strVal(payload, "id_franqueado"))
+		out, err := TestIntegracaoFranqueado(ctx, strVal(payload, "id_franqueado"), payload)
 		if err != nil {
 			return bizErrJSON(err)
 		}
@@ -550,7 +575,7 @@ func Dispatch(ctx context.Context, method, pathWithQuery string, body io.Reader)
 
 	case method == http.MethodPost && strings.HasPrefix(path, "/vis_integracao_test/"):
 		id := pathID(path, "/vis_integracao_test/")
-		out, err := TestIntegracaoMoni(ctx, id)
+		out, err := TestIntegracaoMoni(ctx, id, payload)
 		if err != nil {
 			return bizErrJSON(err)
 		}
@@ -558,11 +583,16 @@ func Dispatch(ctx context.Context, method, pathWithQuery string, body io.Reader)
 
 	case method == http.MethodGet && path == "/vis_integracao_log":
 		limit := parseIntQuery(q.Get("limit"))
-		out, err := ListIntegracaoLog(ctx, q.Get("id_franqueado"), limit)
+		offset := parseIntQuery(q.Get("offset"))
+		out, err := ListIntegracaoLog(ctx, q.Get("id_franqueado"), limit, offset,
+			q.Get("data_de"), q.Get("data_ate"), q.Get("cliente_nome"))
 		if err != nil {
 			return errJSON(err)
 		}
 		return okJSON(out)
+
+	case method == http.MethodPost && path == "/vis_integracao/moni/inbound":
+		return MoniInboundPOST(ctx, payload)
 
 	case method == http.MethodGet && path == "/ops/arme/agenda":
 		dia := parseIntQuery(q.Get("DiaSemana"))
@@ -920,6 +950,192 @@ func Dispatch(ctx context.Context, method, pathWithQuery string, body io.Reader)
 			return errJSON(err)
 		}
 		return okJSON(out)
+
+	case method == http.MethodGet && path == "/vis_capacidade_resumo":
+		idFra := q.Get("id_franqueado")
+		if idFra == "" {
+			return http.StatusBadRequest, []byte(`{"erro":"id_franqueado obrigatorio"}`), nil
+		}
+		out, err := ResumoCapacidade(ctx, idFra, q.Get("id_central"), q.Get("id_representante"))
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(out)
+
+	case method == http.MethodPost && path == "/vis_capacidade_cotacao":
+		qtd := intVal(payload, "quantidade")
+		if qtd <= 0 {
+			qtd = intVal(payload, "quantidade_contratada")
+		}
+		out, err := CotacaoCapacidade(ctx, strVal(payload, "id_franqueado"), qtd, strVal(payload, "id_central"), strVal(payload, "id_representante"))
+		if err != nil {
+			return bizErrJSON(err)
+		}
+		return okJSON(out)
+
+	case method == http.MethodPost && path == "/ops/vis_capacidade/reservar_pendente":
+		out, err := ReservarCapacidadePendente(ctx, payload)
+		if err != nil {
+			return bizErrJSON(err)
+		}
+		return okJSON(map[string]any{"ok": true, "contrato": out})
+
+	case method == http.MethodPost && path == "/ops/vis_capacidade/ativar_pagamento":
+		contratoID := intVal(payload, "vis_capacidade_contrato_id")
+		if contratoID == 0 {
+			contratoID = intVal(payload, "contrato_id")
+		}
+		if contratoID <= 0 {
+			return http.StatusBadRequest, []byte(`{"erro":"vis_capacidade_contrato_id obrigatorio"}`), nil
+		}
+		pago := parseTimeAny(payload["pago_em"])
+		if pago.IsZero() {
+			pago = time.Now().UTC()
+		}
+		out, err := AtivarCapacidadePagamento(ctx, contratoID, intVal(payload, "fp_fatura_id"), intVal(payload, "fp_pagamento_id"), pago)
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(out)
+
+	case method == http.MethodPost && path == "/ops/vis_capacidade/estornar_pagamento":
+		contratoID := intVal(payload, "vis_capacidade_contrato_id")
+		if contratoID == 0 {
+			contratoID = intVal(payload, "contrato_id")
+		}
+		if contratoID <= 0 {
+			return http.StatusBadRequest, []byte(`{"erro":"vis_capacidade_contrato_id obrigatorio"}`), nil
+		}
+		out, err := EstornarCapacidadeContrato(ctx, contratoID, strVal(payload, "observacao"))
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(out)
+
+	case method == http.MethodPost && path == "/ops/vis_capacidade/config_salvar":
+		out, err := UpsertCapacidadeConfig(ctx, payload)
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(out)
+
+	case method == http.MethodGet && path == "/ops/vis_capacidade/config_listar":
+		out, err := GetCapacidadeConfig(ctx, q.Get("id_central"), q.Get("id_representante"))
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(out)
+
+	case method == http.MethodPost && path == "/ops/vis_capacidade/listar_pendentes_renovacao":
+		dias := intVal(payload, "dias_antecedencia")
+		if dias <= 0 {
+			dias = 5
+		}
+		list, err := ListCapacidadePendentesRenovacao(ctx, dias)
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"contratos": list, "total": len(list)})
+
+	case method == http.MethodGet && strings.HasPrefix(path, "/ops/vis_capacidade/contrato/"):
+		id := pathID(path, "/ops/vis_capacidade/contrato/")
+		if id <= 0 {
+			return http.StatusBadRequest, []byte(`{"erro":"contrato_id obrigatorio"}`), nil
+		}
+		out, err := GetContratoCapacidade(ctx, id)
+		if err != nil {
+			return bizErrJSON(err)
+		}
+		return okJSON(out)
+
+	case method == http.MethodGet && path == "/vis_grupo_visualizacao":
+		out, err := ListGruposByFranqueado(ctx, q.Get("id_franqueado"))
+		if err != nil {
+			return bizErrJSON(err)
+		}
+		return okJSON(map[string]any{"dados": out})
+
+	case method == http.MethodGet && path == "/vis_grupo_visualizacao/disponiveis":
+		out, err := ListGruposDisponiveisCliente(ctx, q.Get("id_franqueado"), q.Get("id_cliente"))
+		if err != nil {
+			return bizErrJSON(err)
+		}
+		return okJSON(map[string]any{"dados": out})
+
+	case method == http.MethodGet && strings.HasPrefix(path, "/vis_grupo_visualizacao/") && strings.HasSuffix(path, "/cameras"):
+		grupoID := pathID(path, "/vis_grupo_visualizacao/")
+		if grupoID <= 0 {
+			return bizErrJSON(fmt.Errorf("grupo invalido"))
+		}
+		out, err := ListGrupoCameras(ctx, grupoID, q.Get("id_franqueado"), q.Get("id_cliente"))
+		if err != nil {
+			return bizErrJSON(err)
+		}
+		return okJSON(map[string]any{"dados": out})
+
+	case method == http.MethodGet && strings.HasPrefix(path, "/vis_grupo_visualizacao/"):
+		grupoID := pathID(path, "/vis_grupo_visualizacao/")
+		if grupoID <= 0 {
+			return bizErrJSON(fmt.Errorf("grupo invalido"))
+		}
+		out, err := GetGrupoVisualizacao(ctx, grupoID, q.Get("id_franqueado"), q.Get("id_cliente"))
+		if err != nil {
+			return bizErrJSON(err)
+		}
+		return okJSON(map[string]any{"dados": out})
+
+	case method == http.MethodPost && path == "/vis_grupo_visualizacao":
+		out, err := CreateGrupoVisualizacao(ctx, payload)
+		if err != nil {
+			return bizErrJSON(err)
+		}
+		return okJSON(map[string]any{"dados": out})
+
+	case method == http.MethodPut && strings.HasSuffix(path, "/composicao"):
+		grupoID := pathID(strings.TrimSuffix(path, "/composicao"), "/vis_grupo_visualizacao/")
+		if grupoID <= 0 {
+			return bizErrJSON(fmt.Errorf("grupo invalido"))
+		}
+		out, err := SaveGrupoComposicao(ctx, grupoID, payload)
+		if err != nil {
+			return bizErrJSON(err)
+		}
+		return okJSON(map[string]any{"dados": out})
+
+	case method == http.MethodPut && strings.HasSuffix(path, "/reordenar"):
+		grupoID := pathID(strings.TrimSuffix(path, "/reordenar"), "/vis_grupo_visualizacao/")
+		if grupoID <= 0 {
+			return bizErrJSON(fmt.Errorf("grupo invalido"))
+		}
+		if err := ReordenarGrupoCameras(ctx, grupoID, payload); err != nil {
+			return bizErrJSON(err)
+		}
+		return okJSON(map[string]any{"ok": true})
+
+	case method == http.MethodPut && strings.HasPrefix(path, "/vis_grupo_visualizacao/"):
+		grupoID := pathID(path, "/vis_grupo_visualizacao/")
+		if grupoID <= 0 {
+			return bizErrJSON(fmt.Errorf("grupo invalido"))
+		}
+		out, err := UpdateGrupoVisualizacao(ctx, grupoID, payload)
+		if err != nil {
+			return bizErrJSON(err)
+		}
+		return okJSON(map[string]any{"dados": out})
+
+	case method == http.MethodDelete && strings.HasPrefix(path, "/vis_grupo_visualizacao/"):
+		grupoID := pathID(path, "/vis_grupo_visualizacao/")
+		if grupoID <= 0 {
+			return bizErrJSON(fmt.Errorf("grupo invalido"))
+		}
+		idFra := strVal(payload, "id_franqueado")
+		if idFra == "" {
+			idFra = q.Get("id_franqueado")
+		}
+		if err := DeleteGrupoVisualizacao(ctx, grupoID, idFra); err != nil {
+			return bizErrJSON(err)
+		}
+		return okJSON(map[string]any{"ok": true})
 	}
 
 	return 0, nil, ErrNotHandled

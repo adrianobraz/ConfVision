@@ -18,7 +18,9 @@ func RegistrarRotasWorkerAPI(r *mux.Router) {
 		{"/vis_camera_area_query_ativas", []string{http.MethodGet}},
 		{"/vis_camera_query_gravacao_ativas", []string{http.MethodGet}},
 		{"/vis_worker_ping", []string{http.MethodPost}},
+		{"/vis_camera_stream_reactivate", []string{http.MethodPost}},
 		{"/vis_camera/rtmp_auth/{vis_camera_id}", []string{http.MethodGet}},
+		{"/vis_camera_rtmp_auth_sync", []string{http.MethodGet}},
 		{"/vis_camera_by_franqueado", []string{http.MethodGet}},
 		{"/vis_camera_by_cliente", []string{http.MethodGet}},
 		{"/vis_camera_by_setor", []string{http.MethodGet}},
@@ -70,9 +72,19 @@ func RegistrarRotasWorkerAPI(r *mux.Router) {
 		{"/ops/vis_licenca/estornar_pagamento", []string{http.MethodPost}},
 		{"/ops/vis_licenca/sync_lote", []string{http.MethodPost}},
 		{"/ops/vis_licenca/sync_franqueado", []string{http.MethodPost}},
+		{"/ops/vis_capacidade/config_listar", []string{http.MethodGet}},
+		{"/ops/vis_capacidade/config_salvar", []string{http.MethodPost}},
+		{"/ops/vis_capacidade/reservar_pendente", []string{http.MethodPost}},
+		{"/ops/vis_capacidade/ativar_pagamento", []string{http.MethodPost}},
+		{"/ops/vis_capacidade/estornar_pagamento", []string{http.MethodPost}},
+		{"/ops/vis_capacidade/listar_pendentes_renovacao", []string{http.MethodPost}},
+		{"/ops/vis_capacidade/contrato/{contrato_id}", []string{http.MethodGet}},
 	}
 
 	r.HandleFunc("/cvg_worker_tick", handleCvgWorkerTick).Methods(http.MethodPost)
+
+	// Webhook inbound Moni (autenticacao propria via WEBHOOK_INBOUND_KEY)
+	r.HandleFunc("/vis_integracao/moni/inbound", handleDispatch).Methods(http.MethodPost)
 
 	// Healthcheck publico (monitoramento / curl sem credencial)
 	r.HandleFunc("/vis_health", handleDispatch).Methods(http.MethodGet)

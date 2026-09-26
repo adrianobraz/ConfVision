@@ -25,6 +25,7 @@ type WorkerPingInput struct {
 	CPUPercent        *float64 `json:"cpu_percent"`
 	MemPercent        *float64 `json:"mem_percent"`
 	Load1m            *float64 `json:"load_1m"`
+	CameraStreamHealth []CameraStreamHealthInput `json:"camera_stream_health"`
 }
 
 func UpsertWorkerPing(ctx context.Context, in WorkerPingInput) (map[string]any, error) {
@@ -88,6 +89,11 @@ RETURNING id, created_at, worker_id, worker_tipo, hostname, versao, cameras_ativ
 	}
 	if nodeOut.Valid {
 		_ = SyncMediamtxNode(ctx, int(nodeOut.Int64))
+	}
+	if len(in.CameraStreamHealth) > 0 {
+		if err := ApplyCameraStreamHealthBatch(ctx, in.CameraStreamHealth); err != nil {
+			return nil, err
+		}
 	}
 	return map[string]any{
 		"id": id, "created_at": createdAt.UTC().Format(time.RFC3339),
