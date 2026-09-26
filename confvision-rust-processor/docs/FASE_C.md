@@ -48,7 +48,8 @@ Referência env GPU: [`easypanel/worker.env.gex44-gpu.example`](../../easypanel/
 7. **C6 (opcional VPS):** `deploy/phase-c/redis-compose.example.yml` na rede foxpro; manter `QUEUE_BACKEND=none` até Fase D.
 
 Implantação passo a passo: **`docs/FASE_C_IMPLANTACAO_EASYPANEL.md`**  
-Análise 2026-09-26: **`docs/FASE_C_ANALISE_2026-09-26.md`**
+Análise 2026-09-26: **`docs/FASE_C_ANALISE_2026-09-26.md`**  
+Validação em andamento: **`docs/FASE_C_VALIDACAO_2026-09-26.md`**
 
 Validação única:
 
@@ -61,10 +62,10 @@ bash scripts/phase-c-verify.sh --strict-c3 https://foxpro-rust-pilot.rkr351.easy
 
 ## Critérios PASS Fase C (VPS)
 
-- [ ] `rtsp_404_count=0` estável em `/capacity-report`
-- [ ] `LOAD_ADMISSION_ENABLED=1` e log de rejeição se tentar 11ª câmera em critical (teste controlado)
-- [ ] Prometheus ou verify script cron ≥ 1 scrape/15 min
-- [ ] Nota C1 preenchida (`docs/c1-ab-results.template.md` ou wiki)
+- [x] `rtsp_404_count=0` estável em `/capacity-report` (2026-09-26 piloto)
+- [x] `LOAD_ADMISSION_ENABLED=1` + `LOAD_POLICY_MODE=admission` (ver `FASE_C_VALIDACAO_2026-09-26.md`)
+- [ ] Prometheus ou verify script cron ≥ 1 scrape/15 min (`deploy/observability/cron-rust-pilot-verify.example`)
+- [ ] Nota C1 completa (`docs/c1-ab-results-2026-09-26.md` — Rust parcial; falta Python)
 - [ ] Documento “dedicado pendente” lido pelo time (`FASE_C_DEDICADO_PENDENTE.md`)
 
 ---
