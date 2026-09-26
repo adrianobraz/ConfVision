@@ -57,6 +57,8 @@ pub struct CameraStreamHealthReport {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_error: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_class: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pause_reason: Option<String>,
 }
 

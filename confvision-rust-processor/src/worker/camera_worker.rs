@@ -7,10 +7,12 @@ use tokio::sync::{watch, RwLock};
 use tracing::{debug, info, warn};
 
 use crate::stream_policy::{
-    classify_rtsp_error, delay_after_failure, StreamFailureClass, StreamHealthAction,
-    StreamPolicyState,
+    classify_rtsp_error, classify_stream_error_code, delay_after_failure, StreamFailureClass,
+    StreamHealthAction, StreamPolicyState,
 };
-use crate::worker::stream_health_queue::{enqueue_stream_action, enqueue_stream_failure};
+use crate::worker::stream_health_queue::{
+    enqueue_stream_action, enqueue_stream_failure, enqueue_stream_incident,
+};
 
 use crate::camera::{
     redact_rtsp_url, CameraCancel, CameraRuntimeState, CameraStatus, FpsEstimator,
@@ -290,7 +292,7 @@ pub async fn run_camera_worker(
                     let mut pol = stream_policy.write().await;
                     let action = pol.on_success(&stream_cfg);
                     mirror_policy_to_state(&state, &pol).await;
-                    enqueue_stream_action(&health_queue, camera_id, action, None).await;
+                    enqueue_stream_action(&health_queue, camera_id, action, None, None).await;
                 }
                 info!(camera_id, processor_id = %cfg.processor_id, "rtsp session ended — reconnecting");
                 if wait_reconnect_delay(
@@ -310,6 +312,7 @@ pub async fn run_camera_worker(
                 metrics.record_reconnect();
                 metrics.record_rtsp_error();
                 let err_text = e.to_string();
+                let error_class = classify_stream_error_code(&err_text).to_string();
                 let failure_class = classify_rtsp_error(&err_text);
                 let delay = if stream_cfg.enabled && failure_class != StreamFailureClass::Transient {
                     let mut pol = stream_policy.write().await;
@@ -322,6 +325,7 @@ pub async fn run_camera_worker(
                             pol.failures_consecutive,
                             pol.hourly_attempts,
                             Some(err_text.clone()),
+                            Some(error_class.clone()),
                         )
                         .await;
                     }
@@ -332,6 +336,7 @@ pub async fn run_camera_worker(
                                 camera_id,
                                 StreamHealthAction::PauseAnalytic { reason },
                                 Some(err_text.clone()),
+                                Some(error_class.clone()),
                             )
                             .await;
                             Duration::ZERO
@@ -344,6 +349,13 @@ pub async fn run_camera_worker(
                         ),
                     }
                 } else {
+                    enqueue_stream_incident(
+                        &health_queue,
+                        camera_id,
+                        Some(err_text.clone()),
+                        Some(error_class.clone()),
+                    )
+                    .await;
                     let d = backoff.next_delay();
                     update_state(&state, |s| {
                         s.reconnect_count += 1;

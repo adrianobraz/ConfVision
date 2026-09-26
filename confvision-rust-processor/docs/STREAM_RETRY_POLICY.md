@@ -37,11 +37,12 @@ STREAM_HOURLY_MAX_ATTEMPTS=6
 
 ## API
 
-- Ping: `POST /vis_worker_ping` com `camera_stream_health[]` (`stream_ok`, `stream_failure`, `pause_analytic`).
+- Ping: `POST /vis_worker_ping` com `camera_stream_health[]` (`stream_ok`, `stream_failure`, `stream_incident`, `pause_analytic`; campos opcionais `last_error`, `error_class`).
 - Reativação (webhook/ops): `POST /vis_camera_stream_reactivate?camera_id=`.
+
+Ver também: [TROUBLESHOOTING_RTSP_ERRORS.md](./TROUBLESHOOTING_RTSP_ERRORS.md), [PAINEL_ATIVO_VS_STREAM_POLICY.md](./PAINEL_ATIVO_VS_STREAM_POLICY.md).
 
 ## Migration Postgres
 
-`sql/migrations/20260326_vis_camera_stream_policy.sql`
-
-Campos: `ultimo_stream_ok_em`, `stream_falhas_consecutivas`, `stream_tentativas_horarias`, `stream_policy_generation`, `stream_motivo_pausa`.
+- `sql/migrations/20260326_vis_camera_stream_policy.sql` — contadores e generation.
+- `sql/migrations/20260326_vis_camera_stream_error_diag.sql` — `stream_ultimo_erro`, `stream_erro_classe`, `stream_ultimo_erro_em`.

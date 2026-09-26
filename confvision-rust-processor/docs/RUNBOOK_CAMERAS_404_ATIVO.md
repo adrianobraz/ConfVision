@@ -24,6 +24,8 @@ Ou script: `confvision-rust-processor/scripts/capacity-report.sh "$BASE"`.
 
 Com `STREAM_RETRY_ENABLED=1`, câmeras 404 entram em backoff (1–5 min → … → 1 h) e podem pausar analítico sozinhas (`analitico_pausado`). Ver **`docs/STREAM_RETRY_POLICY.md`**.
 
+Erros **transient** (ex. FU-A H.264) **não** são 404 — ver **`docs/TROUBLESHOOTING_RTSP_ERRORS.md`**. Fluxo painel ativo: **`docs/PAINEL_ATIVO_VS_STREAM_POLICY.md`**.
+
 Reativar após corrigir DVR: `POST /vis_camera_stream_reactivate?camera_id=` ou usuário desliga/liga `ativo` (zera contadores).
 
 ## Ações manuais (emergência)

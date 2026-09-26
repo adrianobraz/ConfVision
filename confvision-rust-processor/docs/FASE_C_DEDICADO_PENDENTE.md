@@ -45,4 +45,4 @@ Use esta lista quando o **GEX44** (ou dedicated com **NVIDIA**) estiver provisio
 
 - Rollback SQL de `worker_id` testado
 - Backup env EasyPanel foxpro
-- Runbook 404 + stream policy (`RUNBOOK_CAMERAS_404_ATIVO.md`, `STREAM_RETRY_POLICY.md`)
+- Runbook 404 + stream policy (`RUNBOOK_CAMERAS_404_ATIVO.md`, `STREAM_RETRY_POLICY.md`, `TROUBLESHOOTING_RTSP_ERRORS.md`, `PAINEL_ATIVO_VS_STREAM_POLICY.md`)

@@ -3,18 +3,42 @@ use std::time::Duration;
 use super::types::{StreamFailureClass, StreamRetryConfig};
 
 pub fn classify_rtsp_error(message: &str) -> StreamFailureClass {
+    match classify_stream_error_code(message) {
+        "rtsp_auth" => StreamFailureClass::Auth,
+        "rtsp_404" => StreamFailureClass::PathAbsent,
+        _ => StreamFailureClass::Transient,
+    }
+}
+
+/// Código estável para ping/API (`stream_erro_classe`), independente da política de retry.
+pub fn classify_stream_error_code(message: &str) -> &'static str {
     let m = message.to_ascii_lowercase();
     if m.contains("401") || m.contains("403") || m.contains("unauthorized") {
-        return StreamFailureClass::Auth;
+        return "rtsp_auth";
     }
     if m.contains("404")
         || m.contains("not found")
         || m.contains("describe failed")
         || m.contains("unexpected rtsp response status")
     {
-        return StreamFailureClass::PathAbsent;
+        return "rtsp_404";
     }
-    StreamFailureClass::Transient
+    if m.contains("fu-a")
+        || m.contains("fu_a")
+        || (m.contains("fragmentation unit") && m.contains("h264"))
+        || m.contains("start bit unset")
+    {
+        return "rtp_h264_fu_a";
+    }
+    if m.contains("timeout")
+        || m.contains("timed out")
+        || m.contains("connection refused")
+        || m.contains("broken pipe")
+        || m.contains("connection reset")
+    {
+        return "network_timeout";
+    }
+    "unknown_transient"
 }
 
 pub fn delay_after_failure(failures: u32, cfg: &StreamRetryConfig) -> Duration {

@@ -1,7 +1,9 @@
 mod policy;
 mod types;
 
-pub use policy::{classify_rtsp_error, delay_after_failure, should_auto_pause};
+pub use policy::{
+    classify_rtsp_error, classify_stream_error_code, delay_after_failure, should_auto_pause,
+};
 pub use types::{
     StreamFailureClass, StreamHealthAction, StreamPolicySnapshot, StreamRetryConfig,
 };
@@ -170,5 +172,19 @@ mod tests {
         assert_eq!(delay_after_failure(3, &cfg()), Duration::from_secs(60));
         assert_eq!(delay_after_failure(7, &cfg()), Duration::from_secs(120));
         assert_eq!(delay_after_failure(15, &cfg()), Duration::from_secs(600));
+    }
+
+    #[test]
+    fn classifies_fu_a_and_404() {
+        use super::policy::{classify_rtsp_error, classify_stream_error_code};
+        use super::types::StreamFailureClass;
+
+        let fu = "FU-A has start bit unset on NAL type 1";
+        assert_eq!(classify_stream_error_code(fu), "rtp_h264_fu_a");
+        assert_eq!(classify_rtsp_error(fu), StreamFailureClass::Transient);
+
+        let nf = "unexpected rtsp response status: 404";
+        assert_eq!(classify_stream_error_code(nf), "rtsp_404");
+        assert_eq!(classify_rtsp_error(nf), StreamFailureClass::PathAbsent);
     }
 }
