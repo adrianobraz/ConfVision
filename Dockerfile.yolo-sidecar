@@ -1,0 +1,25 @@
+# YOLO HTTP sidecar (D3) — EasyPanel: Dockerfile.yolo-sidecar, build path /
+FROM python:3.11-slim-bookworm
+
+ARG YOLO_MODEL=yolov8n.pt
+ARG YOLO_DEVICE=cpu
+ARG YOLO_HTTP_PORT=8091
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir ultralytics opencv-python-headless
+
+COPY confvision-rust-processor/scripts/yolo_sidecar.py /app/yolo_sidecar.py
+
+ENV YOLO_MODEL=${YOLO_MODEL}
+ENV YOLO_DEVICE=${YOLO_DEVICE}
+ENV YOLO_HTTP_PORT=${YOLO_HTTP_PORT}
+
+EXPOSE 8091
+
+CMD ["python", "/app/yolo_sidecar.py"]

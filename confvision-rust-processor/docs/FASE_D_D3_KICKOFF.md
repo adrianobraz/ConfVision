@@ -22,7 +22,7 @@ Sem Xano novo; API **Go** (`CONFVISION_API_URL`).
 ```env
 YOLO_ENABLED=1
 YOLO_BACKEND=http
-YOLO_HTTP_URL=http://127.0.0.1:8091/v1/detect
+YOLO_HTTP_URL=http://127.0.0.1:8091
 YOLO_CONF_DEFAULT=0.5
 YOLO_FRAME_STRIDE=5
 ```
@@ -53,13 +53,15 @@ Manter D2 (`REDIS_URL`, `QUEUE_BACKEND=redis`) e acrescentar D3:
 ```env
 YOLO_ENABLED=1
 YOLO_BACKEND=http
-YOLO_HTTP_URL=http://foxpro-yolo-sidecar:8091/v1/detect
+YOLO_HTTP_URL=http://foxpro_rust-yolo-sidecar:8091
 CAPTURE_ENABLED=1
 CAPTURE_WORKERS=2
 CAPTURE_DIR=/tmp/confvision
 ```
 
-Redeploy com build que inclua sidecar ou feature `yolo-onnx` + modelo montado em `/app/models/yolov8n.onnx`.
+App **foxpro/rust-yolo-sidecar** (EasyPanel): branch `rust-pilot`, caminho de build `/`, Dockerfile `Dockerfile.yolo-sidecar` na raiz do repo; domínio → porta **8091**.
+
+Redeploy dos pilots com commit D3+ ou feature `yolo-onnx` + modelo em `/app/models/yolov8n.onnx`.
 
 ## Verificar
 
