@@ -1,5 +1,7 @@
 # D3 — YOLO, eventos e captura (Rust)
 
+**Status foxpro (2026-09-27):** piloto ligado (sidecar + A/B + Redis); **aceite E2E `vis_evento` pendente** — ver [FASE_D.md](./FASE_D.md).
+
 ## Objetivo
 
 Paridade mínima com o worker Python (`detector.py` → `event_queue` → `capture_workers` → `processar_deteccao`):
