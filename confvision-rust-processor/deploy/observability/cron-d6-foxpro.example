@@ -1,0 +1,11 @@
+# D6 — cron exemplo (CT integracao-edge ou host com curl/node)
+# Copiar para /etc/cron.d/confvision-foxpro-d6
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+*/5 * * * * root cd /opt/confvision/ConfVision && git pull -q origin rust-pilot && bash confvision-rust-processor/scripts/phase-d6-verify.sh >> /var/log/foxpro-d6-verify.log 2>&1
+
+# Métricas Prometheus textfile (opcional — duas instâncias):
+# */5 * * * * root bash confvision-rust-processor/scripts/phase-c-verify.sh --prometheus-text https://foxpro-rust-pilot.rkr351.easypanel.host > /var/lib/node_exporter/textfile/rust_pilot_a.prom
+# */5 * * * * root bash confvision-rust-processor/scripts/phase-c-verify.sh --prometheus-text https://foxpro-rust-pilot-b.rkr351.easypanel.host > /var/lib/node_exporter/textfile/rust_pilot_b.prom

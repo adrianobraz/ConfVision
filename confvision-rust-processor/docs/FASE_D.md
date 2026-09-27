@@ -22,8 +22,8 @@
 | **D2** | Fila eventos Redis, retry, DLQ | **Produção** (pilots A/B) — [FASE_D_D2_KICKOFF.md](./FASE_D_D2_KICKOFF.md) |
 | **D3** | YOLO / eventos / clips no Rust | **Piloto ligado; E2E `vis_evento` pendente** — [FASE_D_D3_KICKOFF.md](./FASE_D_D3_KICKOFF.md) |
 | **D4** | GPU | **Fora de escopo** até novo servidor |
-| **D5** | Go: limites, auto-assign processor | **Kickoff** — [FASE_D_D5_KICKOFF.md](./FASE_D_D5_KICKOFF.md) |
-| **D6** | SLO 24/7, alertas, playbooks | **Kickoff** (estende C2) — [FASE_D_D6_KICKOFF.md](./FASE_D_D6_KICKOFF.md) |
+| **D5** | Go: limites, auto-assign processor | **Implementado** (deploy Go) — [FASE_D_D5_KICKOFF.md](./FASE_D_D5_KICKOFF.md) |
+| **D6** | SLO 24/7, alertas, playbooks | **Implementado** (cron/verify) — [FASE_D_D6_KICKOFF.md](./FASE_D_D6_KICKOFF.md) |
 
 **Ordem:** D1 → D2 → D3 → **(D5 ∥ D6)**.
 

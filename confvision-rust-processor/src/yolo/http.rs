@@ -33,7 +33,7 @@ struct DetItem {
 impl HttpYoloClient {
     pub fn new(url: &str) -> AppResult<Self> {
         let http = Client::builder()
-            .timeout(Duration::from_secs(15))
+            .timeout(Duration::from_secs(60))
             .build()
             .map_err(|e| AppError::Config(e.to_string()))?;
         Ok(Self {

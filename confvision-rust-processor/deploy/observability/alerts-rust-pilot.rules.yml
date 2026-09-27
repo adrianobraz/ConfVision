@@ -36,4 +36,21 @@ groups:
         annotations:
           summary: capacity critical — não adicionar câmeras; admission deve estar ON
 
+      - alert: YoloSidecarUnreachable
+        expr: probe_success{job="yolo_sidecar_detect"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: sidecar YOLO indisponível — RUNBOOK_YOLO_SIDECAR.md
+
+      - alert: RustPilotBHealthDown
+        expr: probe_success{job="rust_pilot_b_health"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: rust-pilot-b /health indisponível
+
 # Métricas rust_* podem ser exportadas via scripts/phase-c-verify.sh --prometheus-text
+# D6 verify: scripts/phase-d6-verify.sh (A + B + sidecar)

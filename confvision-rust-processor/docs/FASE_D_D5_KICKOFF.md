@@ -36,23 +36,30 @@ Scripts de referência: [`scripts/capacity-report.sh`](../scripts/capacity-repor
 
 ## Escopo de implementação Go
 
-### Fase D5.1 — Inventário e limites (read-only)
+### Fase D5.1 — Inventário e limites (read-only) ✅
 
-- [ ] Tabela/config de **processors registrados** (URL base, `worker_id`, `vis_mediamtx_node_id`, ativo).
-- [ ] Job periódico (cron ou goroutine) que faz **GET /capacity-report** em cada processor ativo.
-- [ ] Persistir ou expor **snapshot** (último state, `limiting_resource`, headroom) para admin/API interna.
-- [ ] Regra: **não assign** câmera a processor com `load_advisory=reject_admission` ou `estimated_available_cameras=0`.
+- [x] URLs via env **`RUST_PROCESSOR_BASE_URLS`** (default foxpro A+B).
+- [x] **`GET /vis_rust_processor_capacity`** — agrega `/capacity-report` de cada processor.
+- [x] Score + `assign_eligible` (respecta `allow_new_camera`, advisory reject, headroom).
 
-### Fase D5.2 — Auto-assign (write)
+### Fase D5.2 — Auto-assign (write) ✅
 
-- [ ] Ao criar/reativar câmera analítica (ou fila de “unassigned”): escolher processor com **maior headroom** (mem/CPU conforme `limiting_resource`).
-- [ ] `UPDATE cameras SET worker_id = $1 WHERE id = $2` (via camada existente em `visdata/cameras.go`).
-- [ ] Respeitar `MAX_CAMERAS` efetivo do processor (ping + capacity-report).
-- [ ] Log/auditoria: quem moveu, de/para `worker_id`, motivo (`capacity`, `manual`, `rebalance`).
+- [x] **`POST /vis_camera_assign_processor`** — `camera_id` + opcional `worker_id` manual; senão auto.
+- [x] **`POST /ops/d5/auto_assign_analiticas`** — batch (`dry_run`, `limit`).
+- [x] **`CreateCamera`** — se analítico sem `worker_id` e `D5_AUTO_ASSIGN_ENABLED` → assign automático (`d5_assign` na resposta).
 
 ### Fase D5.3 — Rebalance (opcional piloto)
 
-- [ ] Se `recommended_actions` contém `split_second_processor` / critical prolongado → sugerir ou executar move de câmera (com confirmação ou flag).
+- [ ] Move automático entre processors em critical prolongado (manual via assign API por enquanto).
+
+### Deploy Go (Ambiente)
+
+```env
+RUST_PROCESSOR_BASE_URLS=https://foxpro-rust-pilot.rkr351.easypanel.host,https://foxpro-rust-pilot-b.rkr351.easypanel.host
+D5_AUTO_ASSIGN_ENABLED=1
+```
+
+Código: `home/confmonit/v4.0/confvision/src/modulos/visdata/rust_processor_d5.go`
 
 ---
 

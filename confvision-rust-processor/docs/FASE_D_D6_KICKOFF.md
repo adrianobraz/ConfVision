@@ -30,15 +30,18 @@ Fechar o loop **observar → alertar → runbook** para a stack foxpro Rust-only
 
 ---
 
-## Checklist D6.1 — Monitors (Uptime Kuma / cron)
+## Checklist D6.1 — Monitors (Uptime Kuma / cron) ✅
+
+Script unificado: **`bash confvision-rust-processor/scripts/phase-d6-verify.sh`**
+
+Cron exemplo: [`deploy/observability/cron-d6-foxpro.example`](../deploy/observability/cron-d6-foxpro.example)
 
 | Alvo | Check | Severidade |
 |------|--------|------------|
 | `foxpro-rust-pilot` | `GET /health` → `status=ok` | P1 |
 | `foxpro-rust-pilot-b` | idem | P1 |
-| `foxpro-rust-yolo-sidecar` | `POST /v1/detect` body mínimo → **400** ou infer → **200** (não 502) | P1 |
-| `foxpro-confvision` | MediaMTX/guard up | P1 |
-| Redis D2 | `event_queue_redis_ok=true` nos dois `/health` | P2 |
+| `foxpro-rust-yolo-sidecar` | `d3-online-test.mjs` ou POST `/v1/detect` | P1 |
+| Go D5 (opcional) | `GET /vis_rust_processor_capacity` + `VIS_WORKER_API_KEY` | P2 |
 
 Script local: `node confvision-rust-processor/scripts/d3-online-test.mjs`  
 Stack detalhado: `node confvision-rust-processor/scripts/d3-stack-check.mjs`
@@ -72,7 +75,7 @@ Campos prioritários (já documentados em observability):
 | Admission / capacity | [LOAD_ADMISSION.md](./LOAD_ADMISSION.md) |
 | Rollback D3 | [FASE_D_D3_KICKOFF.md](./FASE_D_D3_KICKOFF.md) — `YOLO_ENABLED=0`, `CAPTURE_ENABLED=0` |
 
-**Novo (D6):** runbook curto *“Sidecar YOLO down”* — redeploy app, testar `d3-online-test.mjs`, `YOLO_HTTP_URL` interno.
+**D6:** [RUNBOOK_YOLO_SIDECAR.md](./RUNBOOK_YOLO_SIDECAR.md)
 
 ---
 

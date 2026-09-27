@@ -31,6 +31,8 @@ YOLO_FRAME_STRIDE=5
 
 Motion gate: reutiliza `ANALYSIS_ONLY_ON_MOTION` / `YOLO_ONLY_ON_MOTION` (alias).
 
+Cliente YOLO HTTP: timeout **60s** (`src/yolo/http.rs`) — sidecar CPU pode levar dezenas de segundos na inferência.
+
 ## Captura (substitui `CAPTURE_WORKERS` Python)
 
 ```env
@@ -77,6 +79,7 @@ Sidecar + inferência HTTP (Node, sem jq):
 
 ```bash
 node confvision-rust-processor/scripts/d3-online-test.mjs
+node confvision-rust-processor/scripts/d3-stack-check.mjs
 ```
 
 Esperado no `/health` (D3):

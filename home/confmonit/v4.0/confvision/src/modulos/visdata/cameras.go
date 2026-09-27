@@ -148,6 +148,14 @@ func CreateCamera(ctx context.Context, input map[string]any) (map[string]any, er
 	if err != nil {
 		return nil, humanizeDBErr(err)
 	}
+	if meta := MaybeAutoAssignAfterCreate(ctx, out); meta != nil {
+		out["d5_assign"] = meta
+		if wid := trimAny(meta["worker_id"]); wid != "" {
+			out["worker_id"] = wid
+		} else if refreshed, rerr := GetCameraByID(ctx, intFromAny(out["id"])); rerr == nil {
+			out = refreshed
+		}
+	}
 	return out, nil
 }
 
