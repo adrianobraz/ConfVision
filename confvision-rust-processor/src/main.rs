@@ -1,8 +1,11 @@
+mod analytics;
 mod api;
 mod camera;
+mod capture;
 mod capacity;
 mod config;
 mod decode;
+mod detection;
 mod error;
 mod events;
 mod health;
@@ -18,6 +21,7 @@ mod rtsp_hotpath;
 mod sharding;
 mod stream_policy;
 mod worker;
+mod yolo;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -61,6 +65,19 @@ async fn main() {
             std::process::exit(1);
         }
     };
+    let cfg = Arc::new(cfg);
+    let yolo = match yolo::YoloRuntime::bootstrap(cfg.as_ref()) {
+        Ok(y) => Arc::new(y),
+        Err(e) => {
+            eprintln!("yolo config error: {e}");
+            std::process::exit(1);
+        }
+    };
+    let analytics = analytics::AnalyticsRuntime::bootstrap(
+        cfg.clone(),
+        yolo.clone(),
+        event_queue.clone(),
+    );
     redis::startup_redis_check(event_queue.as_ref()).await;
     let queue_metrics = event_queue.clone();
     tokio::spawn(async move {
@@ -90,19 +107,35 @@ async fn main() {
     info!(
         processor_id = %cfg.processor_id,
         worker_id = %cfg.worker_id,
-        shard = %sharding::shard_label(&cfg),
+        shard = %sharding::shard_label(cfg.as_ref()),
         api = %cfg.confvision_api_url,
         "confvision-rust-processor starting"
+    );
+
+    let api_client = match ConfVisionClient::new(cfg.as_ref()) {
+        Ok(c) => Arc::new(c),
+        Err(e) => {
+            eprintln!("api client error: {e}");
+            std::process::exit(1);
+        }
+    };
+    capture::spawn_capture_workers(
+        cfg.clone(),
+        api_client.clone(),
+        event_queue.clone(),
+        analytics.capture_locks.clone(),
+        analytics.capture_stats.clone(),
     );
 
     let metrics = Arc::new(ProcessorMetrics::new(cfg.processor_id.clone()));
     let decode_policy = DecodePolicyCoordinator::new(cfg.decode_fallback_config());
     let api_ready = Arc::new(AtomicBool::new(false));
-    let capacity = CapacityEngine::new(&cfg);
+    let capacity = CapacityEngine::new(cfg.as_ref());
     let load_admission = LoadAdmissionGate::new(capacity.clone(), cfg.load_policy_config());
 
     let manager = Arc::new(CameraManager::new(
-        cfg.clone(),
+        (*cfg).clone(),
+        analytics.clone(),
         metrics.clone(),
         acceleration.clone(),
         decode_policy.clone(),
@@ -114,11 +147,13 @@ async fn main() {
         acceleration: acceleration.clone(),
         camera_states: manager.states_handle(),
         api_ready: api_ready.clone(),
-        identity: health::RuntimeIdentity::from_config(&cfg),
+        identity: health::RuntimeIdentity::from_config(cfg.as_ref()),
         capacity: capacity.clone(),
         decode_policy: decode_policy.clone(),
         load_admission: load_admission.clone(),
         event_queue: event_queue.clone(),
+        analytics: analytics.clone(),
+        yolo: yolo.clone(),
     };
 
     let cap_metrics = metrics.clone();
@@ -151,30 +186,23 @@ async fn main() {
         }
     });
 
-    let client = match ConfVisionClient::new(&cfg) {
-        Ok(c) => {
-            api_ready.store(true, Ordering::Relaxed);
-            c
-        }
-        Err(e) => {
-            warn!(error = %e, "API client init failed");
-            std::process::exit(1);
-        }
-    };
+    api_ready.store(true, Ordering::Relaxed);
+    let client = (*api_client).clone();
 
-    let sync_cfg = cfg.clone();
+    let sync_cfg = (*cfg).clone();
     let sync_client = client.clone();
     let sync_manager = manager.clone();
     let sync_handle = tokio::spawn(async move {
         run_sync_loop(sync_client, sync_manager, sync_cfg).await;
     });
 
-    let ping_cfg = cfg.clone();
+    let ping_cfg = (*cfg).clone();
+    let ping_yolo = yolo.clone();
     let ping_client = client.clone();
     let ping_manager = manager.clone();
     let ping_metrics = metrics.clone();
     let ping_handle = tokio::spawn(async move {
-        run_ping_loop(ping_client, ping_manager, ping_metrics, ping_cfg).await;
+        run_ping_loop(ping_client, ping_manager, ping_metrics, ping_cfg, ping_yolo).await;
     });
 
     shutdown_signal().await;
@@ -187,7 +215,7 @@ async fn main() {
     ping_handle.abort();
     http_handle.abort();
 
-    send_final_ping(&client, &cfg, &manager, &metrics).await;
+    send_final_ping(&client, cfg.as_ref(), &yolo, &manager, &metrics).await;
     info!(processor_id = %cfg.processor_id, "shutdown complete");
 }
 
@@ -255,6 +283,7 @@ async fn run_ping_loop(
     manager: Arc<CameraManager>,
     metrics: Arc<ProcessorMetrics>,
     cfg: Config,
+    yolo: Arc<yolo::YoloRuntime>,
 ) {
     loop {
         if manager.is_shutdown() {
@@ -268,7 +297,7 @@ async fn run_ping_loop(
             None
         };
 
-        let mut ping = build_worker_ping(&cfg, cameras_ativas, true, node_id);
+        let mut ping = build_worker_ping(&cfg, yolo.as_ref(), cameras_ativas, true, node_id);
         let reports = manager.drain_stream_health_reports().await;
         if !reports.is_empty() {
             ping.camera_stream_health = Some(reports);
@@ -286,10 +315,11 @@ async fn run_ping_loop(
 async fn send_final_ping(
     client: &ConfVisionClient,
     cfg: &Config,
+    yolo: &yolo::YoloRuntime,
     manager: &CameraManager,
     metrics: &ProcessorMetrics,
 ) {
-    let ping = build_worker_ping(cfg, 0, false, None);
+    let ping = build_worker_ping(cfg, yolo, 0, false, None);
     if let Err(e) = client.worker_ping(&ping).await {
         warn!(error = %e, "final ping failed");
         metrics.errors.fetch_add(1, Ordering::Relaxed);
@@ -299,6 +329,7 @@ async fn send_final_ping(
 
 fn build_worker_ping(
     cfg: &Config,
+    yolo: &yolo::YoloRuntime,
     cameras_ativas: i32,
     ativo: bool,
     vis_mediamtx_node_id: Option<i32>,
@@ -321,7 +352,7 @@ fn build_worker_ping(
         cameras_ativas,
         ultimo_ping_em: Utc::now().to_rfc3339(),
         ativo,
-        yolo_device: "none".to_string(),
+        yolo_device: yolo.device_label().to_string(),
         queue_backend: cfg.queue_backend.clone(),
         vis_mediamtx_node_id,
         max_cameras: cfg.max_cameras_for_ping(),

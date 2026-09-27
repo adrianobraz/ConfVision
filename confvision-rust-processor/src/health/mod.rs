@@ -12,7 +12,9 @@ use crate::config::Config;
 use crate::decode::{AccelerationRuntime, DecodePolicyCoordinator};
 use crate::load::LoadAdmissionGate;
 use crate::metrics::{MetricsSnapshot, SharedMetrics};
+use crate::analytics::AnalyticsRuntime;
 use crate::events::EventQueueHandle;
+use crate::yolo::YoloRuntime;
 use crate::rtsp_hotpath::RtspHotpathMetrics;
 use std::sync::atomic::Ordering;
 
@@ -62,6 +64,8 @@ pub struct AppState {
     pub decode_policy: Arc<DecodePolicyCoordinator>,
     pub load_admission: Arc<LoadAdmissionGate>,
     pub event_queue: Arc<EventQueueHandle>,
+    pub analytics: Arc<AnalyticsRuntime>,
+    pub yolo: Arc<YoloRuntime>,
 }
 
 #[derive(Serialize)]
@@ -100,6 +104,14 @@ pub struct HealthResponse {
     pub event_queue_depth: u64,
     pub event_queue_dlq_depth: u64,
     pub event_queue_redis_ok: bool,
+    pub yolo_enabled: bool,
+    pub yolo_backend: String,
+    pub yolo_device: String,
+    pub capture_enabled: bool,
+    pub capture_workers: usize,
+    pub events_published: u64,
+    pub events_queue_full: u64,
+    pub events_captured: u64,
 }
 
 #[derive(Serialize)]
@@ -164,6 +176,26 @@ pub async fn health_handler(State(st): State<AppState>) -> Json<HealthResponse> 
             .event_queue
             .stats()
             .redis_connected
+            .load(Ordering::Relaxed),
+        yolo_enabled: st.analytics.cfg.yolo_enabled,
+        yolo_backend: st.analytics.cfg.yolo_backend.as_str().to_string(),
+        yolo_device: st.yolo.device_label().to_string(),
+        capture_enabled: st.analytics.cfg.capture_enabled,
+        capture_workers: st.analytics.cfg.capture_workers,
+        events_published: st
+            .analytics
+            .detection_stats
+            .events_published
+            .load(Ordering::Relaxed),
+        events_queue_full: st
+            .analytics
+            .detection_stats
+            .events_queue_full
+            .load(Ordering::Relaxed),
+        events_captured: st
+            .analytics
+            .capture_stats
+            .processed
             .load(Ordering::Relaxed),
     })
 }
@@ -390,10 +422,19 @@ mod integration_tests {
             event_queue_depth: 0,
             event_queue_dlq_depth: 0,
             event_queue_redis_ok: false,
+            yolo_enabled: false,
+            yolo_backend: "off".into(),
+            yolo_device: "none".into(),
+            capture_enabled: false,
+            capture_workers: 0,
+            events_published: 0,
+            events_queue_full: 0,
+            events_captured: 0,
         };
         let v = serde_json::to_value(&health).unwrap();
         assert!(v.get("capacity_state").is_some());
         assert!(v.get("limiting_resource").is_some());
         assert!(v.get("queue_backend").is_some());
+        assert!(v.get("yolo_enabled").is_some());
     }
 }

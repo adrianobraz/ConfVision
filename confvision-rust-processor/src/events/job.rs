@@ -27,6 +27,26 @@ impl EventJob {
             snapshot_path: None,
         }
     }
+
+    pub fn from_camera(camera: &Value, confianca: f64, snapshot_path: Option<String>) -> Self {
+        let cam_map = if let Some(obj) = camera.as_object() {
+            obj.clone()
+        } else {
+            let mut m = Map::new();
+            m.insert("id".into(), camera.clone());
+            m
+        };
+        Self {
+            camera: cam_map,
+            confianca,
+            detected_at: default_detected_at(),
+            snapshot_path,
+        }
+    }
+
+    pub fn camera_id(&self) -> Option<i64> {
+        self.camera.get("id").and_then(|v| v.as_i64())
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]

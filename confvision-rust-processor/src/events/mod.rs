@@ -1,6 +1,4 @@
-//! Fase D2 — fila de eventos analíticos (Redis / memory), compatível com worker Python.
-//!
-//! Enfileiramento prod (pós-detecção YOLO) entra na Fase D3; aqui o backend fica pronto.
+//! Fase D2/D3 — fila de eventos analíticos (Redis / memory), compatível com worker Python.
 
 mod job;
 mod queue;

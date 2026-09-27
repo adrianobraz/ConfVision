@@ -13,7 +13,7 @@ pub use capture_live::{
     record_rtsp_au_throttled, LiveCaptureContext,
 };
 pub use manager::CameraManager;
-pub use stream_url::{redact_rtsp_url, resolve_rtsp_url};
+pub use stream_url::{redact_rtsp_url, resolve_rtsp_url, resolve_rtsp_url_from_value};
 pub use types::SharedCameraState;
 pub use types::{CameraRuntimeState, CameraStatus, FpsEstimator};
 pub use worker_control::{CameraCancel, CameraWorkerControl};

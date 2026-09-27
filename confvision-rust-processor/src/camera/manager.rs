@@ -7,6 +7,7 @@ use tokio::sync::{watch, RwLock};
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
+use crate::analytics::AnalyticsRuntime;
 use crate::api::{CameraRecord, CameraStreamHealthReport};
 use crate::camera::stream_url::{redact_rtsp_url, resolve_rtsp_url};
 use crate::stream_policy::StreamPolicyState;
@@ -20,6 +21,7 @@ use crate::worker::camera_worker::run_camera_worker;
 
 pub struct CameraManager {
     cfg: Config,
+    analytics: Arc<AnalyticsRuntime>,
     metrics: Arc<ProcessorMetrics>,
     acceleration: Arc<AccelerationRuntime>,
     decode_policy: Arc<DecodePolicyCoordinator>,
@@ -37,6 +39,7 @@ pub struct CameraManager {
 impl CameraManager {
     pub fn new(
         cfg: Config,
+        analytics: Arc<AnalyticsRuntime>,
         metrics: Arc<ProcessorMetrics>,
         acceleration: Arc<AccelerationRuntime>,
         decode_policy: Arc<DecodePolicyCoordinator>,
@@ -45,6 +48,7 @@ impl CameraManager {
         let (shutdown, shutdown_rx) = watch::channel(false);
         Self {
             cfg,
+            analytics,
             metrics,
             acceleration,
             decode_policy,
@@ -110,6 +114,7 @@ impl CameraManager {
 
     pub async fn sync_cameras(&self, desired: Vec<CameraRecord>) {
         let mut limited = desired;
+        self.analytics.upsert_cameras(&limited).await;
         let hard_max = self.cfg.effective_max_cameras();
         if limited.len() > hard_max {
             warn!(
@@ -178,6 +183,7 @@ impl CameraManager {
         let health_queue = self.pending_stream_health.clone();
 
         let cfg = self.cfg.clone();
+        let analytics = self.analytics.clone();
         let metrics = self.metrics.clone();
         let acceleration = self.acceleration.clone();
         let decode_policy = self.decode_policy.clone();
@@ -191,6 +197,7 @@ impl CameraManager {
                 camera_id,
                 rtsp_url,
                 cfg,
+                analytics,
                 metrics,
                 acceleration,
                 decode_policy,
@@ -226,6 +233,7 @@ impl CameraManager {
         }
         self.states.write().await.remove(&camera_id);
         self.stream_policies.write().await.remove(&camera_id);
+        self.analytics.remove_camera(camera_id).await;
         info!(camera_id, processor_id = %self.cfg.processor_id, "worker stopped");
     }
 
@@ -266,6 +274,15 @@ mod tests {
         cfg
     }
 
+    fn test_analytics(cfg: &Config) -> Arc<AnalyticsRuntime> {
+        let cfg = Arc::new(cfg.clone());
+        let queue = Arc::new(
+            crate::events::EventQueueHandle::from_config(cfg.as_ref()).unwrap(),
+        );
+        let yolo = Arc::new(crate::yolo::YoloRuntime::Off);
+        AnalyticsRuntime::bootstrap(cfg, yolo, queue)
+    }
+
     #[tokio::test]
     async fn manager_respects_max_cameras() {
         std::env::set_var("RTSP_SIMULATE", "1");
@@ -280,7 +297,9 @@ mod tests {
         let capacity = crate::capacity::CapacityEngine::new(&test_cfg());
         let admission =
             crate::load::LoadAdmissionGate::new(capacity, test_cfg().load_policy_config());
-        let mgr = CameraManager::new(test_cfg(), metrics, acceleration, decode_policy, admission);
+        let cfg = test_cfg();
+        let analytics = test_analytics(&cfg);
+        let mgr = CameraManager::new(cfg, analytics, metrics, acceleration, decode_policy, admission);
         let cams: Vec<CameraRecord> = (1..=5)
             .map(|id| CameraRecord {
                 id,
@@ -425,7 +444,8 @@ mod tests {
         let capacity = crate::capacity::CapacityEngine::new_with_initial_snapshot(&cfg, healthy);
         let admission =
             crate::load::LoadAdmissionGate::new(capacity.clone(), cfg.load_policy_config());
-        let mgr = CameraManager::new(cfg, metrics, acceleration, decode_policy, admission);
+        let analytics = test_analytics(&cfg);
+        let mgr = CameraManager::new(cfg, analytics, metrics, acceleration, decode_policy, admission);
 
         let cam1 = CameraRecord {
             id: 101,

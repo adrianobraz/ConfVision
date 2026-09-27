@@ -1,8 +1,39 @@
+use serde_json::Value;
+
 use crate::api::CameraRecord;
 use crate::config::Config;
 use crate::error::{AppError, AppResult};
 
 /// Monta URL RTSP alinhada ao Python `urls.rtsp_url_for_camera` (sem credenciais no log).
+pub fn resolve_rtsp_url_from_value(camera: &Value, cfg: &Config) -> AppResult<String> {
+    if let Some(sec) = camera
+        .get("rtsp_url_sec")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        let lower = sec.to_lowercase();
+        if (lower.starts_with("rtsp://") || lower.starts_with("rtsps://"))
+            && !lower.contains("/live/")
+        {
+            return Ok(sec.to_string());
+        }
+    }
+    let base = camera
+        .get("mediamtx_rtsp_base")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.trim_end_matches('/').to_string())
+        .unwrap_or_else(|| cfg.mediamtx_rtsp_base.clone());
+    let camera_id = camera
+        .get("id")
+        .and_then(|v| v.as_i64())
+        .ok_or_else(|| AppError::Config("camera sem id".into()))?;
+    let path = stream_path(camera_id, cfg)?;
+    Ok(format!("{base}/{path}"))
+}
+
 pub fn resolve_rtsp_url(cam: &CameraRecord, cfg: &Config) -> AppResult<String> {
     if let Some(sec) = cam
         .rtsp_url_sec

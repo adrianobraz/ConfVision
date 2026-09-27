@@ -468,6 +468,7 @@ pub async fn run_frame_consumer(
     decode_enabled: bool,
     motion_gate: Option<Arc<MotionGatedSession>>,
     motion_sensitivity: MotionSensitivity,
+    detection: Option<Arc<crate::detection::DetectionContext>>,
 ) {
     let mut h264_decoder = H264Decoder::with_acceleration_and_policy(acceleration, decode_policy);
     let mut motion_detector = MotionDetector::with_sensitivity(motion_sensitivity);
@@ -549,6 +550,12 @@ pub async fn run_frame_consumer(
                                                     score_percent,
                                                     "motion detected"
                                                 );
+                                            }
+                                            if let Some(ctx) = detection.clone() {
+                                                let frame = decoded.clone();
+                                                tokio::spawn(async move {
+                                                    ctx.on_decoded_frame(&frame, detected).await;
+                                                });
                                             }
                                             ConsumerFrameOutcome::Decoded {
                                                 decode_ms,
@@ -812,6 +819,7 @@ mod tests {
                 false,
                 None,
                 MotionSensitivity::default(),
+                None,
             )
             .await;
         });

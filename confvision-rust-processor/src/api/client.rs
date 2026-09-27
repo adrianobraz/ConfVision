@@ -10,9 +10,9 @@ use crate::error::{AppError, AppResult};
 
 #[derive(Clone)]
 pub struct ConfVisionClient {
-    http: reqwest::Client,
-    base: String,
-    headers: HeaderMap,
+    pub(crate) http: reqwest::Client,
+    pub(crate) base: String,
+    pub(crate) headers: HeaderMap,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

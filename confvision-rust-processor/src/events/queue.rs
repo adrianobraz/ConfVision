@@ -9,6 +9,7 @@ use crate::config::Config;
 use crate::error::{AppError, AppResult};
 
 use super::job::{DlqEnvelope, EventJob};
+use serde_json::from_str;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PublishOutcome {
@@ -126,6 +127,28 @@ impl EventQueueHandle {
             self.stats.redis_connected.store(true, Ordering::Relaxed);
         } else {
             self.stats.redis_connected.store(false, Ordering::Relaxed);
+        }
+    }
+
+    pub async fn pop(&self, timeout_sec: f64) -> AppResult<Option<EventJob>> {
+        match &self.backend {
+            QueueBackend::None => Ok(None),
+            QueueBackend::Memory { inner } => {
+                let mut q = inner.lock().await;
+                if let Some(job) = q.items.pop_front() {
+                    self.stats
+                        .main_depth
+                        .store(q.items.len() as u64, Ordering::Relaxed);
+                    return Ok(Some(job));
+                }
+                drop(q);
+                tokio::time::sleep(std::time::Duration::from_secs_f64(timeout_sec.max(0.1)))
+                    .await;
+                Ok(None)
+            }
+            QueueBackend::Redis { client, key, .. } => {
+                redis_brpop(client, key, timeout_sec).await
+            }
         }
     }
 
@@ -283,6 +306,25 @@ async fn redis_ping(client: &redis::Client) -> AppResult<()> {
         .await
         .map_err(|e| AppError::Other(e.into()))?;
     Ok(())
+}
+
+async fn redis_brpop(client: &redis::Client, key: &str, timeout_sec: f64) -> AppResult<Option<EventJob>> {
+    let mut conn = client
+        .get_multiplexed_async_connection()
+        .await
+        .map_err(|e| AppError::Other(e.into()))?;
+    let timeout = timeout_sec.max(1.0) as usize;
+    let item: Option<(String, String)> = redis::cmd("BRPOP")
+        .arg(key)
+        .arg(timeout)
+        .query_async(&mut conn)
+        .await
+        .map_err(|e| AppError::Other(e.into()))?;
+    let Some((_key, payload)) = item else {
+        return Ok(None);
+    };
+    let job: EventJob = from_str(&payload).map_err(|e| AppError::Other(e.into()))?;
+    Ok(Some(job))
 }
 
 async fn redis_llen_pair(

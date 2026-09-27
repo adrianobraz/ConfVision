@@ -19,8 +19,8 @@
 | Bloco | Objetivo | Status |
 |-------|----------|--------|
 | **D1** | N processors, `worker_id`, deploy EasyPanel | **Piloto foxpro** (A+B) — [FASE_D_D1_KICKOFF.md](./FASE_D_D1_KICKOFF.md) |
-| **D2** | Fila eventos Redis, retry, DLQ | **Código pronto** — [FASE_D_D2_KICKOFF.md](./FASE_D_D2_KICKOFF.md); ligar env + redeploy |
-| **D3** | YOLO / eventos / clips no Rust | Pendente dev (piloto = decode + motion) |
+| **D2** | Fila eventos Redis, retry, DLQ | **Produção** (pilots A/B) — [FASE_D_D2_KICKOFF.md](./FASE_D_D2_KICKOFF.md) |
+| **D3** | YOLO / eventos / clips no Rust | **Código pronto** — [FASE_D_D3_KICKOFF.md](./FASE_D_D3_KICKOFF.md); YOLO sidecar/onnx + redeploy |
 | **D4** | GPU | **Fora de escopo** até novo servidor |
 | **D5** | Go: limites, auto-assign processor | Pendente dev Go |
 | **D6** | SLO 24/7, alertas, playbooks | Parcial (C2); estender monitor D1 |
@@ -72,10 +72,10 @@
 
 ## Próximo passo imediato
 
-**D2:** [FASE_D_D2_KICKOFF.md](./FASE_D_D2_KICKOFF.md) — `QUEUE_BACKEND=redis` nos pilots A/B, depois:
+**D3:** [FASE_D_D3_KICKOFF.md](./FASE_D_D3_KICKOFF.md) — `YOLO_ENABLED=1`, sidecar HTTP ou ONNX, `CAPTURE_ENABLED=1`, redeploy A/B:
 
 ```bash
-bash confvision-rust-processor/scripts/d2-redis-verify.sh \
+bash confvision-rust-processor/scripts/d3-event-verify.sh \
   https://foxpro-rust-pilot.rkr351.easypanel.host \
   https://foxpro-rust-pilot-b.rkr351.easypanel.host
 ```

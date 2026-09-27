@@ -19,11 +19,13 @@ retina = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"
-tokio = { version = "1.43", features = ["macros", "rt-multi-thread", "signal", "sync", "time"] }
+tokio = { version = "1.43", features = ["macros", "rt-multi-thread", "signal", "sync", "time", "process", "fs"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 url = "2.5"
 redis = { version = "0.27", features = ["tokio-comp"] }
+base64 = "0.22"
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
 # 6.1.x + ffmpeg-sys-next 6.1 — linka contra FFmpeg 5.x (libavcodec59 no Debian Bookworm).
 ffmpeg-next = { version = "=6.1.1", optional = true, default-features = false, features = ["codec", "format"] }
 
@@ -31,6 +33,7 @@ ffmpeg-next = { version = "=6.1.1", optional = true, default-features = false, f
 ffmpeg-decode = ["dep:ffmpeg-next"]
 # NVDEC/CUDA via FFmpeg (requer libav com h264_cuvid + runtime NVIDIA). Compila sem GPU física.
 ffmpeg-nvdec = []
+yolo-onnx = []
 
 [dev-dependencies]
 wiremock = "0.6"

@@ -127,9 +127,47 @@ pub struct Config {
     pub motion_percent_threshold: u32,
     pub sync_filter_worker_id: bool,
     pub stream_retry: crate::stream_policy::StreamRetryConfig,
+    // D3 — YOLO + captura
+    pub yolo_enabled: bool,
+    pub yolo_backend: YoloBackend,
+    pub yolo_http_url: Option<String>,
+    pub yolo_model_path: Option<String>,
+    pub yolo_conf_default: f64,
+    pub yolo_frame_stride: usize,
+    pub capture_enabled: bool,
+    pub capture_workers: usize,
+    pub capture_dir: std::path::PathBuf,
+    pub clip_duracao_seg: u32,
+    pub snapshot_jpeg_quality: u8,
+    pub s3_access_key: Option<String>,
+    pub s3_secret_key: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum YoloBackend {
+    Off,
+    Http,
+    Onnx,
+}
+
+impl YoloBackend {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Off => "off",
+            Self::Http => "http",
+            Self::Onnx => "onnx",
+        }
+    }
 }
 
 impl Config {
+    pub fn s3_ready(&self) -> bool {
+        self.s3_endpoint.is_some()
+            && self.s3_bucket.is_some()
+            && self.s3_access_key.is_some()
+            && self.s3_secret_key.is_some()
+    }
+
     /// Teto local de câmeras (hard safety). `0` = sem limite.
     pub fn effective_max_cameras(&self) -> usize {
         if self.max_cameras == 0 {
@@ -263,6 +301,23 @@ impl Config {
             motion_percent_threshold: motion_percent_from_env(),
             sync_filter_worker_id: env_bool("SYNC_FILTER_WORKER_ID", true),
             stream_retry: stream_retry_config_from_env(),
+            yolo_enabled: env_bool("YOLO_ENABLED", false),
+            yolo_backend: parse_yolo_backend(&env_or("YOLO_BACKEND", "off"))?,
+            yolo_http_url: non_empty_opt("YOLO_HTTP_URL"),
+            yolo_model_path: non_empty_opt("YOLO_MODEL_PATH"),
+            yolo_conf_default: env_f64("YOLO_CONF_DEFAULT", 0.5).clamp(0.01, 1.0),
+            yolo_frame_stride: env_usize("YOLO_FRAME_STRIDE", env_usize("FRAME_SKIP", 5)).max(1),
+            capture_enabled: {
+                let qb = env_or("QUEUE_BACKEND", "none").to_ascii_lowercase();
+                let default_cap = env_bool("YOLO_ENABLED", false) && qb != "none";
+                env_bool("CAPTURE_ENABLED", default_cap)
+            },
+            capture_workers: env_usize("CAPTURE_WORKERS", 4).max(1),
+            capture_dir: std::path::PathBuf::from(env_or("CAPTURE_DIR", "/tmp/confvision")),
+            clip_duracao_seg: env_u32("CLIP_DURACAO_SEG", 20).max(1),
+            snapshot_jpeg_quality: env_u32("SNAPSHOT_JPEG_QUALITY", 85).min(100) as u8,
+            s3_access_key: non_empty_opt("S3_ACCESS_KEY"),
+            s3_secret_key: non_empty_opt("S3_SECRET_KEY"),
         })
     }
 
@@ -325,6 +380,19 @@ impl Config {
             motion_percent_threshold: 5,
             sync_filter_worker_id: true,
             stream_retry: crate::stream_policy::StreamRetryConfig::defaults(),
+            yolo_enabled: false,
+            yolo_backend: YoloBackend::Off,
+            yolo_http_url: None,
+            yolo_model_path: None,
+            yolo_conf_default: 0.5,
+            yolo_frame_stride: 5,
+            capture_enabled: false,
+            capture_workers: 2,
+            capture_dir: std::path::PathBuf::from("/tmp/confvision"),
+            clip_duracao_seg: 20,
+            snapshot_jpeg_quality: 85,
+            s3_access_key: None,
+            s3_secret_key: None,
         }
     }
 
@@ -378,10 +446,24 @@ fn analysis_stride_from_env(key: &str, legacy_default: usize, normal_default: us
 }
 
 fn analysis_only_on_motion_from_env() -> bool {
+    if std::env::var("YOLO_ONLY_ON_MOTION").is_ok() {
+        return env_bool("YOLO_ONLY_ON_MOTION", true);
+    }
     if std::env::var("ANALYSIS_ONLY_ON_MOTION").is_ok() {
         return env_bool("ANALYSIS_ONLY_ON_MOTION", true);
     }
     analysis_legacy_vps_enabled()
+}
+
+fn parse_yolo_backend(raw: &str) -> AppResult<YoloBackend> {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "off" | "none" | "" => Ok(YoloBackend::Off),
+        "http" => Ok(YoloBackend::Http),
+        "onnx" => Ok(YoloBackend::Onnx),
+        other => Err(AppError::Config(format!(
+            "YOLO_BACKEND inválido: {other:?} (use off, http ou onnx)"
+        ))),
+    }
 }
 
 fn motion_gate_probe_max_fps_from_env() -> f64 {

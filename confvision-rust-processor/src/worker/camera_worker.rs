@@ -18,7 +18,9 @@ use crate::camera::{
     redact_rtsp_url, CameraCancel, CameraRuntimeState, CameraStatus, FpsEstimator,
     LiveCaptureContext, ReconnectBackoff, SharedCameraState,
 };
+use crate::analytics::AnalyticsRuntime;
 use crate::config::Config;
+use crate::detection::DetectionContext;
 use crate::decode::{AccelerationRuntime, DecodePolicyCoordinator, SessionDecodeContext};
 use crate::metrics::ProcessorMetrics;
 use crate::motion::{MotionEnqueueGate, MotionGatedSession, MotionSensitivity};
@@ -31,6 +33,7 @@ async fn run_session_with_pipeline(
     camera_id: i64,
     rtsp_url: &str,
     cfg: &Config,
+    analytics: Arc<AnalyticsRuntime>,
     metrics: Arc<ProcessorMetrics>,
     acceleration: Arc<AccelerationRuntime>,
     decode_policy: Arc<DecodePolicyCoordinator>,
@@ -48,6 +51,25 @@ async fn run_session_with_pipeline(
     };
     let mut enqueue_gate = MotionEnqueueGate::from_config(cfg, motion_gate.clone());
     let motion_sensitivity = MotionSensitivity::from_config(cfg);
+
+    let detection: Option<Arc<DetectionContext>> = if cfg.yolo_enabled {
+        analytics
+            .camera_json(camera_id)
+            .await
+            .map(|cam| {
+                DetectionContext::new(
+                    camera_id,
+                    cam,
+                    analytics.cfg.clone(),
+                    analytics.yolo.clone(),
+                    analytics.event_queue.clone(),
+                    analytics.detection_stats.clone(),
+                    motion_gate.clone(),
+                )
+            })
+    } else {
+        None
+    };
 
     let mut fps_est = FpsEstimator::new();
     let mut live = LiveCaptureContext {
@@ -67,6 +89,7 @@ async fn run_session_with_pipeline(
         let acceleration_for_consumer = acceleration.clone();
         let decode_policy_for_consumer = decode_policy.clone();
         let motion_gate_for_consumer = motion_gate.clone();
+        let detection_for_consumer = detection.clone();
         let consumer = tokio::spawn(async move {
             run_frame_consumer(
                 consumer_pipeline,
@@ -78,6 +101,7 @@ async fn run_session_with_pipeline(
                 false,
                 motion_gate_for_consumer,
                 motion_sensitivity,
+                detection_for_consumer,
             )
             .await;
         });
@@ -94,6 +118,7 @@ async fn run_session_with_pipeline(
         let acceleration_for_consumer = acceleration.clone();
         let decode_policy_for_consumer = decode_policy.clone();
         let motion_gate_for_consumer = motion_gate.clone();
+        let detection_for_consumer = detection.clone();
         let consumer = tokio::spawn(async move {
             run_frame_consumer(
                 consumer_pipeline,
@@ -105,6 +130,7 @@ async fn run_session_with_pipeline(
                 true,
                 motion_gate_for_consumer,
                 motion_sensitivity,
+                detection_for_consumer,
             )
             .await;
         });
@@ -199,6 +225,7 @@ pub async fn run_camera_worker(
     camera_id: i64,
     rtsp_url: String,
     cfg: Config,
+    analytics: Arc<AnalyticsRuntime>,
     metrics: Arc<ProcessorMetrics>,
     acceleration: Arc<AccelerationRuntime>,
     decode_policy: Arc<DecodePolicyCoordinator>,
@@ -256,6 +283,7 @@ pub async fn run_camera_worker(
                 camera_id,
                 &rtsp_url,
                 &cfg,
+                analytics.clone(),
                 metrics.clone(),
                 acceleration.clone(),
                 decode_policy.clone(),
@@ -273,6 +301,7 @@ pub async fn run_camera_worker(
             camera_id,
             &rtsp_url,
             &cfg,
+            analytics.clone(),
             metrics.clone(),
             acceleration.clone(),
             decode_policy.clone(),
