@@ -33,13 +33,21 @@
 
 ## 2. Postgres (Go — sem Xano)
 
-Rodar **SELECT** em [`sql/phase_d_foxpro_split_vps_conservative.sql`](../sql/phase_d_foxpro_split_vps_conservative.sql).
+Arquivo: [`sql/phase_d_foxpro_split_vps_conservative.sql`](../sql/phase_d_foxpro_split_vps_conservative.sql)
 
-Ajustar lista de `id` conforme inventário. **BEGIN/COMMIT** só após revisar.
+Ordem sugerida (descomente `BEGIN`/`COMMIT` **por passo**, um de cada vez):
 
-Regra: cada câmera analítica → **um** `worker_id` (`pilot-01` **ou** `pilot-02`).
+| Passo | Ação |
+|-------|------|
+| **0** | `SELECT` inventário |
+| **1** | **Id 2** — `analitico_pausado = TRUE` (404 RTSP `cam/jdw6yld9mebn`; **fora** do split) |
+| **2** | Normalizar `worker-processor-pilot-01` / `worker-docker-21` → `rust-processor-pilot-01` |
+| **3** | Split: **01** = ids **5, 18, 19** · **02** = **22** (opcional **21** se stream ok) |
+| **4** | `SELECT` confirmar contagens por `worker_id` |
 
-Aguardar `SYNC_INTERVAL_SEC` (~60s) ou restart dos dois rust apps.
+Regra: cada câmera no analítico → **um** `worker_id` (`rust-processor-pilot-01` **ou** `-02`).
+
+Aguardar `SYNC_INTERVAL_SEC` (~60s) ou restart dos dois apps Rust.
 
 ---
 

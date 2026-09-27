@@ -32,7 +32,7 @@
 ## D1 — entregáveis
 
 1. App EasyPanel **`foxpro-rust-pilot-02`** (clone env de [`easypanel.env.fase-c.processor-02.example`](../easypanel.env.fase-c.processor-02.example)).
-2. Postgres: split `worker_id` — [`sql/phase_d_foxpro_split_vps_conservative.sql`](../sql/phase_d_foxpro_split_vps_conservative.sql) ou [`phase_c_foxpro_split_pilot02.sql`](../sql/phase_c_foxpro_split_pilot02.sql).
+2. Postgres: split `worker_id` — [`sql/phase_d_foxpro_split_vps_conservative.sql`](../sql/phase_d_foxpro_split_vps_conservative.sql) (pausar **id 2**, split **5/18/19** vs **22**). Alternativa fleet maior: [`phase_c_foxpro_split_pilot02.sql`](../sql/phase_c_foxpro_split_pilot02.sql).
 3. **`confvision-worker` Stop** (Rust-only).
 4. Verificação: [`scripts/d1-processor-verify.sh`](../scripts/d1-processor-verify.sh).
 5. Runbook deploy: [`deploy/phase-c/EASYPANEL_SECOND_PROCESSOR.md`](../deploy/phase-c/EASYPANEL_SECOND_PROCESSOR.md).
