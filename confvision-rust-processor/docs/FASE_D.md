@@ -18,8 +18,8 @@
 
 | Bloco | Objetivo | Status |
 |-------|----------|--------|
-| **D1** | N processors, `worker_id`, deploy EasyPanel | **Em andamento** — ver [FASE_D_D1_KICKOFF.md](./FASE_D_D1_KICKOFF.md) |
-| **D2** | Fila eventos Redis, retry, DLQ | Pendente dev Rust (`QUEUE_BACKEND=none` hoje) |
+| **D1** | N processors, `worker_id`, deploy EasyPanel | **Piloto foxpro** (A+B) — [FASE_D_D1_KICKOFF.md](./FASE_D_D1_KICKOFF.md) |
+| **D2** | Fila eventos Redis, retry, DLQ | **Código pronto** — [FASE_D_D2_KICKOFF.md](./FASE_D_D2_KICKOFF.md); ligar env + redeploy |
 | **D3** | YOLO / eventos / clips no Rust | Pendente dev (piloto = decode + motion) |
 | **D4** | GPU | **Fora de escopo** até novo servidor |
 | **D5** | Go: limites, auto-assign processor | Pendente dev Go |
@@ -72,12 +72,10 @@
 
 ## Próximo passo imediato
 
-Siga **[FASE_D_D1_KICKOFF.md](./FASE_D_D1_KICKOFF.md)** e rode:
+**D2:** [FASE_D_D2_KICKOFF.md](./FASE_D_D2_KICKOFF.md) — `QUEUE_BACKEND=redis` nos pilots A/B, depois:
 
 ```bash
-bash confvision-rust-processor/scripts/d1-processor-verify.sh \
+bash confvision-rust-processor/scripts/d2-redis-verify.sh \
   https://foxpro-rust-pilot.rkr351.easypanel.host \
-  https://foxpro-rust-pilot-02.rkr351.easypanel.host
+  https://foxpro-rust-pilot-b.rkr351.easypanel.host
 ```
-
-(Substitua URL do pilot-02 pelo domínio EasyPanel real após criar o app.)

@@ -54,6 +54,23 @@ async fn main() {
     redis::log_redis_status(&cfg);
     media::log_media_status(&cfg);
 
+    let event_queue = match events::bootstrap_event_queue(&cfg) {
+        Ok(q) => q,
+        Err(e) => {
+            eprintln!("event queue error: {e}");
+            std::process::exit(1);
+        }
+    };
+    redis::startup_redis_check(event_queue.as_ref()).await;
+    let queue_metrics = event_queue.clone();
+    tokio::spawn(async move {
+        events::run_queue_metrics_loop(
+            queue_metrics,
+            std::time::Duration::from_secs(30),
+        )
+        .await;
+    });
+
     let accel_policy = match AccelerationPolicy::from_env() {
         Ok(p) => p,
         Err(e) => {
@@ -101,6 +118,7 @@ async fn main() {
         capacity: capacity.clone(),
         decode_policy: decode_policy.clone(),
         load_admission: load_admission.clone(),
+        event_queue: event_queue.clone(),
     };
 
     let cap_metrics = metrics.clone();

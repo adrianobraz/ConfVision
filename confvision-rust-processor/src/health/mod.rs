@@ -12,7 +12,9 @@ use crate::config::Config;
 use crate::decode::{AccelerationRuntime, DecodePolicyCoordinator};
 use crate::load::LoadAdmissionGate;
 use crate::metrics::{MetricsSnapshot, SharedMetrics};
+use crate::events::EventQueueHandle;
 use crate::rtsp_hotpath::RtspHotpathMetrics;
+use std::sync::atomic::Ordering;
 
 mod capacity_report;
 mod runtime_phase62;
@@ -29,6 +31,7 @@ pub struct RuntimeIdentity {
     pub worker_shard_total: u32,
     pub mediamtx_node_id: u32,
     pub max_cameras: usize,
+    pub event_queue_key: String,
 }
 
 impl RuntimeIdentity {
@@ -42,6 +45,7 @@ impl RuntimeIdentity {
             worker_shard_total: cfg.worker_shard_total,
             mediamtx_node_id: cfg.mediamtx_node_id,
             max_cameras: cfg.max_cameras,
+            event_queue_key: cfg.event_queue_key.clone(),
         }
     }
 }
@@ -57,6 +61,7 @@ pub struct AppState {
     pub capacity: Arc<CapacityEngine>,
     pub decode_policy: Arc<DecodePolicyCoordinator>,
     pub load_admission: Arc<LoadAdmissionGate>,
+    pub event_queue: Arc<EventQueueHandle>,
 }
 
 #[derive(Serialize)]
@@ -90,6 +95,11 @@ pub struct HealthResponse {
     pub decode_backend_effective: String,
     pub load_advisory: crate::load::LoadAdvisory,
     pub load_advisory_reason: String,
+    pub queue_backend: String,
+    pub event_queue_key: String,
+    pub event_queue_depth: u64,
+    pub event_queue_dlq_depth: u64,
+    pub event_queue_redis_ok: bool,
 }
 
 #[derive(Serialize)]
@@ -138,6 +148,23 @@ pub async fn health_handler(State(st): State<AppState>) -> Json<HealthResponse> 
         decode_backend_effective: phase62.decode_backend_effective,
         load_advisory: phase62.load_advisory,
         load_advisory_reason: phase62.load_advisory_reason,
+        queue_backend: st.event_queue.backend_label().to_string(),
+        event_queue_key: st.identity.event_queue_key.clone(),
+        event_queue_depth: st
+            .event_queue
+            .stats()
+            .main_depth
+            .load(Ordering::Relaxed),
+        event_queue_dlq_depth: st
+            .event_queue
+            .stats()
+            .dlq_depth
+            .load(Ordering::Relaxed),
+        event_queue_redis_ok: st
+            .event_queue
+            .stats()
+            .redis_connected
+            .load(Ordering::Relaxed),
     })
 }
 
@@ -358,9 +385,15 @@ mod integration_tests {
             decode_backend_effective: "cpu".into(),
             load_advisory: crate::load::LoadAdvisory::Normal,
             load_advisory_reason: "test".into(),
+            queue_backend: "none".into(),
+            event_queue_key: cfg.event_queue_key.clone(),
+            event_queue_depth: 0,
+            event_queue_dlq_depth: 0,
+            event_queue_redis_ok: false,
         };
         let v = serde_json::to_value(&health).unwrap();
         assert!(v.get("capacity_state").is_some());
         assert!(v.get("limiting_resource").is_some());
+        assert!(v.get("queue_backend").is_some());
     }
 }

@@ -88,6 +88,11 @@ pub struct Config {
     pub rtsp_frame_timeout: Duration,
     pub frame_buffer_max: usize,
     pub queue_backend: String,
+    /// Lista Redis principal (`EVENT_QUEUE_KEY`, compatível worker Python).
+    pub event_queue_key: String,
+    pub event_queue_max_size: usize,
+    pub event_queue_dlq_key: String,
+    pub queue_publish_retries: u32,
     pub capacity_mode: CapacityMode,
     pub capacity_cpu_target_percent: f64,
     pub capacity_memory_target_percent: f64,
@@ -228,7 +233,11 @@ impl Config {
             rtsp_reconnect_base: Duration::from_secs(env_u64("RTSP_RECONNECT_SECONDS", 10).max(1)),
             rtsp_frame_timeout: Duration::from_secs(env_u64("RTSP_FRAME_TIMEOUT_SEC", 30)),
             frame_buffer_max: env_usize("FRAME_BUFFER_MAX", 2).max(1),
-            queue_backend: env_or("QUEUE_BACKEND", "none"),
+            queue_backend: env_or("QUEUE_BACKEND", "none").to_ascii_lowercase(),
+            event_queue_key: env_or("EVENT_QUEUE_KEY", "confvision:eventos"),
+            event_queue_max_size: env_usize("EVENT_QUEUE_MAX_SIZE", 1000).max(1),
+            event_queue_dlq_key: event_queue_dlq_key_from_env(),
+            queue_publish_retries: env_u32("QUEUE_PUBLISH_RETRIES", 3).max(1),
             capacity_mode: parse_capacity_mode(&env_or("CAPACITY_MODE", "dynamic"))?,
             capacity_cpu_target_percent: env_f64("CAPACITY_CPU_TARGET_PERCENT", 80.0),
             capacity_memory_target_percent: env_f64("CAPACITY_MEMORY_TARGET_PERCENT", 80.0),
@@ -287,6 +296,10 @@ impl Config {
             rtsp_frame_timeout: Duration::from_secs(30),
             frame_buffer_max: 2,
             queue_backend: "none".into(),
+            event_queue_key: "confvision:eventos".into(),
+            event_queue_max_size: 1000,
+            event_queue_dlq_key: "confvision:eventos:dlq".into(),
+            queue_publish_retries: 3,
             capacity_mode: CapacityMode::Dynamic,
             capacity_cpu_target_percent: 80.0,
             capacity_memory_target_percent: 80.0,
@@ -328,6 +341,17 @@ impl Config {
             self.decode_hw_error_threshold,
         )
     }
+}
+
+fn event_queue_dlq_key_from_env() -> String {
+    if let Ok(v) = std::env::var("EVENT_QUEUE_DLQ_KEY") {
+        let t = v.trim();
+        if !t.is_empty() {
+            return t.to_string();
+        }
+    }
+    let main = env_or("EVENT_QUEUE_KEY", "confvision:eventos");
+    format!("{main}:dlq")
 }
 
 /// Perfil VPS alinhado ao worker Python (`FRAME_SKIP`, `MOTION_FRAME_SKIP`, FPS menor).
