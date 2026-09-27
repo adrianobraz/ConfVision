@@ -71,6 +71,12 @@ bash confvision-rust-processor/scripts/d3-event-verify.sh \
   "https://foxpro-rust-pilot-b.rkr351.easypanel.host"
 ```
 
+Sidecar + inferência HTTP (Node, sem jq):
+
+```bash
+node confvision-rust-processor/scripts/d3-online-test.mjs
+```
+
 Esperado no `/health` (D3):
 
 - `yolo_enabled`, `yolo_backend`, `yolo_device`
