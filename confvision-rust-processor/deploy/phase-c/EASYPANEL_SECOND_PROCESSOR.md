@@ -1,4 +1,6 @@
-# C4 — segundo rust-processor no EasyPanel
+# D1 / C4 — segundo rust-processor no EasyPanel
+
+Guia operacional: [`docs/FASE_D_D1_KICKOFF.md`](../../docs/FASE_D_D1_KICKOFF.md) · [`docs/FASE_D.md`](../../docs/FASE_D.md)
 
 ## Quando
 

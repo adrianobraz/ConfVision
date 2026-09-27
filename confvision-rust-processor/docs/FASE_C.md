@@ -1,5 +1,7 @@
 # Fase C — preparar escala (VPS foxpro + roadmap dedicado)
 
+> **Handoff:** operação piloto Rust-only + admission → continuar em **[FASE_D.md](./FASE_D.md)** (D1 em andamento).
+
 Fase C vem **depois** da Fase 1 (Rust ingest + sync + HTTP + deploy). Objetivo: **medir**, **observar**, **proteger CPU**, **repartir câmeras** e **preparar fila** — sem reescrever o worker Python inteiro nem exigir GPU na VPS atual.
 
 ## Resumo em uma frase
