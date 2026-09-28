@@ -1,7 +1,9 @@
-# Fase 0 — Checklist ops (piloto estável)
+# Fase 0 — Checklist ops (produção foxpro — todas analíticas)
 
-Objetivo: **1 câmera online** no Rust com métricas confiáveis, **sem mudar arquitetura** do binário.  
-Sem Xano — Postgres + API Go + EasyPanel/Proxmox.
+Objetivo: **todas** as câmeras analíticas ativas online nos Rust A/B, RTSP Opção A, métricas e eventos D3.  
+Sem Xano — Postgres + API Go + EasyPanel/Proxmox. **Worker Python permanece Stop.**
+
+Implantação automatizada (Windows): `confvision-rust-processor/scripts/implantar-fases.ps1` — ver [IMPLANTAR_FASES_0_4.md](./IMPLANTAR_FASES_0_4.md).
 
 Marque na ordem.
 
@@ -12,7 +14,7 @@ Marque na ordem.
 - [ ] API Go acessível: `CONFVISION_API_URL` (Rust) / `XANO_BASE_URL` (worker Python) = mesma base (ex.: `https://vision.confmonit2.com.br`).
 - [ ] `VIS_WORKER_API_KEY` e `RTMP_PUBLISH_SECRET` **iguais** em MTX, worker e Rust.
 - [ ] `vis_mediamtx_node_id` das câmeras alinhado a `MEDIAMTX_NODE_ID` (foxpro costuma usar `1`).
-- [ ] Redis/Postgres centrais operacionais (worker produção; Rust piloto pode `QUEUE_BACKEND=none`).
+- [ ] Redis/Postgres centrais operacionais (Fase 3: Rust `QUEUE_BACKEND=redis`; até lá `none` aceitável).
 
 ---
 
@@ -21,8 +23,9 @@ Marque na ordem.
 Ordem de start:
 
 1. [ ] **MediaMTX** (`confvision`, `Dockerfile-mediamtx`) — Running  
-2. [ ] **Publisher** (`confvision-worker`) — Running  
-3. [ ] **Rust** (`rust-pilot` / `confvision-rust-processor`) — Running  
+2. [ ] **Sidecar YOLO** (`rust-yolo-sidecar`) — Running  
+3. [ ] **Rust A + B** (`foxpro-rust-pilot`, `foxpro-rust-pilot-b`) — Running  
+4. [ ] **`confvision-worker` (Python)** — **Stop** (legado)
 
 Rede:
 
@@ -33,13 +36,12 @@ Referência: [RECUPERACAO_CAMERAS.md](../../../confvision-rust-processor/docs/RE
 
 ---
 
-## C. Banco (1 câmera piloto)
+## C. Banco (todas analíticas)
 
-- [ ] Câmera de teste: ativa, analítico conforme regras do Go (`vis_camera_sync_ativas`).
-- [ ] Anotar `worker_id` **anterior**.
-- [ ] `UPDATE vis_camera SET worker_id = '<PROCESSOR_ID>' WHERE id = <ID>;`  
-  Ex.: `rust-processor-pilot-01` ou `ct_cli_<cliente>`.
-- [ ] Aguardar 1–2× `SYNC_INTERVAL_SEC` ou reiniciar Rust.
+- [ ] Opção A: `rtsp_url_sec` em todas (`opcao-a-apply-all.ps1 -AllCameras`).
+- [ ] `worker_id` Rust A ou B em cada analítica (`d5-auto-assign-analiticas.ps1` ou D5 API).
+- [ ] Auditoria: `audit-analiticas.ps1` → 0 sem RTSP / 0 sem worker.
+- [ ] Aguardar 1–2× `SYNC_INTERVAL_SEC` ou reiniciar Rust A/B.
 
 ---
 
@@ -68,12 +70,12 @@ Logs Rust:
 HTTP:
 
 - [ ] `/ready` → `"ready": true` (após warm-up)
-- [ ] `/health` → `cameras_online: 1`, `fps_total > 0`
+- [ ] `/health` A+B → `cameras_online` ≈ total assignado por processor, `fps_total > 0`
 - [ ] `/metrics` → `frames_received` crescente; `rtsp_hotpath.session_next_calls` > 0
 
 Baseline CPU:
 
-- [ ] Anotar `capacity.cpu.percent` com 1 câmera online (referência para sizing GPU).
+- [ ] Anotar `capacity.cpu.percent` com carga total (referência Fase 5 / GPU).
 
 ---
 

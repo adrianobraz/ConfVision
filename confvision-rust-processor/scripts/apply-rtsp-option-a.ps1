@@ -6,7 +6,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$base = ($env:CONFVISION_API_URL ?? "https://vision.confmonit2.com.br").TrimEnd("/")
+$base = if ($env:CONFVISION_API_URL) { $env:CONFVISION_API_URL } else { "https://vision.confmonit2.com.br" }
+$base = $base.TrimEnd("/")
 $key = $env:VIS_WORKER_API_KEY
 if (-not $key) {
     throw "Defina VIS_WORKER_API_KEY (mesma chave dos processors Rust / visapi)."
@@ -27,12 +28,14 @@ if ($rows.Count -eq 0) {
 }
 
 foreach ($row in $rows) {
-    $id = ($row.id ?? $row.vis_camera_id).ToString().Trim()
+    $rawId = if ($row.id) { $row.id } else { $row.vis_camera_id }
+    $id = $rawId.ToString().Trim()
     if (-not $id) { continue }
 
-    $rtsp = ($row.rtsp_url_sec ?? "").Trim()
+    $rtsp = [string]$row.rtsp_url_sec
+    $rtsp = $rtsp.Trim()
     if (-not $rtsp) {
-        Write-Warning "camera id=$id sem rtsp_url_sec — ignorando"
+        Write-Warning "camera id=$id sem rtsp_url_sec - ignorando"
         continue
     }
     $lower = $rtsp.ToLowerInvariant()
@@ -46,7 +49,8 @@ foreach ($row in $rows) {
     }
 
     $body = @{ rtsp_url_sec = $rtsp }
-    $despausar = ($row.despausar_analitico ?? "").ToString().Trim().ToLowerInvariant()
+    $despausar = [string]$row.despausar_analitico
+    $despausar = $despausar.Trim().ToLowerInvariant()
     if ($despausar -in @("1", "true", "yes", "sim")) {
         $body.analitico_pausado = $false
     }

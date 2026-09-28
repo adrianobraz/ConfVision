@@ -112,6 +112,16 @@ impl StreamPolicyState {
             return StreamHealthAction::RetryAfter(delay);
         }
 
+        if class == StreamFailureClass::PathAbsent {
+            self.failures_consecutive = self.failures_consecutive.saturating_add(1);
+            let delay = Duration::from_secs(cfg.delay_path_absent_secs.max(30));
+            self.next_probe_at = Some(
+                Utc::now()
+                    + chrono::Duration::from_std(delay).unwrap_or(chrono::Duration::minutes(2)),
+            );
+            return StreamHealthAction::RetryAfter(delay);
+        }
+
         self.failures_consecutive = self.failures_consecutive.saturating_add(1);
 
         if !self.ever_stream_ok && grace_elapsed(cfg, camera_created_at) {

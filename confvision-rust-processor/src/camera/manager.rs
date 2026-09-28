@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -34,6 +34,7 @@ pub struct CameraManager {
     global_frames: Arc<AtomicU64>,
     stream_policies: Arc<RwLock<HashMap<i64, Arc<RwLock<StreamPolicyState>>>>>,
     pending_stream_health: Arc<RwLock<Vec<CameraStreamHealthReport>>>,
+    load_shed_ids: Arc<RwLock<HashSet<i64>>>,
 }
 
 impl CameraManager {
@@ -44,6 +45,7 @@ impl CameraManager {
         acceleration: Arc<AccelerationRuntime>,
         decode_policy: Arc<DecodePolicyCoordinator>,
         load_admission: Arc<LoadAdmissionGate>,
+        load_shed_ids: Arc<RwLock<HashSet<i64>>>,
     ) -> Self {
         let (shutdown, shutdown_rx) = watch::channel(false);
         Self {
@@ -60,6 +62,7 @@ impl CameraManager {
             global_frames: Arc::new(AtomicU64::new(0)),
             stream_policies: Arc::new(RwLock::new(HashMap::new())),
             pending_stream_health: Arc::new(RwLock::new(Vec::new())),
+            load_shed_ids,
         }
     }
 
@@ -141,6 +144,9 @@ impl CameraManager {
 
         for cam in limited {
             if self.handles.read().await.contains_key(&cam.id) {
+                continue;
+            }
+            if self.load_shed_ids.read().await.contains(&cam.id) {
                 continue;
             }
             if !self.load_admission.allow_new_camera().await {
@@ -252,6 +258,29 @@ impl CameraManager {
     pub fn total_frames(&self) -> u64 {
         self.global_frames.load(Ordering::Relaxed)
     }
+
+    /// Câmera com menor FPS (carga) para load shedding.
+    pub async fn pick_camera_to_shed(&self) -> Option<i64> {
+        let handles = self.handles.read().await;
+        if handles.is_empty() {
+            return None;
+        }
+        let states = self.states.read().await;
+        let mut best: Option<(i64, f64)> = None;
+        for id in handles.keys() {
+            let fps = if let Some(s) = states.get(id) {
+                s.read().await.fps
+            } else {
+                0.0
+            };
+            match best {
+                None => best = Some((*id, fps)),
+                Some((_, f)) if fps < f => best = Some((*id, fps)),
+                _ => {}
+            }
+        }
+        best.map(|(id, _)| id)
+    }
 }
 
 #[cfg(test)]
@@ -304,6 +333,7 @@ mod tests {
             acceleration,
             decode_policy,
             admission,
+            Arc::new(RwLock::new(HashSet::new())),
         );
         let cams: Vec<CameraRecord> = (1..=5)
             .map(|id| CameraRecord {
@@ -457,6 +487,7 @@ mod tests {
             acceleration,
             decode_policy,
             admission,
+            Arc::new(RwLock::new(HashSet::new())),
         );
 
         let cam1 = CameraRecord {

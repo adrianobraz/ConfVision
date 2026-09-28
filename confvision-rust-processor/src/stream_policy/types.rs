@@ -33,6 +33,8 @@ pub struct StreamRetryConfig {
     pub delay_fail_20_29_secs: u64,
     pub delay_fail_30_59_secs: u64,
     pub delay_fail_60_plus_secs: u64,
+    /// RTSP 404 / path ausente — backoff longo imediato (não martelar MediaMTX).
+    pub delay_path_absent_secs: u64,
 }
 
 impl StreamRetryConfig {
@@ -48,6 +50,7 @@ impl StreamRetryConfig {
             delay_fail_20_29_secs: 1200,
             delay_fail_30_59_secs: 1800,
             delay_fail_60_plus_secs: 3600,
+            delay_path_absent_secs: 120,
         }
     }
 }

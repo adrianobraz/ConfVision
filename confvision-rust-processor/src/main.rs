@@ -40,7 +40,7 @@ use crate::decode::{AccelerationPolicy, AccelerationRuntime, DecodePolicyCoordin
 use crate::health::{
     capacity_report_handler, health_handler, metrics_handler, ready_handler, AppState,
 };
-use crate::load::LoadAdmissionGate;
+use crate::load::{spawn_load_shedding_loop, LoadAdmissionGate, LoadSheddingCoordinator};
 use crate::metrics::ProcessorMetrics;
 
 #[tokio::main]
@@ -126,6 +126,7 @@ async fn main() {
     let api_ready = Arc::new(AtomicBool::new(false));
     let capacity = CapacityEngine::new(cfg.as_ref());
     let load_admission = LoadAdmissionGate::new(capacity.clone(), cfg.load_policy_config());
+    let load_shedding = LoadSheddingCoordinator::new((*cfg).clone(), capacity.clone());
 
     let manager = Arc::new(CameraManager::new(
         (*cfg).clone(),
@@ -134,7 +135,14 @@ async fn main() {
         acceleration.clone(),
         decode_policy.clone(),
         load_admission.clone(),
+        load_shedding.shed_ids_handle(),
     ));
+
+    spawn_load_shedding_loop(
+        load_shedding,
+        manager.clone(),
+        std::time::Duration::from_secs(10),
+    );
 
     let app_state = AppState {
         metrics: metrics.clone(),

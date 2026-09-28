@@ -1,8 +1,9 @@
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
 use serde_json::Value;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Semaphore};
 use tracing::{debug, info, warn};
 
 use crate::capture::write_detection_snapshot;
@@ -20,6 +21,7 @@ use super::rules::{
 #[derive(Default)]
 pub struct DetectionStats {
     pub yolo_inferences: AtomicU64,
+    pub yolo_skipped_busy: AtomicU64,
     pub matches: AtomicU64,
     pub events_published: AtomicU64,
     pub events_queue_full: AtomicU64,
@@ -36,6 +38,9 @@ pub struct DetectionContext {
     frame_index: AtomicU64,
     last_emit_epoch: Mutex<f64>,
     yolo_miss_streak: Mutex<u32>,
+    /// Após pessoa confirmada: só captura, sem YOLO até movimento acabar.
+    incident_active: AtomicBool,
+    yolo_inflight: Arc<Semaphore>,
 }
 
 impl DetectionContext {
@@ -48,6 +53,7 @@ impl DetectionContext {
         stats: Arc<DetectionStats>,
         motion_gate: Option<Arc<MotionGatedSession>>,
     ) -> Arc<Self> {
+        let max = cfg.yolo_max_inflight.max(1);
         Arc::new(Self {
             camera_id,
             camera,
@@ -59,7 +65,17 @@ impl DetectionContext {
             frame_index: AtomicU64::new(0),
             last_emit_epoch: Mutex::new(0.0),
             yolo_miss_streak: Mutex::new(0),
+            incident_active: AtomicBool::new(false),
+            yolo_inflight: Arc::new(Semaphore::new(max)),
         })
+    }
+
+    fn clear_incident_if_idle(&self) {
+        if let Some(gate) = self.motion_gate.as_ref() {
+            if !gate.is_armed() {
+                self.incident_active.store(false, Ordering::Relaxed);
+            }
+        }
     }
 
     pub async fn on_decoded_frame(self: &Arc<Self>, decoded: &DecodedFrame, motion_detected: bool) {
@@ -67,6 +83,20 @@ impl DetectionContext {
             return;
         }
         if !camera_deteccao_humano(&self.camera) {
+            return;
+        }
+
+        self.clear_incident_if_idle();
+
+        if self.incident_active.load(Ordering::Relaxed) {
+            if motion_detected {
+                let _ = write_detection_snapshot(
+                    self.camera_id,
+                    &decoded.luma,
+                    &self.cfg.capture_dir,
+                    self.cfg.snapshot_jpeg_quality,
+                );
+            }
             return;
         }
 
@@ -99,8 +129,36 @@ impl DetectionContext {
             }
         };
 
+        if self.cfg.yolo_infer_async {
+            let permit = match self.yolo_inflight.clone().try_acquire_owned() {
+                Ok(p) => p,
+                Err(_) => {
+                    self.stats
+                        .yolo_skipped_busy
+                        .fetch_add(1, Ordering::Relaxed);
+                    return;
+                }
+            };
+            let ctx = Arc::clone(self);
+            let frame = decoded.clone();
+            tokio::spawn(async move {
+                let _permit = permit;
+                let timeout = Duration::from_secs(ctx.cfg.yolo_http_timeout_sec.max(5));
+                match tokio::time::timeout(timeout, ctx.run_yolo_pipeline(&jpeg, &frame)).await {
+                    Ok(()) => {}
+                    Err(_) => {
+                        warn!(camera_id = ctx.camera_id, "yolo infer timeout (async)");
+                    }
+                }
+            });
+        } else {
+            self.run_yolo_pipeline(&jpeg, decoded).await;
+        }
+    }
+
+    async fn run_yolo_pipeline(self: &Arc<Self>, jpeg: &[u8], decoded: &DecodedFrame) {
         self.stats.yolo_inferences.fetch_add(1, Ordering::Relaxed);
-        let detections = match self.yolo.infer_jpeg(&jpeg).await {
+        let detections = match self.yolo.infer_jpeg(jpeg).await {
             Ok(d) => d,
             Err(e) => {
                 warn!(camera_id = self.camera_id, error = %e, "yolo infer");
@@ -131,6 +189,7 @@ impl DetectionContext {
         }
 
         self.stats.matches.fetch_add(1, Ordering::Relaxed);
+        self.incident_active.store(true, Ordering::Relaxed);
 
         let now = chrono::Utc::now().timestamp_millis() as f64 / 1000.0;
         let cooldown = camera_cooldown_sec(&self.camera);

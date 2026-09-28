@@ -13,6 +13,7 @@ pub const MOTION_PERCENT_THRESHOLD: u32 = 5;
 pub struct MotionSensitivity {
     pub pixel_diff_threshold: u8,
     pub motion_percent_threshold: u32,
+    pub scene_shift_percent: u32,
 }
 
 impl Default for MotionSensitivity {
@@ -20,6 +21,7 @@ impl Default for MotionSensitivity {
         Self {
             pixel_diff_threshold: PIXEL_DIFF_THRESHOLD,
             motion_percent_threshold: MOTION_PERCENT_THRESHOLD,
+            scene_shift_percent: 35,
         }
     }
 }
@@ -29,6 +31,7 @@ impl MotionSensitivity {
         Self {
             pixel_diff_threshold: cfg.motion_pixel_diff_threshold,
             motion_percent_threshold: cfg.motion_percent_threshold,
+            scene_shift_percent: cfg.motion_scene_shift_percent,
         }
     }
 }
@@ -37,6 +40,8 @@ impl MotionSensitivity {
 pub enum MotionOutcome {
     /// Primeiro frame válido — referência armazenada, sem movimento.
     ReferenceSet,
+    /// Cenário global mudou (sol/chuva/noite) — referência atualizada, sem movimento.
+    SceneUpdated,
     /// Comparação frame-a-frame concluída.
     Analyzed {
         detected: bool,

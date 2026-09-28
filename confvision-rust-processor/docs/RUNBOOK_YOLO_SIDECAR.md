@@ -32,7 +32,13 @@ YOLO_MODEL=yolov8n.pt
 YOLO_DEVICE=cpu
 YOLO_HTTP_PORT=8091
 YOLO_CONFIG_DIR=/tmp/Ultralytics
+YOLO_WORKERS=auto
+YOLO_WORKERS_MAX=4
+YOLO_MAX_QUEUE=8
+YOLO_INFER_SLOTS=2
 ```
+
+Health: `GET /health` → 200 ok, 503 se fila cheia.
 
 ## Build EasyPanel (pip / hash)
 

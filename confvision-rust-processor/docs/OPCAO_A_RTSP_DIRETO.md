@@ -48,7 +48,9 @@ Regras:
 
 ### A) Painel ConfVision
 
-Editar câmera → campo RTSP secundário / URL RTSP → salvar. Despausar analítico se necessário.
+**Cadastro novo:** se `RTMP_PUBLISH_SECRET` e base RTSP estiverem configurados, o Go preenche **`rtsp_url_sec` automaticamente** após o INSERT (`rtsp://{base}/cam/{hash12}` do nó MediaMTX ou `MEDIAMTX_RTSP_BASE`). Não sobrescreve URL RTSP explícita no formulário.
+
+Editar câmera → campo RTSP secundário / URL RTSP → salvar (manual ou override). Despausar analítico se necessário.
 
 ### B) API Go (lote) — `VIS_WORKER_API_KEY`
 

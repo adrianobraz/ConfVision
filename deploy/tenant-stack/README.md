@@ -2,7 +2,7 @@
 
 Provisionamento **multi-tenant** (Proxmox / Docker Compose) para o modelo atual:
 
-**Câmera → RTMP → MediaMTX → RTSP → Rust (processamento)** + **worker Python (ingest/publicação)**.
+**Câmera → RTSP Opção A (`rtsp_url_sec`) / MediaMTX → Rust A/B + sidecar YOLO**. Worker Python **descontinuado**.
 
 Sem Xano. Control plane: API Go (`CONFVISION_API_URL` / `XANO_BASE_URL` no worker Python).
 
@@ -12,7 +12,8 @@ Sem Xano. Control plane: API Go (`CONFVISION_API_URL` / `XANO_BASE_URL` no worke
 
 | Fase | Arquivo |
 |------|---------|
-| **0 — Ops / piloto estável** | [docs/FASE0_CHECKLIST_OPS.md](./docs/FASE0_CHECKLIST_OPS.md) |
+| **0–4 — Implantar tudo (ops)** | [docs/IMPLANTAR_FASES_0_4.md](./docs/IMPLANTAR_FASES_0_4.md) |
+| **0 — Checklist produção** | [docs/FASE0_CHECKLIST_OPS.md](./docs/FASE0_CHECKLIST_OPS.md) |
 | **1 — Novo tenant** | [docs/FASE1_PROVISIONAMENTO_TENANT.md](./docs/FASE1_PROVISIONAMENTO_TENANT.md) |
 | Recuperação incidentes | [../../confvision-rust-processor/docs/RECUPERACAO_CAMERAS.md](../../confvision-rust-processor/docs/RECUPERACAO_CAMERAS.md) |
 
@@ -44,7 +45,7 @@ docker compose -f docker-compose.tenant.example.yml --env-file .env.tenant up -d
 ./scripts/tenant-stack-smoke.sh
 ```
 
-EasyPanel: equivalente a **3 apps** na mesma rede (`confvision`, `confvision-worker`, `rust-processor`) por tenant — ver Fase 1.
+EasyPanel foxpro: **MediaMTX + sidecar + 2× Rust** (sem `confvision-worker`). Novo tenant: ver Fase 1.
 
 ---
 

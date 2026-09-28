@@ -36,7 +36,7 @@ impl YoloRuntime {
                 let url = cfg.yolo_http_url.as_ref().ok_or_else(|| {
                     AppError::Config("YOLO_BACKEND=http exige YOLO_HTTP_URL".into())
                 })?;
-                let client = HttpYoloClient::new(url)?;
+                let client = HttpYoloClient::new(url, cfg.yolo_http_timeout_sec)?;
                 info!(url = %url, "YOLO HTTP sidecar configurado");
                 Ok(Self::Http(Arc::new(client)))
             }

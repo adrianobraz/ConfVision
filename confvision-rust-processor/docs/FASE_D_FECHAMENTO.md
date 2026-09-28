@@ -99,6 +99,12 @@ CT111 (cron): `tail -50 /var/log/foxpro-d6-verify.log`
 
 ---
 
+## Implantar fases 0–4 (todas câmeras)
+
+Roteiro único + script: [IMPLANTAR_FASES_0_4.md](../../deploy/tenant-stack/docs/IMPLANTAR_FASES_0_4.md) · `scripts/implantar-fases.ps1`
+
+---
+
 ## Referências
 
 - [FASE_D.md](./FASE_D.md) — visão geral Fase D  

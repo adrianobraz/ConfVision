@@ -7,17 +7,17 @@ use super::types::{
     MOTION_PERCENT_THRESHOLD, PIXEL_DIFF_THRESHOLD,
 };
 
-/// Detector frame-a-frame sobre grade Y reduzida (stateful por sessão consumer).
+/// Detector com referência de **cenário** (lenta) vs **movimento** (rápido).
 #[derive(Debug)]
 pub struct MotionDetector {
-    reference: Option<Arc<[u8]>>,
+    scene: Option<Arc<[u8]>>,
     sensitivity: MotionSensitivity,
 }
 
 impl Default for MotionDetector {
     fn default() -> Self {
         Self {
-            reference: None,
+            scene: None,
             sensitivity: MotionSensitivity::default(),
         }
     }
@@ -30,12 +30,22 @@ impl MotionDetector {
 
     pub fn with_sensitivity(sensitivity: MotionSensitivity) -> Self {
         Self {
-            reference: None,
+            scene: None,
             sensitivity,
         }
     }
 
-    /// Analisa o frame decodificado. Primeiro frame válido só define referência.
+    fn diff_score_percent(luma: &[u8], reference: &[u8], pixel_threshold: u8) -> u32 {
+        let mut changed = 0u32;
+        for (a, b) in luma.iter().zip(reference.iter()) {
+            if a.abs_diff(*b) >= pixel_threshold {
+                changed += 1;
+            }
+        }
+        (changed * 100) / LUMA_PIXELS as u32
+    }
+
+    /// Analisa o frame decodificado contra referência de cenário.
     pub fn analyze(&mut self, frame: &DecodedFrame) -> MotionOutcome {
         let luma = &frame.luma;
         if luma.len() != LUMA_PIXELS
@@ -45,28 +55,28 @@ impl MotionDetector {
             return MotionOutcome::Error;
         }
 
-        let Some(reference) = self.reference.as_ref() else {
-            self.reference = Some(Arc::clone(luma));
+        let Some(scene) = self.scene.as_ref() else {
+            self.scene = Some(Arc::clone(luma));
             return MotionOutcome::ReferenceSet;
         };
 
-        if reference.len() != LUMA_PIXELS {
-            self.reference = Some(Arc::clone(luma));
+        if scene.len() != LUMA_PIXELS {
+            self.scene = Some(Arc::clone(luma));
             return MotionOutcome::ReferenceSet;
         }
 
-        let mut changed = 0u32;
-        for (a, b) in luma.iter().zip(reference.iter()) {
-            let diff = a.abs_diff(*b);
-            if diff >= self.sensitivity.pixel_diff_threshold {
-                changed += 1;
-            }
+        let score_percent = Self::diff_score_percent(
+            luma,
+            scene,
+            self.sensitivity.pixel_diff_threshold,
+        );
+
+        if score_percent >= self.sensitivity.scene_shift_percent {
+            self.scene = Some(Arc::clone(luma));
+            return MotionOutcome::SceneUpdated;
         }
 
-        let score_percent = (changed * 100) / LUMA_PIXELS as u32;
         let detected = score_percent >= self.sensitivity.motion_percent_threshold;
-
-        self.reference = Some(Arc::clone(luma));
 
         MotionOutcome::Analyzed {
             detected,
@@ -140,7 +150,11 @@ mod tests {
 
     #[test]
     fn large_shift_triggers_motion() {
-        let mut det = MotionDetector::new();
+        let mut det = MotionDetector::with_sensitivity(MotionSensitivity {
+            pixel_diff_threshold: PIXEL_DIFF_THRESHOLD,
+            motion_percent_threshold: 5,
+            scene_shift_percent: 101,
+        });
         assert_eq!(det.analyze(&solid(0)), MotionOutcome::ReferenceSet);
         let out = det.analyze(&solid(255));
         assert!(matches!(
@@ -150,6 +164,18 @@ mod tests {
                 score_percent: 100
             }
         ));
+    }
+
+    #[test]
+    fn full_scene_change_updates_without_motion_alarm() {
+        let mut det = MotionDetector::with_sensitivity(MotionSensitivity {
+            pixel_diff_threshold: PIXEL_DIFF_THRESHOLD,
+            motion_percent_threshold: 5,
+            scene_shift_percent: 50,
+        });
+        assert_eq!(det.analyze(&solid(10)), MotionOutcome::ReferenceSet);
+        let out = det.analyze(&solid(200));
+        assert_eq!(out, MotionOutcome::SceneUpdated);
     }
 
     #[test]

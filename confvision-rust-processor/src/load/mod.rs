@@ -1,7 +1,9 @@
 mod policy;
+mod shedding;
 mod types;
 
 pub use policy::{allow_new_camera, evaluate_load};
+pub use shedding::{spawn_load_shedding_loop, LoadSheddingCoordinator};
 pub use types::{LoadAdvisory, LoadAdvisoryResult, LoadPolicyConfig, LoadPolicyMode};
 
 use std::sync::Arc;

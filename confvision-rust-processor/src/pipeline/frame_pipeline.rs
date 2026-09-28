@@ -531,6 +531,20 @@ pub async fn run_frame_consumer(
                                                 }),
                                             }
                                         }
+                                        Ok(MotionOutcome::SceneUpdated) => {
+                                            tracing::debug!(seq = f.seq, "motion scene updated");
+                                            apply_motion_gate(motion_gate.as_ref(), false, true);
+                                            ConsumerFrameOutcome::Decoded {
+                                                decode_ms,
+                                                motion: Some(ConsumerMotionStats {
+                                                    score_percent: 0,
+                                                    detected: false,
+                                                    latency_ms: motion_started
+                                                        .elapsed()
+                                                        .as_millis() as u64,
+                                                }),
+                                            }
+                                        }
                                         Ok(MotionOutcome::Analyzed {
                                             detected,
                                             score_percent,

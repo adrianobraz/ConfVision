@@ -8,7 +8,10 @@ Data referência: **2026-09-26**
 |-----|-----------|----------------|
 | `https://foxpro-rust-pilot.rkr351.easypanel.host/health` | **200** ok | Rust pilot operacional |
 | `https://foxpro-confvision.rkr351.easypanel.host/` | **200** | MediaMTX + Guard (`confvision`) up |
-| `https://foxpro-confvision-worker.rkr351.easypanel.host/` | **502** | Proxy existe; **container worker não está rodando** |
+| `https://foxpro-confvision-worker.rkr351.easypanel.host/` | **503** | HTML **"Service is not started"** — serviço **parado no EasyPanel** (não só crash) |
+
+Sonda automatizada: `confvision-rust-processor/scripts/foxpro-stack-verify.ps1` (Windows) ou `foxpro-stack-verify.sh`.
+Análise: `confvision-rust-processor/docs/DIAGNOSTICO_WORKER_FOXPRO_2026-09-26.md`.
 
 Erro típico no painel: **`No such image: easypanel/foxpro/confvision-worker:latest`** → imagem **nunca buildada** ou **removida**; serviço **amarelo**.
 

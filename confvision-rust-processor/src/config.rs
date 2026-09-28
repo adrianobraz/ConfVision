@@ -125,6 +125,8 @@ pub struct Config {
     pub rtsp_idle_suspend: bool,
     pub motion_pixel_diff_threshold: u8,
     pub motion_percent_threshold: u32,
+    /// Mudança global (sol/chuva/noite): atualiza referência de cenário, sem alarme.
+    pub motion_scene_shift_percent: u32,
     pub sync_filter_worker_id: bool,
     pub stream_retry: crate::stream_policy::StreamRetryConfig,
     // D3 — YOLO + captura
@@ -134,6 +136,9 @@ pub struct Config {
     pub yolo_model_path: Option<String>,
     pub yolo_conf_default: f64,
     pub yolo_frame_stride: usize,
+    pub yolo_http_timeout_sec: u64,
+    pub yolo_max_inflight: usize,
+    pub yolo_infer_async: bool,
     pub capture_enabled: bool,
     pub capture_workers: usize,
     pub capture_dir: std::path::PathBuf,
@@ -141,6 +146,11 @@ pub struct Config {
     pub snapshot_jpeg_quality: u8,
     pub s3_access_key: Option<String>,
     pub s3_secret_key: Option<String>,
+    pub load_shedding_enabled: bool,
+    pub load_shed_enter_percent: f64,
+    pub load_shed_exit_percent: f64,
+    pub load_shed_enter_secs: u64,
+    pub load_shed_exit_secs: u64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -299,6 +309,7 @@ impl Config {
             rtsp_idle_suspend: rtsp_idle_suspend_from_env(),
             motion_pixel_diff_threshold: motion_pixel_diff_from_env(),
             motion_percent_threshold: motion_percent_from_env(),
+            motion_scene_shift_percent: env_u32("MOTION_SCENE_SHIFT_PERCENT", 35).clamp(15, 95),
             sync_filter_worker_id: env_bool("SYNC_FILTER_WORKER_ID", true),
             stream_retry: stream_retry_config_from_env(),
             yolo_enabled: env_bool("YOLO_ENABLED", false),
@@ -307,17 +318,25 @@ impl Config {
             yolo_model_path: non_empty_opt("YOLO_MODEL_PATH"),
             yolo_conf_default: env_f64("YOLO_CONF_DEFAULT", 0.5).clamp(0.01, 1.0),
             yolo_frame_stride: env_usize("YOLO_FRAME_STRIDE", env_usize("FRAME_SKIP", 5)).max(1),
+            yolo_http_timeout_sec: env_u64("YOLO_HTTP_TIMEOUT_SEC", 60).max(5),
+            yolo_max_inflight: env_usize("YOLO_MAX_INFLIGHT", 4).max(1),
+            yolo_infer_async: env_bool("YOLO_INFER_ASYNC", true),
             capture_enabled: {
                 let qb = env_or("QUEUE_BACKEND", "none").to_ascii_lowercase();
                 let default_cap = env_bool("YOLO_ENABLED", false) && qb != "none";
                 env_bool("CAPTURE_ENABLED", default_cap)
             },
-            capture_workers: env_usize("CAPTURE_WORKERS", 4).max(1),
+            capture_workers: capture_workers_from_env(),
             capture_dir: std::path::PathBuf::from(env_or("CAPTURE_DIR", "/tmp/confvision")),
             clip_duracao_seg: env_u32("CLIP_DURACAO_SEG", 20).max(1),
             snapshot_jpeg_quality: env_u32("SNAPSHOT_JPEG_QUALITY", 85).min(100) as u8,
             s3_access_key: non_empty_opt("S3_ACCESS_KEY"),
             s3_secret_key: non_empty_opt("S3_SECRET_KEY"),
+            load_shedding_enabled: env_bool("LOAD_SHEDDING_ENABLED", true),
+            load_shed_enter_percent: env_f64("LOAD_SHED_ENTER_PERCENT", 92.0),
+            load_shed_exit_percent: env_f64("LOAD_SHED_EXIT_PERCENT", 85.0),
+            load_shed_enter_secs: env_u64("LOAD_SHED_ENTER_SEC", 120).max(30),
+            load_shed_exit_secs: env_u64("LOAD_SHED_EXIT_SEC", 300).max(60),
         })
     }
 
@@ -378,6 +397,7 @@ impl Config {
             rtsp_idle_suspend: false,
             motion_pixel_diff_threshold: 8,
             motion_percent_threshold: 5,
+            motion_scene_shift_percent: 35,
             sync_filter_worker_id: true,
             stream_retry: crate::stream_policy::StreamRetryConfig::defaults(),
             yolo_enabled: false,
@@ -386,6 +406,9 @@ impl Config {
             yolo_model_path: None,
             yolo_conf_default: 0.5,
             yolo_frame_stride: 5,
+            yolo_http_timeout_sec: 60,
+            yolo_max_inflight: 4,
+            yolo_infer_async: true,
             capture_enabled: false,
             capture_workers: 2,
             capture_dir: std::path::PathBuf::from("/tmp/confvision"),
@@ -393,6 +416,11 @@ impl Config {
             snapshot_jpeg_quality: 85,
             s3_access_key: None,
             s3_secret_key: None,
+            load_shedding_enabled: false,
+            load_shed_enter_percent: 92.0,
+            load_shed_exit_percent: 85.0,
+            load_shed_enter_secs: 120,
+            load_shed_exit_secs: 300,
         }
     }
 
@@ -525,6 +553,19 @@ fn stream_retry_config_from_env() -> crate::stream_policy::StreamRetryConfig {
         delay_fail_20_29_secs: env_u64("STREAM_DELAY_20_29_SEC", d.delay_fail_20_29_secs),
         delay_fail_30_59_secs: env_u64("STREAM_DELAY_30_59_SEC", d.delay_fail_30_59_secs),
         delay_fail_60_plus_secs: env_u64("STREAM_DELAY_60_PLUS_SEC", d.delay_fail_60_plus_secs),
+        delay_path_absent_secs: env_u64("STREAM_DELAY_404_SEC", d.delay_path_absent_secs),
+    }
+}
+
+fn capture_workers_from_env() -> usize {
+    let raw = env_or("CAPTURE_WORKERS", "auto");
+    if raw.eq_ignore_ascii_case("auto") {
+        std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(2)
+            .clamp(1, 8)
+    } else {
+        raw.parse::<usize>().unwrap_or(2).max(1)
     }
 }
 
@@ -621,9 +662,17 @@ fn parse_load_policy_mode(raw: &str) -> AppResult<crate::load::LoadPolicyMode> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Mutex, MutexGuard};
+
+    static ENV_TEST_LOCK: Mutex<()> = Mutex::new(());
+
+    fn env_test_lock() -> MutexGuard<'static, ()> {
+        ENV_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner())
+    }
 
     #[test]
     fn rejects_xano_api_url() {
+        let _lock = env_test_lock();
         std::env::set_var("CONFVISION_API_URL", "https://foo.xano.io/api:abc");
         std::env::remove_var("XANO_BASE_URL");
         let err = Config::from_env().unwrap_err();
@@ -633,6 +682,7 @@ mod tests {
 
     #[test]
     fn rejects_xano_base_env() {
+        let _lock = env_test_lock();
         std::env::set_var("CONFVISION_API_URL", "https://vision.example.com");
         std::env::set_var("XANO_BASE_URL", "https://legacy.xano.io/x");
         let err = Config::from_env().unwrap_err();

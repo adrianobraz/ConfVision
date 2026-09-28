@@ -9,15 +9,40 @@ const PILOTS = [
 const JPEG_1X1 =
   "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAABAAEDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAAAf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA//2Q==";
 
+const args = new Set(process.argv.slice(2));
+const QUICK = args.has("--quick");
+const FULL = args.has("--full") || !QUICK;
+
+const SIDECAR_TIMEOUT_MS = FULL ? 180_000 : 30_000;
+
 let fail = 0;
 
-async function postJson(url, body, label) {
+function fetchWithTimeout(url, opts = {}, ms = 30_000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(t));
+}
+
+async function postJson(url, body, label, timeoutMs) {
   const t0 = Date.now();
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  let res;
+  try {
+    res = await fetchWithTimeout(
+      url,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+      timeoutMs
+    );
+  } catch (e) {
+    console.log(`\n=== ${label} ===`);
+    console.log(`  URL: ${url}`);
+    console.log(`  FAIL: ${e.message || e} (${Date.now() - t0}ms)`);
+    fail++;
+    return { status: 0, parsed: null };
+  }
   const text = await res.text();
   let parsed;
   try {
@@ -34,7 +59,7 @@ async function postJson(url, body, label) {
 
 async function getHealth(base) {
   const url = `${base.replace(/\/$/, "")}/health`;
-  const res = await fetch(url);
+  const res = await fetchWithTimeout(url, {}, 30_000);
   const h = await res.json();
   console.log(`\n=== ${base} /health ===`);
   console.log(`  STATUS: ${res.status}`);
@@ -53,6 +78,8 @@ async function getHealth(base) {
     "events_queue_full",
     "cameras_online",
     "cameras_total",
+    "capacity_state",
+    "load_advisory",
   ];
   for (const k of keys) {
     if (h[k] !== undefined) console.log(`  ${k}=${JSON.stringify(h[k])}`);
@@ -69,12 +96,40 @@ async function getHealth(base) {
 }
 
 async function main() {
-  console.log("D3 online tests", new Date().toISOString());
+  console.log("D3 online tests", new Date().toISOString(), QUICK ? "(--quick)" : "(full)");
 
-  const root = await fetch(SIDECAR + "/");
-  console.log(`\n=== Sidecar GET / ===\n  STATUS: ${root.status}`);
+  for (const p of PILOTS) {
+    await getHealth(p);
+  }
 
-  const empty = await postJson(`${SIDECAR}/v1/detect`, { jpeg_base64: "" }, "Sidecar empty jpeg");
+  if (QUICK) {
+    if (fail) {
+      console.log(`\nRESULT: FAIL (${fail} checks)`);
+      process.exit(1);
+    }
+    console.log("\nRESULT: OK d3-online-test --quick");
+    return;
+  }
+
+  const health = await fetchWithTimeout(`${SIDECAR}/health`, {}, 15_000).catch(() => null);
+  if (health) {
+    console.log(`\n=== Sidecar GET /health ===\n  STATUS: ${health.status}`);
+    try {
+      console.log(`  BODY: ${JSON.stringify(await health.json())}`);
+    } catch {
+      /* ignore */
+    }
+  } else {
+    const root = await fetchWithTimeout(SIDECAR + "/", {}, 10_000).catch(() => null);
+    console.log(`\n=== Sidecar GET / ===\n  STATUS: ${root ? root.status : "timeout"}`);
+  }
+
+  const empty = await postJson(
+    `${SIDECAR}/v1/detect`,
+    { jpeg_base64: "" },
+    "Sidecar empty jpeg",
+    60_000
+  );
   if (empty.status !== 400) {
     console.log("  FAIL: esperado 400 para jpeg vazio");
     fail++;
@@ -83,7 +138,8 @@ async function main() {
   const infer = await postJson(
     `${SIDECAR}/v1/detect`,
     { jpeg_base64: JPEG_1X1 },
-    "Sidecar 1x1 jpeg infer"
+    "Sidecar 1x1 jpeg infer",
+    SIDECAR_TIMEOUT_MS
   );
   if (infer.status !== 200) {
     console.log("  FAIL: esperado 200 na inferência mínima");
@@ -94,10 +150,6 @@ async function main() {
       console.log("  FAIL: resposta sem width/height/detections");
       fail++;
     }
-  }
-
-  for (const p of PILOTS) {
-    await getHealth(p);
   }
 
   if (fail) {
