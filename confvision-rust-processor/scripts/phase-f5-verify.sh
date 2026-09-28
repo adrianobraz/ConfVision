@@ -26,8 +26,8 @@ done
 
 echo ""
 echo "-- snapshot test (header + 1 linha)"
-F5_HEADER=1 "${SCRIPT_DIR}/phase-f5-snapshot.sh" | head -1
-F5_STAGE=0 F5_NOTE=verify "${SCRIPT_DIR}/phase-f5-snapshot.sh" "$PILOT_A" | head -1
+F5_HEADER=1 bash "${SCRIPT_DIR}/phase-f5-snapshot.sh" | head -1
+F5_STAGE=0 F5_NOTE=verify bash "${SCRIPT_DIR}/phase-f5-snapshot.sh" "$PILOT_A" | head -1
 
 echo ""
 if [[ "$fail" -ne 0 ]]; then
@@ -35,4 +35,5 @@ if [[ "$fail" -ne 0 ]]; then
   exit 1
 fi
 echo "RESULT: OK Fase 5 verify (infra pronta; rampa requer câmeras no sync)"
-echo "Próximo: bash confvision-rust-processor/scripts/phase-f5-ramp-run.sh"
+echo "Ver câmeras online: bash confvision-rust-processor/scripts/phase-f5-health-metrics.sh"
+echo "Rampa CSV: bash confvision-rust-processor/scripts/phase-f5-ramp-run.sh"

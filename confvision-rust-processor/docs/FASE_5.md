@@ -31,7 +31,8 @@ Pare ou desacelere se por **≥5 min**:
 
 | Script | Uso |
 |--------|-----|
-| `phase-f5-verify.sh` | CT111: `/health`, `/capacity-report`, `/metrics` OK |
+| `phase-f5-health-metrics.sh` | **CT111:** `/health` + `/metrics` Rust A e B (câmeras online) |
+| `phase-f5-verify.sh` | CT111: endpoints HTTP 200 |
 | `phase-f5-snapshot.sh` | Uma linha CSV por processor |
 | `phase-f5-ramp-run.sh` | Rampa interativa + arquivo `ramp-f5-*.csv` |
 | `c1-ab-baseline.sh` | Amostras longas em um URL (legado C1) |
@@ -40,6 +41,7 @@ Pare ou desacelere se por **≥5 min**:
 ### CT111 / monitor (sem cargo)
 
 ```bash
+bash confvision-rust-processor/scripts/phase-f5-health-metrics.sh
 bash confvision-rust-processor/scripts/phase-f5-verify.sh
 ```
 

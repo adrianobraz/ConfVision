@@ -38,7 +38,7 @@ sum_online() {
 echo "=== Fase 5 ramp $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
 echo "stages=${STAGES} hold=${HOLD}s sample_every=${EVERY}s out=${OUT}"
 
-F5_HEADER=1 "${SCRIPT_DIR}/phase-f5-snapshot.sh" > "$OUT"
+F5_HEADER=1 bash "${SCRIPT_DIR}/phase-f5-snapshot.sh" > "$OUT"
 
 for target in $STAGES; do
   echo ""
@@ -53,7 +53,7 @@ for target in $STAGES; do
   while [[ $(date +%s) -lt $end ]]; do
     online="$(sum_online)"
     echo "[$(date -u +%H:%M:%S)] cameras_online total=${online} (meta ${target})"
-    F5_STAGE="$target" F5_NOTE="online=${online}" "${SCRIPT_DIR}/phase-f5-snapshot.sh" >> "$OUT"
+    F5_STAGE="$target" F5_NOTE="online=${online}" bash "${SCRIPT_DIR}/phase-f5-snapshot.sh" >> "$OUT"
     sleep "$EVERY"
   done
 
