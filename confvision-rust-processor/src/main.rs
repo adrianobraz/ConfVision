@@ -156,6 +156,7 @@ async fn main() {
         event_queue: event_queue.clone(),
         analytics: analytics.clone(),
         yolo: yolo.clone(),
+        camera_manager: manager.clone(),
     };
 
     let cap_metrics = metrics.clone();

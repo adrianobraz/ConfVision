@@ -35,6 +35,8 @@ pub struct CameraManager {
     stream_policies: Arc<RwLock<HashMap<i64, Arc<RwLock<StreamPolicyState>>>>>,
     pending_stream_health: Arc<RwLock<Vec<CameraStreamHealthReport>>>,
     load_shed_ids: Arc<RwLock<HashSet<i64>>>,
+    /// Câmeras do sync que aguardam headroom (admission); re-tentativa a cada sync.
+    pending_admission: Arc<RwLock<HashMap<i64, CameraRecord>>>,
 }
 
 impl CameraManager {
@@ -63,7 +65,12 @@ impl CameraManager {
             stream_policies: Arc::new(RwLock::new(HashMap::new())),
             pending_stream_health: Arc::new(RwLock::new(Vec::new())),
             load_shed_ids,
+            pending_admission: Arc::new(RwLock::new(HashMap::new())),
         }
+    }
+
+    pub async fn pending_admission_count(&self) -> usize {
+        self.pending_admission.read().await.len()
     }
 
     pub async fn drain_stream_health_reports(&self) -> Vec<CameraStreamHealthReport> {
@@ -142,24 +149,69 @@ impl CameraManager {
             let _ = self.policy_for_camera(cam).await;
         }
 
+        {
+            let mut pending = self.pending_admission.write().await;
+            pending.retain(|id, _| desired_ids.contains(id));
+        }
+
         for cam in limited {
-            if self.handles.read().await.contains_key(&cam.id) {
+            self.try_start_camera_from_sync(&cam).await;
+        }
+
+        self.drain_pending_admission(&desired_ids).await;
+    }
+
+    async fn try_start_camera_from_sync(&self, cam: &CameraRecord) {
+        if self.handles.read().await.contains_key(&cam.id) {
+            self.pending_admission.write().await.remove(&cam.id);
+            return;
+        }
+        if self.load_shed_ids.read().await.contains(&cam.id) {
+            return;
+        }
+        if !self.load_admission.allow_new_camera().await {
+            let pending_len = {
+                let mut pending = self.pending_admission.write().await;
+                pending.insert(cam.id, cam.clone());
+                pending.len()
+            };
+            info!(
+                camera_id = cam.id,
+                processor_id = %self.cfg.processor_id,
+                pending = pending_len,
+                "câmera aguardando recurso (fila admission; sessões ativas mantidas)"
+            );
+            return;
+        }
+        let camera_id = cam.id;
+        if let Err(e) = self.start_camera(cam.clone()).await {
+            warn!(camera_id, error = %e, "failed to start camera");
+        } else {
+            self.pending_admission.write().await.remove(&camera_id);
+        }
+    }
+
+    async fn drain_pending_admission(&self, desired_ids: &[i64]) {
+        let mut ids: Vec<i64> = self.pending_admission.read().await.keys().copied().collect();
+        ids.sort_unstable();
+        for id in ids {
+            if !desired_ids.contains(&id) {
                 continue;
             }
-            if self.load_shed_ids.read().await.contains(&cam.id) {
+            if self.handles.read().await.contains_key(&id) {
+                self.pending_admission.write().await.remove(&id);
+                continue;
+            }
+            if self.load_shed_ids.read().await.contains(&id) {
                 continue;
             }
             if !self.load_admission.allow_new_camera().await {
-                warn!(
-                    camera_id = cam.id,
-                    processor_id = %self.cfg.processor_id,
-                    "load admission rejected new camera (existing sessions unchanged)"
-                );
-                continue;
+                break;
             }
-            let camera_id = cam.id;
+            let cam = self.pending_admission.write().await.remove(&id);
+            let Some(cam) = cam else { continue };
             if let Err(e) = self.start_camera(cam).await {
-                warn!(camera_id, error = %e, "failed to start camera");
+                warn!(camera_id = id, error = %e, "failed to start camera from admission queue");
             }
         }
     }

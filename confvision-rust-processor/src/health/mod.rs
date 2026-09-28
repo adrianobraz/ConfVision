@@ -12,6 +12,7 @@ use crate::capacity::{CapacityEngine, CapacitySnapshot, CapacityState, LimitingR
 use crate::config::Config;
 use crate::decode::{AccelerationRuntime, DecodePolicyCoordinator};
 use crate::events::EventQueueHandle;
+use crate::camera::CameraManager;
 use crate::load::LoadAdmissionGate;
 use crate::metrics::{MetricsSnapshot, SharedMetrics};
 use crate::rtsp_hotpath::RtspHotpathMetrics;
@@ -66,6 +67,7 @@ pub struct AppState {
     pub event_queue: Arc<EventQueueHandle>,
     pub analytics: Arc<AnalyticsRuntime>,
     pub yolo: Arc<YoloRuntime>,
+    pub camera_manager: Arc<CameraManager>,
 }
 
 #[derive(Serialize)]
@@ -85,6 +87,7 @@ pub struct HealthResponse {
     pub cameras_offline: usize,
     pub cameras_reconnecting: usize,
     pub cameras_starting: usize,
+    pub cameras_pending_admission: usize,
     pub frames_received: u64,
     pub fps_total: f64,
     pub reconnects: u64,
@@ -146,6 +149,7 @@ pub async fn health_handler(State(st): State<AppState>) -> Json<HealthResponse> 
         cameras_offline: summary.offline,
         cameras_reconnecting: summary.reconnecting,
         cameras_starting: summary.starting,
+        cameras_pending_admission: st.camera_manager.pending_admission_count().await,
         frames_received: snap.frames_received,
         fps_total: summary.fps_total,
         reconnects: snap.reconnects,
@@ -391,6 +395,7 @@ mod integration_tests {
             cameras_offline: 0,
             cameras_reconnecting: 0,
             cameras_starting: 0,
+            cameras_pending_admission: 0,
             frames_received: 0,
             fps_total: 0.0,
             reconnects: 0,

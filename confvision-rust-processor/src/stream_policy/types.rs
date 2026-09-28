@@ -50,7 +50,7 @@ impl StreamRetryConfig {
             delay_fail_20_29_secs: 1200,
             delay_fail_30_59_secs: 1800,
             delay_fail_60_plus_secs: 3600,
-            delay_path_absent_secs: 120,
+            delay_path_absent_secs: 900,
         }
     }
 }

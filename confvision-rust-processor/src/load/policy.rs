@@ -82,7 +82,18 @@ pub fn evaluate_load(capacity: &CapacitySnapshot, config: &LoadPolicyConfig) -> 
 }
 
 pub fn allow_new_camera(capacity: &CapacitySnapshot, config: &LoadPolicyConfig) -> bool {
-    !config.admission_blocks_new_cameras(capacity)
+    if config.admission_blocks_new_cameras(capacity) {
+        return false;
+    }
+    if matches!(config.mode, LoadPolicyMode::Disabled) || !config.admission_enabled {
+        return true;
+    }
+    if let Some(avail) = capacity.estimated_available_cameras {
+        if avail <= 0 {
+            return false;
+        }
+    }
+    true
 }
 
 #[cfg(test)]

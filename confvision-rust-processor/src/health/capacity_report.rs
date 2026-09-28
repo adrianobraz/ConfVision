@@ -32,6 +32,7 @@ pub struct ReportSummary {
     pub cameras_offline: usize,
     pub cameras_reconnecting: usize,
     pub rtsp_404_count: usize,
+    pub cameras_pending_admission: usize,
     pub fps_total: f64,
 }
 
@@ -98,6 +99,7 @@ pub async fn capacity_report_handler(State(st): State<AppState>) -> Json<Capacit
         cameras_offline: summary_cam.offline,
         cameras_reconnecting: summary_cam.reconnecting,
         rtsp_404_count,
+        cameras_pending_admission: st.camera_manager.pending_admission_count().await,
         fps_total: summary_cam.fps_total,
     };
 

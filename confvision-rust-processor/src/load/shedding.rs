@@ -58,6 +58,11 @@ impl LoadSheddingCoordinator {
 
     pub async fn tick(&self, manager: &Arc<CameraManager>) {
         if !self.cfg.load_shedding_enabled {
+            let mut shed = self.shed_ids.write().await;
+            if !shed.is_empty() {
+                shed.clear();
+                info!("load shedding desligado: lista de bloqueio liberada (reabertura no sync)");
+            }
             return;
         }
         let snap = self.capacity.snapshot().await;
