@@ -50,14 +50,20 @@ Editar câmera → campo RTSP secundário / URL RTSP → salvar. Despausar anal�
 
 ### B) API Go (lote) — `VIS_WORKER_API_KEY`
 
-CSV modelo: `sql/phase_d_rtsp_url_sec_template.csv`
+CSV foxpro (6 câmeras elegíveis): `sql/opcao_a_foxpro_6_cameras.csv` (substituir placeholders RTSP).
 
 ```powershell
-$env:CONFVISION_API_URL = "https://vision.confmonit2.com.br"
 $env:VIS_WORKER_API_KEY = "<mesma chave dos processors Rust>"
-.\confvision-rust-processor\scripts\apply-rtsp-option-a.ps1 -CsvPath .\meu_rtsp.csv -DryRun
-.\confvision-rust-processor\scripts\apply-rtsp-option-a.ps1 -CsvPath .\meu_rtsp.csv
+cd C:\sistemaconfmonit\core4-rust-pilot
+# 1) Ver sync/query antes
+.\confvision-rust-processor\scripts\opcao-a-preflight.ps1 -VisWorkerKey $env:VIS_WORKER_API_KEY
+# 2) Dry-run PUT
+.\confvision-rust-processor\scripts\opcao-a-run.ps1 -VisWorkerKey $env:VIS_WORKER_API_KEY
+# 3) Aplicar (CSV com RTSP reais, sem USUARIO/SENHA/IP_DVR)
+.\confvision-rust-processor\scripts\opcao-a-run.ps1 -VisWorkerKey $env:VIS_WORKER_API_KEY -Apply
 ```
+
+Legado: `apply-rtsp-option-a.ps1 -CsvPath .\meu_rtsp.csv`
 
 Linux (CT111 / operador):
 
