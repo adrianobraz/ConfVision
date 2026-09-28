@@ -34,6 +34,10 @@ YOLO_HTTP_PORT=8091
 YOLO_CONFIG_DIR=/tmp/Ultralytics
 ```
 
+## Build EasyPanel (pip / hash)
+
+O sidecar usa `requirements-yolo-sidecar.txt` + `ultralytics==8.3.0 --no-deps` (evita `opencv-python` duplicado e a cadeia 8.4+ com `matplotlib`/`polars` que falha com hash mismatch em rede lenta). Se o build falhar, **Redeploy** de novo; timeout pip: `PIP_DEFAULT_TIMEOUT=300` no Dockerfile.
+
 ## Ações
 
 1. **Redeploy** app `rust-yolo-sidecar` (branch `rust-pilot`, `Dockerfile.yolo-sidecar`).

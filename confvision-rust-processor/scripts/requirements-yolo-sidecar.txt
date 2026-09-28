@@ -1,0 +1,9 @@
+# Sidecar D3 — versões fixas (mesmo pin do requirements.txt raiz).
+# ultralytics é instalado com --no-deps no Dockerfile para não puxar opencv-python (duplicado com headless).
+opencv-python-headless==4.10.0.84
+matplotlib==3.9.4
+pyyaml==6.0.2
+requests==2.32.3
+scipy==1.14.1
+psutil==6.1.0
+py-cpuinfo==9.0.0
