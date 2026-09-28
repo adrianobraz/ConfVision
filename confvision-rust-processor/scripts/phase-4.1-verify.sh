@@ -7,6 +7,13 @@ cd "$ROOT"
 
 echo "=== Fase 4.1 verify $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
 
+if ! command -v cargo >/dev/null 2>&1; then
+  echo "SKIP: cargo não instalado (normal no CT111/ReceptorTeste — monitor sem build Rust)."
+  echo "      Rode este script no host com Rust ou: docker build -f confvision-rust-processor/Dockerfile ."
+  echo "      Para alinhamento workers em monitor: bash confvision-rust-processor/scripts/phase-4.1a-verify.sh"
+  exit 0
+fi
+
 echo "-- cargo fmt --check"
 cargo fmt --all -- --check
 

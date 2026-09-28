@@ -100,6 +100,7 @@ async fn main() {
     info!(
         processor_id = %cfg.processor_id,
         worker_id = %cfg.worker_id,
+        worker_tipo = %cfg.worker_tipo,
         shard = %sharding::shard_label(cfg.as_ref()),
         api = %cfg.confvision_api_url,
         "confvision-rust-processor starting"

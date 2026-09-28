@@ -80,6 +80,6 @@ No **Windows** dev: testes default OK; builds com FFmpeg exigem **Linux/Docker**
 
 ## Próxima fase
 
-**4.1A — Alinhamento workers** (`vis_worker`, shard, `WORKER_ID` vs `PROCESSOR_ID`), depois **5** (rampa de câmeras medida).
+**4.1A — Alinhamento workers** — [FASE_4_1A_FECHAMENTO.md](./FASE_4_1A_FECHAMENTO.md) · `scripts/phase-4.1a-verify.sh` (CT111 sem cargo). Depois **5** (rampa de câmeras medida).
 
 Ver também: [FASE_D_FECHAMENTO.md](./FASE_D_FECHAMENTO.md), [OPCAO_A_RTSP_DIRETO.md](./OPCAO_A_RTSP_DIRETO.md).

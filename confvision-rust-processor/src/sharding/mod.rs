@@ -240,6 +240,16 @@ mod tests {
     }
 
     #[test]
+    fn filter_excludes_analitico_pausado() {
+        let cfg = base_cfg();
+        let mut paused = cam(9, true, true);
+        paused.analitico_pausado = Some(true);
+        let out = filter_analytic_cameras(&cfg, vec![paused, cam(10, true, true)]);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].id, 10);
+    }
+
+    #[test]
     fn worker_id_mode_skips_hash_even_if_shard_numbers_set() {
         let mut cfg = base_cfg();
         cfg.shard_mode = ShardMode::WorkerId;
