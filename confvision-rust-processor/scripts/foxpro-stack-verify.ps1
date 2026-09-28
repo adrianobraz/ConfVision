@@ -1,4 +1,4 @@
-# Sonda foxpro: rust-pilot, confvision, confvision-worker, Go API
+# Sonda foxpro: Go API, rust-pilot, confvision (MediaMTX). Worker Python removido da política operacional.
 # Uso: .\foxpro-stack-verify.ps1 [-RustBase URL]
 
 param(
@@ -40,25 +40,19 @@ if ($rust.Code -eq 200) {
 
 Write-Host "==> confvision: https://foxpro-confvision.rkr351.easypanel.host/"
 $cv = Get-Http "https://foxpro-confvision.rkr351.easypanel.host/"
-Write-Host "    HTTP $($cv.Code)"
-
-Write-Host "==> confvision-worker: https://foxpro-confvision-worker.rkr351.easypanel.host/"
-$workerUrl = "https://foxpro-confvision-worker.rkr351.easypanel.host/"
-$wBody = & curl.exe -sS --max-time 20 $workerUrl 2>&1 | Out-String
-$wCode = & curl.exe -sS -o NUL -w "%{http_code}" --max-time 20 $workerUrl 2>&1
-Write-Host "    HTTP $wCode"
-if ($wBody -match "Service is not started") {
-    Write-Host "    DIAG: servico PARADO no EasyPanel. Acao: Start; se No such image -> Implantar (build) + Start."
-    $fail = $true
-} elseif ([int]$wCode -ge 502) {
-    Write-Host "    DIAG: backend ausente (502/503) - container parado ou crash loop."
+if ($cv.Code -eq 200) {
+    Write-Host "    OK HTTP $($cv.Code)"
+} else {
+    Write-Host "    FAIL HTTP $($cv.Code)"
     $fail = $true
 }
 
-Write-Host ""
-Write-Host "NOTA: worker nao expoe HTTP; use Logs EasyPanel + CPU/mem apos Start."
+Write-Host "==> confvision-worker: SKIP (descontinuado; analitico = Rust A/B)"
+
 if ($fail) {
+    Write-Host ""
     Write-Host "RESULT: FAIL"
     exit 1
 }
-Write-Host "RESULT: probes OK (worker requer Start manual se parado)."
+Write-Host ""
+Write-Host "RESULT: OK stack probes (Go + Rust + confvision)"

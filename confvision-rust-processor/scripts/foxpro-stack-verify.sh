@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# Sonda foxpro: rust-pilot, confvision (MediaMTX), confvision-worker (EasyPanel).
+# Sonda foxpro: Go API, rust-pilot, confvision (MediaMTX). Worker Python fora da política operacional.
 # Uso: bash foxpro-stack-verify.sh [RUST_BASE]
 set -euo pipefail
 
 RUST_BASE="${1:-https://foxpro-rust-pilot.rkr351.easypanel.host}"
 RUST_BASE="${RUST_BASE%/}"
 CONFVISION_URL="${CONFVISION_URL:-https://foxpro-confvision.rkr351.easypanel.host/}"
-WORKER_URL="${WORKER_URL:-https://foxpro-confvision-worker.rkr351.easypanel.host/}"
 API_HEALTH="${API_HEALTH:-https://vision.confmonit2.com.br/vis_health}"
 
 fail=0
@@ -33,36 +32,20 @@ fi
 
 echo "==> MediaMTX/guard: ${CONFVISION_URL}"
 code_cv="$(curl -sS -o /tmp/confvision-body.txt -w '%{http_code}' --max-time 20 "${CONFVISION_URL}")"
-echo "    HTTP ${code_cv}"
-head -c 120 /tmp/confvision-body.txt 2>/dev/null | tr '\n' ' '
-echo ""
-
-echo "==> confvision-worker (EasyPanel proxy): ${WORKER_URL}"
-code_w="$(curl -sS -o /tmp/worker-body.txt -w '%{http_code}' --max-time 20 "${WORKER_URL}")"
-body_w="$(cat /tmp/worker-body.txt 2>/dev/null || true)"
-
-echo "    HTTP ${code_w}"
-if echo "$body_w" | grep -q 'Service is not started'; then
-  echo "    DIAG: servico PARADO no EasyPanel (nao e crash de app — falta Start ou start falhou antes de criar container)."
-  echo "    ACAO: foxpro / confvision-worker -> Play (Start). Se erro de imagem -> Implantar (build) e Start."
-  fail=1
-elif echo "$body_w" | grep -q 'No such image'; then
-  echo "    DIAG: imagem Docker ausente."
-  fail=1
-elif [[ "$code_w" == "502" || "$code_w" == "503" ]]; then
-  echo "    DIAG: proxy sem backend (container parado ou crash loop)."
-  fail=1
+if [[ "$code_cv" =~ ^2 ]]; then
+  echo "    OK HTTP ${code_cv}"
 else
-  echo "    body: $(echo "$body_w" | head -c 100 | tr '\n' ' ')"
+  echo "    FAIL HTTP ${code_cv}"
+  fail=1
 fi
 
-echo ""
-echo "NOTA: worker Python nao expoe HTTP; dominio publico pode dar 502 mesmo com processo OK."
-echo "      Confiar em: EasyPanel Logs ([START] ConfVision worker) e CPU/mem > 0."
+echo "==> confvision-worker: SKIP (descontinuado; analitico = Rust A/B)"
 
 if [[ "$fail" -eq 0 ]]; then
-  echo "RESULT: stack probes OK (worker pode ainda estar parado se nao checou Start)."
+  echo ""
+  echo "RESULT: OK stack probes (Go + Rust + confvision)"
 else
-  echo "RESULT: FAIL — ver worker / EasyPanel acima."
+  echo ""
+  echo "RESULT: FAIL"
   exit 1
 fi
