@@ -1179,6 +1179,46 @@ func Dispatch(ctx context.Context, method, pathWithQuery string, body io.Reader)
 			return bizErrJSON(err)
 		}
 		return okJSON(map[string]any{"ok": true})
+
+	case method == http.MethodGet && path == "/vis_relatorio_operacional/stream":
+		limit := parseIntQuery(q.Get("limit"))
+		if limit < 1 {
+			limit = 200
+		}
+		list, err := ListStreamRelatorio(ctx, q.Get("id_franqueado"), limit)
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"dados": list, "total": len(list)})
+
+	case method == http.MethodGet && path == "/vis_relatorio_operacional/health":
+		limit := parseIntQuery(q.Get("limit"))
+		if limit < 1 {
+			limit = 200
+		}
+		list, err := ListSistemaHealth(ctx, limit)
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"dados": list, "total": len(list)})
+
+	case method == http.MethodGet && path == "/vis_relatorio_operacional/metric":
+		limit := parseIntQuery(q.Get("limit"))
+		if limit < 1 {
+			limit = 200
+		}
+		list, err := ListSistemaMetric(ctx, limit)
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{"dados": list, "total": len(list)})
+
+	case method == http.MethodPost && path == "/ops/coleta_operacional/run":
+		if err := ApplyColetaOperacionalMigration(ctx); err != nil {
+			return errJSON(err)
+		}
+		runColetaOperacional(ctx)
+		return okJSON(map[string]any{"ok": true})
 	}
 
 	return 0, nil, ErrNotHandled
