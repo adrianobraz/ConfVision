@@ -88,9 +88,9 @@ Enquanto **`events_published=0`** e **nenhuma linha nova** em `vis_evento` por d
 
 ## 6) Próximos passos (ordem)
 
-1. **Despausar** câmeras que clientes vão testar (`analitico_pausado=false`).
-2. **Garantir stream RTSP** (MediaMTX com publisher **ou** `rtsp_url_sec` direto do DVR).
-3. Confirmar sync: `curl …/vis_camera_sync_ativas?worker_id=rust-processor-pilot-a-01` → `"cameras":[…]`.
+1. ~~**Despausar** câmeras 5,8,9,18,19,22,26,27~~ — feito via API em 2026-09-28; **repause** automático possível em 8/19 até haver RTSP.
+2. **Opção A:** preencher **`rtsp_url_sec`** e `-Apply` — ver [OPCAO_A_CHECKLIST_FOXPRO.md](./OPCAO_A_CHECKLIST_FOXPRO.md).
+3. Confirmar sync: `opcao-a-preflight.ps1` ou `vis_camera_sync_ativas` → `cameras` não null.
 4. **Movimento** na cena → `/health` `events_published` > 0 → `SELECT … FROM vis_evento ORDER BY id DESC LIMIT 5`.
 
 Script fila/health: `bash confvision-rust-processor/scripts/d3-event-verify.sh https://foxpro-rust-pilot…/health …`

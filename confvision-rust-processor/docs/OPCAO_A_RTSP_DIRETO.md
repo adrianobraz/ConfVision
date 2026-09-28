@@ -14,6 +14,8 @@ Referência de código:
 
 **Não há** descoberta automática de URL RTSP no repositório: a URL vem do cadastro (painel, SQL ou API).
 
+**Checklist operacional foxpro (o que falta / o que já foi feito):** [OPCAO_A_CHECKLIST_FOXPRO.md](./OPCAO_A_CHECKLIST_FOXPRO.md)
+
 ---
 
 ## Pré-requisitos
