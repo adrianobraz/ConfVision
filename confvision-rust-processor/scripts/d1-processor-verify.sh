@@ -41,7 +41,7 @@ check_one() {
   wid="$(echo "$health" | jq -r '.worker_id // empty')"
   on="$(echo "$health" | jq -r '.cameras_online // 0')"
   tot="$(echo "$health" | jq -r '.cameras_total // 0')"
-  cap="$(echo "$health" | jq -r '.capacity_state // unknown')"
+  cap="$(echo "$health" | jq -r '.capacity_state // "unknown"')"
   r404="$(echo "$report" | jq -r '.summary.rtsp_404_count // 0')"
 
   LAST_PROC="$proc"

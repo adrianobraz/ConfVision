@@ -1,5 +1,7 @@
 # D5 — Control plane Go (assign processor)
 
+**Status:** **Fechado (D5.1–D5.2)** em 2026-09-28 — produção oficial. Ver [FASE_D_FECHAMENTO.md](./FASE_D_FECHAMENTO.md).
+
 ## Em uma frase
 
 **D5 — Control plane Go:** fonte da verdade para sync, ping, limites de capacidade e (meta) **auto-assign** câmera → processor. **Sem Xano novo.**

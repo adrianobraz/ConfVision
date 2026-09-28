@@ -1,5 +1,7 @@
 # D6 — SLO operacional 24/7
 
+**Status:** **Fechado (D6.1 monitor/cron)** em 2026-09-28 — produção oficial. Ver [FASE_D_FECHAMENTO.md](./FASE_D_FECHAMENTO.md).
+
 ## Em uma frase
 
 **D6 — SLO operacional:** operação **24/7** — alertas (C2), playbooks (RTSP 404, OOM, réplica 0/1), documentação de recuperação de câmeras.

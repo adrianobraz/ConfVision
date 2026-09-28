@@ -2,7 +2,7 @@
 
 ## Pré-requisitos
 
-- [ ] **confvision-worker** → **Stop** (Rust-only).
+- [x] **`confvision-worker`** → **Stop permanente** (produção Rust-only; ver [FASE_D_FECHAMENTO.md](./FASE_D_FECHAMENTO.md)).
 - [ ] **confvision** (MediaMTX) → **Running**.
 - [ ] **foxpro-rust-pilot** (pilot-01) → `/health` ok.
 - [ ] Câmeras 404 conhecidas pausadas ou fora do split (ex. id **2** Entrada Principal).
