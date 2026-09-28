@@ -81,6 +81,6 @@ bash confvision-rust-processor/scripts/phase-4.1-verify.sh
 
 ## Próxima fase
 
-**Fase 5** — rampa medida de câmeras (1 → 5 → 10 …) com `capacity-report`.
+**Fase 5** — [FASE_5.md](./FASE_5.md) · `phase-f5-verify.sh` · `phase-f5-ramp-run.sh`
 
 Ver: [FASE_4_1_FECHAMENTO.md](./FASE_4_1_FECHAMENTO.md), [FASE_D_FECHAMENTO.md](./FASE_D_FECHAMENTO.md).

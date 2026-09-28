@@ -11,12 +11,14 @@ KEY="${VIS_WORKER_API_KEY:-}"
 fail=0
 wid_a=""
 wid_b=""
+_last_worker_id=""
 
 echo "=== Fase 4.1A verify $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
 
 check_processor() {
   local base="$1"
   local label="$2"
+  _last_worker_id=""
   echo "=== ${label} @ ${base} ==="
   local health
   health="$(curl -fsS --max-time 25 "${base%/}/health")" || {
@@ -48,11 +50,13 @@ check_processor() {
     echo "  INFO processor_id != worker_id (PROCESSOR_ID=métricas, WORKER_ID=assign Postgres)"
   fi
   echo "OK ${label}"
-  printf '%s' "$wid"
+  _last_worker_id="$wid"
 }
 
-wid_a="$(check_processor "$PILOT_A" "rust A" || true)"
-wid_b="$(check_processor "$PILOT_B" "rust B" || true)"
+check_processor "$PILOT_A" "rust A" || true
+wid_a="$_last_worker_id"
+check_processor "$PILOT_B" "rust B" || true
+wid_b="$_last_worker_id"
 
 if [[ -n "$wid_a" && -n "$wid_b" && "$wid_a" == "$wid_b" ]]; then
   echo "FAIL mesmo worker_id nos dois processors"
