@@ -82,6 +82,10 @@ func RegistrarRotasWorkerAPI(r *mux.Router) {
 		{"/ops/vis_capacidade/estornar_pagamento", []string{http.MethodPost}},
 		{"/ops/vis_capacidade/listar_pendentes_renovacao", []string{http.MethodPost}},
 		{"/ops/vis_capacidade/contrato/{contrato_id}", []string{http.MethodGet}},
+		{"/ops/coleta_operacional/run", []string{http.MethodPost}},
+		{"/vis_relatorio_operacional/stream", []string{http.MethodGet}},
+		{"/vis_relatorio_operacional/health", []string{http.MethodGet}},
+		{"/vis_relatorio_operacional/metric", []string{http.MethodGet}},
 	}
 
 	r.HandleFunc("/cvg_worker_tick", handleCvgWorkerTick).Methods(http.MethodPost)
