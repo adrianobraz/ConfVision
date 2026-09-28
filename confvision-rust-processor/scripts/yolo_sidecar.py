@@ -8,7 +8,6 @@ import os
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from socketserver import ThreadingMixIn
 
 try:
     import cv2
@@ -141,7 +140,9 @@ class Handler(BaseHTTPRequestHandler):
         return json.dumps(out).encode("utf-8")
 
 
-class ThreadingServer(ThreadingMixIn, ThreadingHTTPServer):
+class ThreadingServer(ThreadingHTTPServer):
+    """ThreadingHTTPServer já inclui ThreadingMixIn (Py3 — não herdar os dois)."""
+
     daemon_threads = True
 
 

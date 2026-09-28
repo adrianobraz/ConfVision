@@ -2,6 +2,7 @@
 
 ## Sintomas
 
+- Container **crash** no boot: `TypeError ... MRO ... ThreadingMixIn, ThreadingHTTPServer` → redeploy branch `rust-pilot` (fix: herdar só `ThreadingHTTPServer`).
 - `/health` dos pilots: `yolo_enabled=true` mas eventos não sobem; logs Rust `yolo http timeout`
 - EasyPanel: sidecar **502** ou CPU/mem 0%
 - Log sidecar: `Corrupt JPEG`, falha download `yolov8n.pt`
