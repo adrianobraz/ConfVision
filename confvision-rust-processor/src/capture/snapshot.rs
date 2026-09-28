@@ -20,35 +20,23 @@ pub fn write_luma_jpeg(
         std::fs::create_dir_all(parent).map_err(|e| AppError::Other(e.into()))?;
     }
     let img: ImageBuffer<Luma<u8>, Vec<u8>> =
-        ImageBuffer::from_raw(width, height, luma.to_vec()).ok_or_else(|| {
-            AppError::Config("failed to build luma image".into())
-        })?;
+        ImageBuffer::from_raw(width, height, luma.to_vec())
+            .ok_or_else(|| AppError::Config("failed to build luma image".into()))?;
     let file = std::fs::File::create(dest).map_err(|e| AppError::Other(e.into()))?;
     let mut enc = JpegEncoder::new_with_quality(file, quality);
-    enc.encode(
-        img.as_raw(),
-        width,
-        height,
-        ExtendedColorType::L8,
-    )
-    .map_err(|e| AppError::Other(e.into()))?;
+    enc.encode(img.as_raw(), width, height, ExtendedColorType::L8)
+        .map_err(|e| AppError::Other(e.into()))?;
     Ok(dest.to_path_buf())
 }
 
 pub fn luma_to_jpeg_bytes(luma: &[u8], width: u32, height: u32, quality: u8) -> AppResult<Vec<u8>> {
     let img: ImageBuffer<Luma<u8>, Vec<u8>> =
-        ImageBuffer::from_raw(width, height, luma.to_vec()).ok_or_else(|| {
-            AppError::Config("failed to build luma image".into())
-        })?;
+        ImageBuffer::from_raw(width, height, luma.to_vec())
+            .ok_or_else(|| AppError::Config("failed to build luma image".into()))?;
     let mut buf = Vec::new();
     let mut enc = JpegEncoder::new_with_quality(&mut buf, quality);
-    enc.encode(
-        img.as_raw(),
-        width,
-        height,
-        ExtendedColorType::L8,
-    )
-    .map_err(|e| AppError::Other(e.into()))?;
+    enc.encode(img.as_raw(), width, height, ExtendedColorType::L8)
+        .map_err(|e| AppError::Other(e.into()))?;
     Ok(buf)
 }
 

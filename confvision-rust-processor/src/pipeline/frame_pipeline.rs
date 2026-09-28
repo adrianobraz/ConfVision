@@ -448,11 +448,7 @@ pub enum ConsumerFrameOutcome {
 }
 
 /// Consumer: decode H.264 (Fase 3.1) + motion (Fase 3.2) + métricas de pipeline.
-fn apply_motion_gate(
-    gate: Option<&Arc<MotionGatedSession>>,
-    detected: bool,
-    reference_only: bool,
-) {
+fn apply_motion_gate(gate: Option<&Arc<MotionGatedSession>>, detected: bool, reference_only: bool) {
     if let Some(g) = gate {
         g.on_motion_analyzed(detected, reference_only);
     }

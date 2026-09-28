@@ -66,13 +66,10 @@ impl EventQueueHandle {
             },
             "redis" => {
                 let url = cfg.redis_url.as_ref().ok_or_else(|| {
-                    AppError::Config(
-                        "QUEUE_BACKEND=redis exige REDIS_URL (Fase D2)".into(),
-                    )
+                    AppError::Config("QUEUE_BACKEND=redis exige REDIS_URL (Fase D2)".into())
                 })?;
-                let client = redis::Client::open(url.as_str()).map_err(|e| {
-                    AppError::Config(format!("REDIS_URL inválida: {e}"))
-                })?;
+                let client = redis::Client::open(url.as_str())
+                    .map_err(|e| AppError::Config(format!("REDIS_URL inválida: {e}")))?;
                 QueueBackend::Redis {
                     client,
                     key: cfg.event_queue_key.clone(),
@@ -142,13 +139,10 @@ impl EventQueueHandle {
                     return Ok(Some(job));
                 }
                 drop(q);
-                tokio::time::sleep(std::time::Duration::from_secs_f64(timeout_sec.max(0.1)))
-                    .await;
+                tokio::time::sleep(std::time::Duration::from_secs_f64(timeout_sec.max(0.1))).await;
                 Ok(None)
             }
-            QueueBackend::Redis { client, key, .. } => {
-                redis_brpop(client, key, timeout_sec).await
-            }
+            QueueBackend::Redis { client, key, .. } => redis_brpop(client, key, timeout_sec).await,
         }
     }
 
@@ -175,15 +169,8 @@ impl EventQueueHandle {
                 max_size,
                 max_retries,
             } => {
-                match redis_publish_with_retry(
-                    client,
-                    key,
-                    dlq_key,
-                    *max_size,
-                    *max_retries,
-                    &job,
-                )
-                .await
+                match redis_publish_with_retry(client, key, dlq_key, *max_size, *max_retries, &job)
+                    .await
                 {
                     Ok(PublishOutcome::Ok) => {
                         self.stats.published.fetch_add(1, Ordering::Relaxed);
@@ -308,7 +295,11 @@ async fn redis_ping(client: &redis::Client) -> AppResult<()> {
     Ok(())
 }
 
-async fn redis_brpop(client: &redis::Client, key: &str, timeout_sec: f64) -> AppResult<Option<EventJob>> {
+async fn redis_brpop(
+    client: &redis::Client,
+    key: &str,
+    timeout_sec: f64,
+) -> AppResult<Option<EventJob>> {
     let mut conn = client
         .get_multiplexed_async_connection()
         .await
@@ -359,14 +350,8 @@ mod tests {
         cfg.queue_backend = "memory".into();
         cfg.event_queue_max_size = 2;
         let q = EventQueueHandle::from_config(&cfg).unwrap();
-        assert_eq!(
-            q.publish(EventJob::new(1, 0.9)).await,
-            PublishOutcome::Ok
-        );
-        assert_eq!(
-            q.publish(EventJob::new(2, 0.9)).await,
-            PublishOutcome::Ok
-        );
+        assert_eq!(q.publish(EventJob::new(1, 0.9)).await, PublishOutcome::Ok);
+        assert_eq!(q.publish(EventJob::new(2, 0.9)).await, PublishOutcome::Ok);
         assert_eq!(
             q.publish(EventJob::new(3, 0.9)).await,
             PublishOutcome::QueueFull

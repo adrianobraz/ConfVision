@@ -5,7 +5,9 @@ use serde::Serialize;
 
 use crate::camera::{CameraRuntimeState, CameraStatus};
 use crate::capacity::{CapacitySnapshot, CapacityState};
-use crate::load::{allow_new_camera, evaluate_load, LoadAdvisory, LoadPolicyConfig, LoadPolicyMode};
+use crate::load::{
+    allow_new_camera, evaluate_load, LoadAdvisory, LoadPolicyConfig, LoadPolicyMode,
+};
 
 use super::runtime_phase62::build_phase62_view;
 use super::{snapshot_camera_states, summarize_cameras, AppState, RuntimeIdentity};
@@ -80,19 +82,11 @@ pub async fn capacity_report_handler(State(st): State<AppState>) -> Json<Capacit
     let load_cfg = st.load_admission.config().clone();
     let allow_new = allow_new_camera(&capacity, &load_cfg);
     let load_eval = evaluate_load(&capacity, &load_cfg);
-    let phase62 = build_phase62_view(
-        &st.acceleration,
-        &st.decode_policy,
-        &capacity,
-        &load_cfg,
-    );
+    let phase62 = build_phase62_view(&st.acceleration, &st.decode_policy, &capacity, &load_cfg);
     let summary_cam = summarize_cameras(&st.camera_states).await;
     let cameras_raw = snapshot_camera_states(&st.camera_states).await;
 
-    let camera_rows: Vec<CameraReportRow> = cameras_raw
-        .iter()
-        .map(|c| camera_row(c))
-        .collect();
+    let camera_rows: Vec<CameraReportRow> = cameras_raw.iter().map(|c| camera_row(c)).collect();
     let rtsp_404_count = camera_rows
         .iter()
         .filter(|r| r.issue == Some("rtsp_404"))
@@ -174,16 +168,14 @@ fn excerpt(s: &str, max: usize) -> String {
 }
 
 pub fn classify_camera_issue(c: &CameraRuntimeState) -> Option<&'static str> {
-    let err = c
-        .last_error
-        .as_deref()
-        .unwrap_or("")
-        .to_ascii_lowercase();
+    let err = c.last_error.as_deref().unwrap_or("").to_ascii_lowercase();
     if err.contains("404") || err.contains("not found") || err.contains("describe failed") {
         return Some("rtsp_404");
     }
     match c.status {
-        CameraStatus::Offline | CameraStatus::Error if !err.is_empty() => Some("rtsp_or_runtime_error"),
+        CameraStatus::Offline | CameraStatus::Error if !err.is_empty() => {
+            Some("rtsp_or_runtime_error")
+        }
         CameraStatus::Offline => Some("offline_no_stream"),
         CameraStatus::Reconnecting => Some("reconnecting"),
         _ => None,
@@ -231,7 +223,10 @@ pub fn build_recommended_actions(
 
     let no_headroom = capacity.estimated_available_cameras.unwrap_or(0) <= 0
         || matches!(capacity.state, CapacityState::Critical)
-        || matches!(advisory, LoadAdvisory::Saturated | LoadAdvisory::RejectAdmission);
+        || matches!(
+            advisory,
+            LoadAdvisory::Saturated | LoadAdvisory::RejectAdmission
+        );
 
     if no_headroom {
         out.push(RecommendedAction {
@@ -348,14 +343,7 @@ mod tests {
             mode: LoadPolicyMode::Advisory,
             admission_enabled: false,
         };
-        let actions = build_recommended_actions(
-            &cap,
-            &cfg,
-            true,
-            &LoadAdvisory::Saturated,
-            0,
-            &[],
-        );
+        let actions = build_recommended_actions(&cap, &cfg, true, &LoadAdvisory::Saturated, 0, &[]);
         assert!(actions.iter().any(|a| a.code == "split_second_processor"));
     }
 

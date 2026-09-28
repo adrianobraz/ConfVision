@@ -58,10 +58,7 @@ impl HttpYoloClient {
             let text = resp.text().await.unwrap_or_default();
             return Err(AppError::Config(format!("yolo http {status}: {text}")));
         }
-        let parsed: DetectResponse = resp
-            .json()
-            .await
-            .map_err(|e| AppError::Other(e.into()))?;
+        let parsed: DetectResponse = resp.json().await.map_err(|e| AppError::Other(e.into()))?;
         debug!(
             width = parsed.width,
             height = parsed.height,

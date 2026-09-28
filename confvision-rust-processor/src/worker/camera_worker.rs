@@ -14,14 +14,14 @@ use crate::worker::stream_health_queue::{
     enqueue_stream_action, enqueue_stream_failure, enqueue_stream_incident,
 };
 
+use crate::analytics::AnalyticsRuntime;
 use crate::camera::{
     redact_rtsp_url, CameraCancel, CameraRuntimeState, CameraStatus, FpsEstimator,
     LiveCaptureContext, ReconnectBackoff, SharedCameraState,
 };
-use crate::analytics::AnalyticsRuntime;
 use crate::config::Config;
-use crate::detection::DetectionContext;
 use crate::decode::{AccelerationRuntime, DecodePolicyCoordinator, SessionDecodeContext};
+use crate::detection::DetectionContext;
 use crate::metrics::ProcessorMetrics;
 use crate::motion::{MotionEnqueueGate, MotionGatedSession, MotionSensitivity};
 use crate::pipeline::{run_frame_consumer, FramePipeline};
@@ -53,20 +53,17 @@ async fn run_session_with_pipeline(
     let motion_sensitivity = MotionSensitivity::from_config(cfg);
 
     let detection: Option<Arc<DetectionContext>> = if cfg.yolo_enabled {
-        analytics
-            .camera_json(camera_id)
-            .await
-            .map(|cam| {
-                DetectionContext::new(
-                    camera_id,
-                    cam,
-                    analytics.cfg.clone(),
-                    analytics.yolo.clone(),
-                    analytics.event_queue.clone(),
-                    analytics.detection_stats.clone(),
-                    motion_gate.clone(),
-                )
-            })
+        analytics.camera_json(camera_id).await.map(|cam| {
+            DetectionContext::new(
+                camera_id,
+                cam,
+                analytics.cfg.clone(),
+                analytics.yolo.clone(),
+                analytics.event_queue.clone(),
+                analytics.detection_stats.clone(),
+                motion_gate.clone(),
+            )
+        })
     } else {
         None
     };
@@ -343,7 +340,8 @@ pub async fn run_camera_worker(
                 let err_text = e.to_string();
                 let error_class = classify_stream_error_code(&err_text).to_string();
                 let failure_class = classify_rtsp_error(&err_text);
-                let delay = if stream_cfg.enabled && failure_class != StreamFailureClass::Transient {
+                let delay = if stream_cfg.enabled && failure_class != StreamFailureClass::Transient
+                {
                     let mut pol = stream_policy.write().await;
                     let action = pol.on_failure(&stream_cfg, failure_class, camera_created_at);
                     mirror_policy_to_state(&state, &pol).await;
@@ -372,10 +370,9 @@ pub async fn run_camera_worker(
                         }
                         StreamHealthAction::RetryAfter(d) => d,
                         StreamHealthAction::ReportStreamOk => backoff.next_delay(),
-                        StreamHealthAction::ReportFailure { .. } => delay_after_failure(
-                            pol.failures_consecutive,
-                            &stream_cfg,
-                        ),
+                        StreamHealthAction::ReportFailure { .. } => {
+                            delay_after_failure(pol.failures_consecutive, &stream_cfg)
+                        }
                     }
                 } else {
                     enqueue_stream_incident(

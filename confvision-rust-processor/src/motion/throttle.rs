@@ -140,15 +140,13 @@ impl MotionEnqueueGate {
     }
 
     pub fn rtsp_suspend_sleep(&self) -> Duration {
-        self.probe_throttle.time_until_due().max(Duration::from_millis(200))
+        self.probe_throttle
+            .time_until_due()
+            .max(Duration::from_millis(200))
     }
 
     fn in_probe_mode(&self) -> bool {
-        self.motion_gated
-            && self
-                .gated_session
-                .as_ref()
-                .is_some_and(|s| !s.is_armed())
+        self.motion_gated && self.gated_session.as_ref().is_some_and(|s| !s.is_armed())
     }
 
     fn throttle_for_mode(&mut self) -> &mut MotionAnalysisThrottle {
@@ -262,7 +260,8 @@ mod tests {
 
     #[test]
     fn stride_reduces_enqueues() {
-        let mut g = MotionEnqueueGate::from_analysis_config(1000.0, 3, 1, false, None, 0.5, false, false);
+        let mut g =
+            MotionEnqueueGate::from_analysis_config(1000.0, 3, 1, false, None, 0.5, false, false);
         assert!(!g.decide(false).enqueue);
         assert!(!g.decide(false).enqueue);
         assert!(g.decide(false).enqueue);
@@ -270,7 +269,8 @@ mod tests {
 
     #[test]
     fn decode_stride_requires_both() {
-        let mut g = MotionEnqueueGate::from_analysis_config(1000.0, 2, 5, false, None, 0.5, false, false);
+        let mut g =
+            MotionEnqueueGate::from_analysis_config(1000.0, 2, 5, false, None, 0.5, false, false);
         for _ in 0..9 {
             let _ = g.decide(false);
         }
@@ -287,7 +287,16 @@ mod tests {
     #[test]
     fn gated_idle_uses_probe_throttle() {
         let session = MotionGatedSession::new(5);
-        let mut g = MotionEnqueueGate::from_analysis_config(1000.0, 1, 1, true, Some(session), 10.0, false, false);
+        let mut g = MotionEnqueueGate::from_analysis_config(
+            1000.0,
+            1,
+            1,
+            true,
+            Some(session),
+            10.0,
+            false,
+            false,
+        );
         assert!(g.decide(false).enqueue);
         assert!(!g.decide(false).enqueue);
     }
@@ -296,7 +305,16 @@ mod tests {
     fn gated_armed_uses_active_stride() {
         let session = MotionGatedSession::new(5);
         session.on_motion_analyzed(true, false);
-        let mut g = MotionEnqueueGate::from_analysis_config(1000.0, 3, 1, true, Some(session), 0.1, false, false);
+        let mut g = MotionEnqueueGate::from_analysis_config(
+            1000.0,
+            3,
+            1,
+            true,
+            Some(session),
+            0.1,
+            false,
+            false,
+        );
         assert!(!g.decide(false).enqueue);
         assert!(!g.decide(false).enqueue);
         assert!(g.decide(false).enqueue);

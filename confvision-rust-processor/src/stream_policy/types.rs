@@ -57,8 +57,5 @@ pub enum StreamHealthAction {
     RetryAfter(Duration),
     ReportStreamOk,
     PauseAnalytic { reason: String },
-    ReportFailure {
-        failures: u32,
-        hourly: u32,
-    },
+    ReportFailure { failures: u32, hourly: u32 },
 }

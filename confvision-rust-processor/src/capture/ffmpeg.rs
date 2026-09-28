@@ -7,11 +7,7 @@ use tracing::warn;
 
 use crate::error::{AppError, AppResult};
 
-pub async fn capture_clip_rtsp(
-    rtsp_url: &str,
-    dest: &Path,
-    duration_sec: u32,
-) -> AppResult<()> {
+pub async fn capture_clip_rtsp(rtsp_url: &str, dest: &Path, duration_sec: u32) -> AppResult<()> {
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent).map_err(|e| AppError::Other(e.into()))?;
     }

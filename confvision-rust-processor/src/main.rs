@@ -1,8 +1,8 @@
 mod analytics;
 mod api;
 mod camera;
-mod capture;
 mod capacity;
+mod capture;
 mod config;
 mod decode;
 mod detection;
@@ -73,19 +73,12 @@ async fn main() {
             std::process::exit(1);
         }
     };
-    let analytics = analytics::AnalyticsRuntime::bootstrap(
-        cfg.clone(),
-        yolo.clone(),
-        event_queue.clone(),
-    );
+    let analytics =
+        analytics::AnalyticsRuntime::bootstrap(cfg.clone(), yolo.clone(), event_queue.clone());
     redis::startup_redis_check(event_queue.as_ref()).await;
     let queue_metrics = event_queue.clone();
     tokio::spawn(async move {
-        events::run_queue_metrics_loop(
-            queue_metrics,
-            std::time::Duration::from_secs(30),
-        )
-        .await;
+        events::run_queue_metrics_loop(queue_metrics, std::time::Duration::from_secs(30)).await;
     });
 
     let accel_policy = match AccelerationPolicy::from_env() {

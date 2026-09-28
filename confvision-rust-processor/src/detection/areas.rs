@@ -20,10 +20,7 @@ fn parse_area(v: &Value) -> Option<AreaZone> {
     let poly = parse_poligono(v.get("poligono_json"))?;
     Some(AreaZone {
         id: v.get("id").and_then(|x| x.as_i64()),
-        nome: v
-            .get("nome")
-            .and_then(|x| x.as_str())
-            .map(String::from),
+        nome: v.get("nome").and_then(|x| x.as_str()).map(String::from),
         ativo,
         polygon_pct: poly,
     })

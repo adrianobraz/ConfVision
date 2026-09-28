@@ -14,8 +14,7 @@ use crate::yolo::YoloRuntime;
 
 use super::areas::areas_from_camera;
 use super::rules::{
-    camera_conf_min, camera_cooldown_sec, camera_deteccao_humano, camera_modo,
-    evaluate_detections,
+    camera_conf_min, camera_cooldown_sec, camera_deteccao_humano, camera_modo, evaluate_detections,
 };
 
 #[derive(Default)]
@@ -63,11 +62,7 @@ impl DetectionContext {
         })
     }
 
-    pub async fn on_decoded_frame(
-        self: &Arc<Self>,
-        decoded: &DecodedFrame,
-        motion_detected: bool,
-    ) {
+    pub async fn on_decoded_frame(self: &Arc<Self>, decoded: &DecodedFrame, motion_detected: bool) {
         if !self.cfg.yolo_enabled || !self.yolo.is_active() {
             return;
         }

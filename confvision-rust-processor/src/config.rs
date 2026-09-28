@@ -476,7 +476,9 @@ fn motion_gate_probe_max_fps_from_env() -> f64 {
 }
 
 fn motion_gate_miss_frames_from_env() -> u32 {
-    let legacy_default = env_u32("YOLO_MOTION_MISS_FRAMES", 2).max(1).saturating_mul(5);
+    let legacy_default = env_u32("YOLO_MOTION_MISS_FRAMES", 2)
+        .max(1)
+        .saturating_mul(5);
     let default = if analysis_legacy_vps_enabled() {
         legacy_default
     } else {

@@ -56,7 +56,10 @@ async fn capture_worker_loop(
                     continue;
                 };
                 let Some(guard) = locks.try_acquire(camera_id).await else {
-                    debug!(worker_no, camera_id, "captura em andamento — job descartado");
+                    debug!(
+                        worker_no,
+                        camera_id, "captura em andamento — job descartado"
+                    );
                     stats.discarded.fetch_add(1, Ordering::Relaxed);
                     if let Some(p) = &job.snapshot_path {
                         let _ = std::fs::remove_file(p);

@@ -6,16 +6,16 @@ use axum::Json;
 use serde::Serialize;
 use tokio::sync::RwLock;
 
+use crate::analytics::AnalyticsRuntime;
 use crate::camera::{CameraRuntimeState, CameraStatus};
 use crate::capacity::{CapacityEngine, CapacitySnapshot, CapacityState, LimitingResource};
 use crate::config::Config;
 use crate::decode::{AccelerationRuntime, DecodePolicyCoordinator};
+use crate::events::EventQueueHandle;
 use crate::load::LoadAdmissionGate;
 use crate::metrics::{MetricsSnapshot, SharedMetrics};
-use crate::analytics::AnalyticsRuntime;
-use crate::events::EventQueueHandle;
-use crate::yolo::YoloRuntime;
 use crate::rtsp_hotpath::RtspHotpathMetrics;
+use crate::yolo::YoloRuntime;
 use std::sync::atomic::Ordering;
 
 mod capacity_report;
@@ -162,16 +162,8 @@ pub async fn health_handler(State(st): State<AppState>) -> Json<HealthResponse> 
         load_advisory_reason: phase62.load_advisory_reason,
         queue_backend: st.event_queue.backend_label().to_string(),
         event_queue_key: st.identity.event_queue_key.clone(),
-        event_queue_depth: st
-            .event_queue
-            .stats()
-            .main_depth
-            .load(Ordering::Relaxed),
-        event_queue_dlq_depth: st
-            .event_queue
-            .stats()
-            .dlq_depth
-            .load(Ordering::Relaxed),
+        event_queue_depth: st.event_queue.stats().main_depth.load(Ordering::Relaxed),
+        event_queue_dlq_depth: st.event_queue.stats().dlq_depth.load(Ordering::Relaxed),
         event_queue_redis_ok: st
             .event_queue
             .stats()
@@ -192,11 +184,7 @@ pub async fn health_handler(State(st): State<AppState>) -> Json<HealthResponse> 
             .detection_stats
             .events_queue_full
             .load(Ordering::Relaxed),
-        events_captured: st
-            .analytics
-            .capture_stats
-            .processed
-            .load(Ordering::Relaxed),
+        events_captured: st.analytics.capture_stats.processed.load(Ordering::Relaxed),
     })
 }
 

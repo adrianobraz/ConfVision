@@ -6,7 +6,12 @@ use crate::config::Config;
 use crate::error::{AppError, AppResult};
 
 /// Upload S3 compatível Contabo (path-style). Retorna URL pública ou key.
-pub async fn upload_file(cfg: &Config, local: &Path, object_key: &str, _content_type: &str) -> AppResult<String> {
+pub async fn upload_file(
+    cfg: &Config,
+    local: &Path,
+    object_key: &str,
+    _content_type: &str,
+) -> AppResult<String> {
     let endpoint = cfg
         .s3_endpoint
         .as_ref()

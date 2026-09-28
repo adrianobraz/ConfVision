@@ -4,9 +4,7 @@ mod types;
 pub use policy::{
     classify_rtsp_error, classify_stream_error_code, delay_after_failure, should_auto_pause,
 };
-pub use types::{
-    StreamFailureClass, StreamHealthAction, StreamPolicySnapshot, StreamRetryConfig,
-};
+pub use types::{StreamFailureClass, StreamHealthAction, StreamPolicySnapshot, StreamRetryConfig};
 
 use chrono::{DateTime, Utc};
 use std::time::Duration;
@@ -97,8 +95,10 @@ impl StreamPolicyState {
 
         if class == StreamFailureClass::Auth {
             let delay = Duration::from_secs(30 * 60);
-            self.next_probe_at =
-                Some(Utc::now() + chrono::Duration::from_std(delay).unwrap_or(chrono::Duration::minutes(30)));
+            self.next_probe_at = Some(
+                Utc::now()
+                    + chrono::Duration::from_std(delay).unwrap_or(chrono::Duration::minutes(30)),
+            );
             return StreamHealthAction::RetryAfter(delay);
         }
 

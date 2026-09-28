@@ -143,5 +143,7 @@ fn parse_evento_response(raw: &Value) -> AppResult<EventoResponse> {
             dados: None,
         });
     }
-    Err(AppError::Api(format!("resposta vis_evento inválida: {raw}")))
+    Err(AppError::Api(format!(
+        "resposta vis_evento inválida: {raw}"
+    )))
 }

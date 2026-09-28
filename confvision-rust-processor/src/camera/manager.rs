@@ -10,13 +10,13 @@ use tracing::{info, warn};
 use crate::analytics::AnalyticsRuntime;
 use crate::api::{CameraRecord, CameraStreamHealthReport};
 use crate::camera::stream_url::{redact_rtsp_url, resolve_rtsp_url};
-use crate::stream_policy::StreamPolicyState;
 use crate::camera::types::{CameraRuntimeState, SharedCameraState};
 use crate::camera::worker_control::CameraWorkerControl;
 use crate::config::Config;
 use crate::decode::{AccelerationRuntime, DecodePolicyCoordinator};
 use crate::load::LoadAdmissionGate;
 use crate::metrics::ProcessorMetrics;
+use crate::stream_policy::StreamPolicyState;
 use crate::worker::camera_worker::run_camera_worker;
 
 pub struct CameraManager {
@@ -276,9 +276,7 @@ mod tests {
 
     fn test_analytics(cfg: &Config) -> Arc<AnalyticsRuntime> {
         let cfg = Arc::new(cfg.clone());
-        let queue = Arc::new(
-            crate::events::EventQueueHandle::from_config(cfg.as_ref()).unwrap(),
-        );
+        let queue = Arc::new(crate::events::EventQueueHandle::from_config(cfg.as_ref()).unwrap());
         let yolo = Arc::new(crate::yolo::YoloRuntime::Off);
         AnalyticsRuntime::bootstrap(cfg, yolo, queue)
     }
@@ -299,7 +297,14 @@ mod tests {
             crate::load::LoadAdmissionGate::new(capacity, test_cfg().load_policy_config());
         let cfg = test_cfg();
         let analytics = test_analytics(&cfg);
-        let mgr = CameraManager::new(cfg, analytics, metrics, acceleration, decode_policy, admission);
+        let mgr = CameraManager::new(
+            cfg,
+            analytics,
+            metrics,
+            acceleration,
+            decode_policy,
+            admission,
+        );
         let cams: Vec<CameraRecord> = (1..=5)
             .map(|id| CameraRecord {
                 id,
@@ -445,7 +450,14 @@ mod tests {
         let admission =
             crate::load::LoadAdmissionGate::new(capacity.clone(), cfg.load_policy_config());
         let analytics = test_analytics(&cfg);
-        let mgr = CameraManager::new(cfg, analytics, metrics, acceleration, decode_policy, admission);
+        let mgr = CameraManager::new(
+            cfg,
+            analytics,
+            metrics,
+            acceleration,
+            decode_policy,
+            admission,
+        );
 
         let cam1 = CameraRecord {
             id: 101,
