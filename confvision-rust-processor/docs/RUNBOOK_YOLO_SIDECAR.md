@@ -36,7 +36,7 @@ YOLO_CONFIG_DIR=/tmp/Ultralytics
 
 ## Build EasyPanel (pip / hash)
 
-O sidecar usa `requirements-yolo-sidecar.txt` + `ultralytics==8.3.0 --no-deps` (evita `opencv-python` duplicado e a cadeia 8.4+ com `matplotlib`/`polars` que falha com hash mismatch em rede lenta). Se o build falhar, **Redeploy** de novo; timeout pip: `PIP_DEFAULT_TIMEOUT=300` no Dockerfile.
+O sidecar usa `requirements-yolo-sidecar.txt` + `ultralytics==8.3.0 --no-deps` (evita `opencv-python` duplicado e a cadeia 8.4+ com `matplotlib`/`polars` que falha com hash mismatch em rede lenta). O arquivo de requirements **deve** listar deps de import (`tqdm`, `pandas`, etc.) — senão log: `ModuleNotFoundError: No module named 'tqdm'`. Se o build falhar, **Redeploy** de novo; timeout pip: `PIP_DEFAULT_TIMEOUT=300` no Dockerfile.
 
 ## Ações
 
