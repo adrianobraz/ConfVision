@@ -129,6 +129,29 @@ mod tests {
     }
 
     #[test]
+    fn uses_rtsp_url_sec_direct() {
+        let cfg = cfg_with_secret();
+        let cam = CameraRecord {
+            id: 5,
+            ativo: true,
+            nome: None,
+            rtsp_url_sec: Some("rtsp://dvr:554/ch5".into()),
+            mediamtx_rtsp_base: None,
+            analitico_pausado: None,
+            deteccao_humano: Some(true),
+            worker_id: None,
+            created_at: None,
+            stream_policy_generation: None,
+            ultimo_stream_ok_em: None,
+            stream_falhas_consecutivas: None,
+            stream_tentativas_horarias: None,
+            extra: json!({}),
+        };
+        let url = resolve_rtsp_url(&cam, &cfg).unwrap();
+        assert_eq!(url, "rtsp://dvr:554/ch5");
+    }
+
+    #[test]
     fn redact_hides_userinfo() {
         let r = redact_rtsp_url("rtsp://user:pass@host:8554/cam/abc");
         assert!(!r.contains("pass"));

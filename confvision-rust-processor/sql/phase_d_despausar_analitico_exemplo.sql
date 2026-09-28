@@ -1,8 +1,28 @@
--- Exemplo: liberar sync Go (analitico_pausado) — REVISAR ids com negócio antes de executar.
--- Elegíveis no export 2026-09-27 já com pausa=false: 5,18,19,22,26,27
--- Câmeras ativas frequentemente pausadas no export: 2,3,4,6,8,9,15,20,21,25,28,29
+-- Exemplo Fase D / Opção A — despausar analítico + RTSP direto
+-- SEMPRE revisar IDs e URLs antes de COMMIT.
+-- Substitua rtsp_url_sec pelas URLs reais acessíveis da VPS foxpro.
 
--- Ver estado atual:
--- SELECT id, nome, analitico_pausado, deteccao_humano, worker_id FROM vis_camera WHERE ativo ORDER BY id;
+BEGIN;
 
--- UPDATE vis_camera SET analitico_pausado = FALSE WHERE id IN (/* ids */);
+-- Despausar câmeras de teste (ajuste a lista de id)
+UPDATE vis_camera
+SET analitico_pausado = FALSE
+WHERE id IN (5, 18, 19, 22, 26, 27)
+  AND ativo = TRUE
+  AND deteccao_humano = TRUE;
+
+-- Uma câmera por vez (exemplo id=5)
+-- UPDATE vis_camera
+-- SET rtsp_url_sec = 'rtsp://usuario:senha@192.168.0.10:554/Streaming/Channels/501'
+-- WHERE id = 5;
+
+-- Conferência
+SELECT id, nome, analitico_pausado,
+       LEFT(COALESCE(rtsp_url_sec, ''), 50) AS rtsp_preview,
+       worker_id, stream_erro_classe
+FROM vis_camera
+WHERE id IN (5, 18, 19, 22, 26, 27)
+ORDER BY id;
+
+-- COMMIT;
+-- ROLLBACK;

@@ -65,6 +65,7 @@ Serviços auxiliares só se ainda fizerem sentido na operação (ex.: `confvisio
 
 **Câmeras / RTSP (sem worker):**
 
+- **Produção recomendada:** [Opção A — RTSP direto](./OPCAO_A_RTSP_DIRETO.md) (`rtsp_url_sec` + despausar analítico). Scripts: `scripts/apply-rtsp-option-a.ps1`, `opcao-a-verify.sh`.
 - Rust consome **RTSP** via sync Go (`rtsp_url_sec` direto na câmera **ou** `rtsp://…/cam/{hash}` no MediaMTX).
 - Path `cam/{hash}` **sem publisher RTMP** → RTSP 404 no Rust até existir ingest no Rust/MediaMTX (roadmap) ou **`rtsp_url_sec`** apontando para a fonte real da câmera.
 - **`worker_id`** analítico = `rust-processor-pilot-a-01` / `rust-processor-pilot-b-02` (ou D5 assign). **Nunca** voltar `worker_id` para o Python.
