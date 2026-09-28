@@ -18,8 +18,9 @@ function Get-VisJson {
 
 function Show-Cameras {
     param([string]$Label, [object]$Data)
-    $list = @($Data.cameras)
-    if ($list.Count -eq 0 -and $Data.dados) { $list = @($Data.dados) }
+    $list = @()
+    if ($null -ne $Data.cameras) { $list = @($Data.cameras) }
+    if ($list.Count -eq 0 -and $null -ne $Data.dados) { $list = @($Data.dados) }
     if ($list.Count -eq 0 -and $Data -is [array]) { $list = @($Data) }
     Write-Host "`n== $Label (count=$($list.Count)) =="
     foreach ($c in $list) {
@@ -31,11 +32,11 @@ function Show-Cameras {
         Write-Host ("  id={0} worker={1} rtsp_sec={2} pausado={3} nome={4}" -f `
             $c.id, ($(if ($null -ne $c.worker_id) { $c.worker_id } else { "?" })), $has, ($(if ($null -ne $c.analitico_pausado) { $c.analitico_pausado } else { $false })), ($(if ($null -ne $c.nome) { $c.nome } else { "" })))
         if ($has -eq "sim") { Write-Host "    preview: $preview" }
-        elseif ($onvif) { Write-Host "    onvif_host: $onvif (preencher rtsp_url_sec Opção A)" }
+        elseif ($onvif) { Write-Host "    onvif_host: $onvif (preencher rtsp_url_sec)" }
     }
 }
 
-Write-Host "Opção A preflight — $ApiBase"
+Write-Host "Opcao A preflight: $ApiBase"
 
 foreach ($wid in @("rust-processor-pilot-a-01", "rust-processor-pilot-b-02")) {
     $q = [uri]::EscapeDataString($wid)
@@ -43,5 +44,6 @@ foreach ($wid in @("rust-processor-pilot-a-01", "rust-processor-pilot-b-02")) {
     Show-Cameras "query_ativas worker=$wid" (Get-VisJson "/vis_camera_query_ativas?worker_id=$q")
 }
 
-Write-Host "`nProximo: editar sql/opcao_a_foxpro_6_cameras.csv com RTSP reais (acessivel da VPS foxpro)."
-Write-Host "Aplicar: .\opcao-a-run.ps1 -VisWorkerKey `$env:VIS_WORKER_API_KEY -Apply"
+Write-Host ""
+Write-Host "Proximo: editar sql/opcao_a_foxpro_6_cameras.csv com RTSP reais na VPS foxpro."
+Write-Host 'Aplicar: .\opcao-a-run.ps1 -VisWorkerKey $env:VIS_WORKER_API_KEY -Apply'
