@@ -61,9 +61,19 @@ foreach ($pair in @(@{L='A';U=$RustA}, @{L='B';U=$RustB})) {
 
 Section "YOLO sidecar"
 try {
-    $y = Invoke-RestMethod "$YoloBase/health" -TimeoutSec 15
-    Ok "yolo sidecar status=$($y.status) busy=$($y.busy)"
-} catch { Bad "yolo sidecar: $_" }
+    $yr = Invoke-WebRequest "$YoloBase/health" -UseBasicParsing -TimeoutSec 15
+    $y = $yr.Content | ConvertFrom-Json
+    $act = $y.active_requests
+    $max = $y.max_queue
+    Info "yolo sidecar HTTP $($yr.StatusCode) active=$act max=$max busy=$($y.busy) slots=$($y.infer_slots)"
+    if ($y.busy -eq $true -or $yr.StatusCode -eq 503) {
+        Bad "YOLO sidecar saturado (503/busy) — Rust deve usar YOLO_HEALTH_PROBE/backoff; reinicie sidecar se active_requests preso"
+    } elseif ($max -gt 0 -and $act -ge ($max - 1)) {
+        Bad "YOLO sidecar quase cheio active=$act max=$max"
+    } else {
+        Ok "yolo sidecar aceitando inferencias"
+    }
+} catch { Bad "yolo sidecar inacessivel: $_" }
 
 Section "Pipeline eventos (Rust B / camera 15)"
 try {
