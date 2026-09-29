@@ -47,14 +47,86 @@ const ConfVisionArmado = {
         return cam.analitico_pausado === true || cam.analitico_pausado === 'S' || cam.analitico_pausado === 1
     },
 
+    isPausaSistemaStream(cam) {
+        if (!ConfVisionArmado.isAnaliticoPausado(cam)) return false
+        const m = String(cam.stream_motivo_pausa || '').trim()
+        return m.indexOf('sistema_stream') === 0
+    },
+
     cameraAnaliticoAtiva(cam) {
         if (!cam) return false
         return cam.ativo === true || cam.ativo === 'S' || cam.ativo === 1 || cam.ativo === '1'
     },
 
+    cameraBloqueadaAdmin(cam) {
+        if (!cam) return false
+        return cam.bloqueado === true || cam.bloqueado === 'S' || cam.bloqueado === 1 || cam.bloqueado === '1'
+    },
+
+    cameraSemComunicacao(cam, staleMin) {
+        if (!ConfVisionArmado.cameraAnaliticoAtiva(cam)) return false
+        if (ConfVisionArmado.cameraBloqueadaAdmin(cam)) return false
+        const min = staleMin > 0 ? staleMin : 15
+        const limite = Date.now() - min * 60 * 1000
+        const raw = cam.ultimo_ping_em
+        if (raw == null || String(raw).trim() === '') return true
+        const t = new Date(raw).getTime()
+        if (isNaN(t)) return true
+        return t < limite
+    },
+
     badgeAnaliticoPausado(cam) {
         if (!ConfVisionArmado.isAnaliticoPausado(cam)) return ''
+        if (ConfVisionArmado.isPausaSistemaStream(cam)) {
+            const hint = ConfVisionArmado.labelMotivoPausaSistema(cam)
+            return '<span class="cv-badge cv-badge-alert cv-badge-pulse" title="' +
+                ConfVisionArmado.escHtml(hint) +
+                '"><i class="bi bi-exclamation-triangle-fill"></i> Stream com problema</span>'
+        }
         return '<span class="cv-badge cv-badge-warn"><i class="bi bi-pause-fill"></i> Detecção pausada</span>'
+    },
+
+    labelMotivoPausaSistema(cam) {
+        const code = String(cam.stream_motivo_pausa || '').trim()
+        if (code === 'sistema_stream_rtsp_404') {
+            return 'Analítico desligado: RTSP 404 (path inexistente no MediaMTX). Corrija a publicação RTMP e reative.'
+        }
+        if (code.indexOf('sistema_stream') === 0) {
+            return 'Analítico pausado automaticamente por falha de stream. Corrija e use Reativar stream.'
+        }
+        return 'Detecção pausada'
+    },
+
+    htmlBotaoReativarStream(cam) {
+        if (!ConfVisionArmado.isPausaSistemaStream(cam)) return ''
+        const id = cam && cam.id != null ? String(cam.id) : ''
+        if (!id) return ''
+        return '<button type="button" class="cv-btn-icon cv-btn-reativar-stream" data-reativar-camera="' +
+            ConfVisionArmado.escHtml(id) +
+            '" title="Reativar analítico após corrigir o stream">' +
+            '<i class="bi bi-arrow-clockwise"></i></button>'
+    },
+
+    reativarStreamCamera(cameraId, onDone) {
+        const id = String(cameraId || '').trim()
+        if (!id) return
+        $.ajax({
+            url: '/api/cameras/' + encodeURIComponent(id) + '/stream/reativar',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({})
+        }).done(function () {
+            if (typeof boxSucessoAuto === 'function') {
+                boxSucessoAuto('Stream reativado. O analítico voltará após o próximo sync do processador.')
+            }
+            if (onDone) onDone(null)
+        }).fail(function (xhr) {
+            const msg = (xhr.responseJSON && xhr.responseJSON.erro) ? xhr.responseJSON.erro : 'Falha ao reativar stream'
+            if (typeof boxMesagemAtencaoPersonalizada === 'function') {
+                boxMesagemAtencaoPersonalizada(msg)
+            }
+            if (onDone) onDone(new Error(msg))
+        })
     },
 
     labelLicenca(plano) {

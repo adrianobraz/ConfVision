@@ -38,6 +38,20 @@ $(document).ready(function () {
                 if (!err) carregarCameras()
             })
         })
+        $('#tab-cameras').on('click', '.cv-btn-reativar-stream', function () {
+            const cameraId = $(this).attr('data-reativar-camera')
+            if (typeof ConfVisionArmado === 'undefined') return
+            ConfVisionArmado.reativarStreamCamera(cameraId, function (err) {
+                if (!err) carregarCameras()
+            })
+        })
+        $('#cv-stream-pause-banner').on('click', '.cv-btn-reativar-stream-banner', function () {
+            const cameraId = $(this).attr('data-reativar-camera')
+            if (typeof ConfVisionArmado === 'undefined') return
+            ConfVisionArmado.reativarStreamCamera(cameraId, function (err) {
+                if (!err) carregarCameras()
+            })
+        })
         $('#modal-detalhe-camera-body').on('click', '.btn-ajuda-encode-rtmp', function () {
             const id = $(this).data('camera-id')
             if (typeof confVisionAbrirAjudaEncodeRtmp === 'function') {
@@ -98,6 +112,34 @@ function badgeBloqueado(bloqueado) {
     return bloqueado
         ? '<span class="cv-badge cv-badge-off">RTMP bloqueado</span>'
         : ''
+}
+
+function renderStreamPauseBanner(lista) {
+    const $b = $('#cv-stream-pause-banner')
+    if (!$b.length || typeof ConfVisionArmado === 'undefined') return
+    const fonte = lista && lista.length ? lista : cacheCameras
+    const cams = fonte.filter(function (cam) {
+        return ConfVisionArmado.isPausaSistemaStream(cam)
+    })
+    if (!cams.length) {
+        $b.addClass('d-none').empty()
+        return
+    }
+    const itens = cams.map(function (cam) {
+        const nome = escHtml(cam.nome || ('#' + cam.id))
+        const hint = escHtml(ConfVisionArmado.labelMotivoPausaSistema(cam))
+        const id = escHtml(String(cam.id))
+        return (
+            '<li><strong>' + nome + '</strong> (ID ' + id + ') — ' + hint +
+            ' <button type="button" class="cv-btn-link cv-btn-reativar-stream-banner" data-reativar-camera="' +
+            id + '">Reativar stream</button></li>'
+        )
+    }).join('')
+    $b.removeClass('d-none').html(
+        '<p class="mb-1"><strong><i class="bi bi-exclamation-triangle-fill"></i> ' +
+        cams.length + (cams.length === 1 ? ' câmera com stream pausado pelo sistema' : ' câmeras com stream pausadas pelo sistema') +
+        '</strong></p><ul class="cv-stream-pause-banner-list mb-0">' + itens + '</ul>'
+    )
 }
 
 function badgeStatusCamera(cam) {
@@ -185,7 +227,7 @@ function carregarClientesCache() {
     }).then(function (r) {
         cacheClientes = r.dados || r || []
         return cacheClientes
-    }).fail(function () {
+    }, function () {
         cacheClientes = []
         return cacheClientes
     })
@@ -449,13 +491,19 @@ function renderListaCameras() {
             const pausarBtn = (typeof ConfVisionArmado !== 'undefined')
                 ? ConfVisionArmado.htmlBotaoPausarAnalitico(cam)
                 : ''
+            const reativarBtn = (typeof ConfVisionArmado !== 'undefined')
+                ? ConfVisionArmado.htmlBotaoReativarStream(cam)
+                : ''
+            const rowCls = (typeof ConfVisionArmado !== 'undefined' && ConfVisionArmado.isPausaSistemaStream(cam))
+                ? ' cv-row-stream-pause'
+                : ''
             const aoVivoBtn = (typeof confVisionCameraApareceAoVivo === 'function' && confVisionCameraApareceAoVivo(cam))
                 ? `<a href="/ao-vivo/${cam.id}" class="cv-btn-icon btn-ao-vivo-camera" title="Ao vivo">
                                 <i class="bi bi-play-fill"></i>
                             </a>`
                 : ''
             tbody.append(`
-                <tr>
+                <tr class="${rowCls.trim()}">
                     <td data-label="ID"><strong>${escHtml(cam.id)}</strong></td>
                     <td data-label="Cliente">${escHtml(nomeClienteCamera(cam))}</td>
                     <td data-label="Câmera">${escHtml(cam.nome)}</td>
@@ -467,6 +515,7 @@ function renderListaCameras() {
                                 <i class="bi bi-pencil"></i>
                             </a>
                             ${pausarBtn}
+                            ${reativarBtn}
                             <button type="button" class="cv-btn-icon btn-ver-camera" data-id="${cam.id}" title="Ver detalhes">
                                 <i class="bi bi-eye"></i>
                             </button>
@@ -476,6 +525,7 @@ function renderListaCameras() {
                 </tr>
             `)
         })
+        renderStreamPauseBanner(lista)
     } catch (e) {
         console.error('Erro ao renderizar câmeras', e)
         tbody.html(`
@@ -512,22 +562,32 @@ function carregarCameras() {
         return
     }
 
-    $.when(
-        $.get(`/api/cameras?id_franqueado=${encodeURIComponent(idFranqueado)}`),
-        carregarClientesCache()
-    ).done(function (camResp) {
-        const r = camResp[0]
-        cacheCameras = normalizarListaCameras(r)
-        renderListaCameras()
-    }).fail(function (xhr) {
-        console.error('Erro ao carregar câmeras', xhr)
-        tbody.html(`
-            <tr>
-                <td colspan="6">
-                    <div class="cv-empty">Erro ao carregar câmeras. Tente sair e entrar novamente.</div>
-                </td>
-            </tr>
-        `)
-        boxMesagemAtencaoPersonalizada('Erro ao carregar câmeras. Faça logout e login novamente.')
-    })
+    $.get(`/api/cameras?id_franqueado=${encodeURIComponent(idFranqueado)}`)
+        .done(function (r) {
+            cacheCameras = normalizarListaCameras(r)
+            renderListaCameras()
+            carregarClientesCache().always(function () {
+                if (cacheClientes && cacheClientes.length) {
+                    renderListaCameras()
+                }
+            })
+        })
+        .fail(function (xhr) {
+            console.error('Erro ao carregar câmeras', xhr)
+            const status = xhr && xhr.status
+            let msg = 'Erro ao carregar câmeras. Faça logout e login novamente.'
+            if (status === 403) {
+                msg = 'Acesso ao módulo ConfVision negado. Verifique contratação ou entre em contato com a central.'
+            } else if (status === 502 || status === 503) {
+                msg = 'Serviço de câmeras indisponível no momento. Tente novamente em instantes.'
+            }
+            tbody.html(`
+                <tr>
+                    <td colspan="6">
+                        <div class="cv-empty">${escHtml(msg)}</div>
+                    </td>
+                </tr>
+            `)
+            boxMesagemAtencaoPersonalizada(msg)
+        })
 }

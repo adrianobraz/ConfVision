@@ -7,6 +7,48 @@ import (
 
 var Rotas = []auxiliar.Rota{
 	{
+		URI:    "/integracao-eventos",
+		Metodo: http.MethodGet,
+		Funcao: CarregarIntegracaoEventos,
+		Aberto: false,
+	},
+	{
+		URI:    "/api/integracao",
+		Metodo: http.MethodGet,
+		Funcao: ProxyIntegracaoGet,
+		Aberto: false,
+	},
+	{
+		URI:    "/api/integracao",
+		Metodo: http.MethodPut,
+		Funcao: ProxyIntegracaoSalvar,
+		Aberto: false,
+	},
+	{
+		URI:    "/api/integracao/testar",
+		Metodo: http.MethodPost,
+		Funcao: ProxyIntegracaoTestar,
+		Aberto: false,
+	},
+	{
+		URI:    "/api/integracao/log",
+		Metodo: http.MethodGet,
+		Funcao: ProxyIntegracaoLog,
+		Aberto: false,
+	},
+	{
+		URI:    "/api/cliente-ext",
+		Metodo: http.MethodGet,
+		Funcao: ProxyClienteExtGet,
+		Aberto: false,
+	},
+	{
+		URI:    "/api/cliente-ext",
+		Metodo: http.MethodPut,
+		Funcao: ProxyClienteExtPut,
+		Aberto: false,
+	},
+	{
 		URI:    "/carregar-menu-confvision",
 		Metodo: http.MethodGet,
 		Funcao: CarregarMenu,
@@ -91,9 +133,69 @@ var Rotas = []auxiliar.Rota{
 		Aberto: false,
 	},
 	{
+		URI:    "/grupos-visualizacao",
+		Metodo: http.MethodGet,
+		Funcao: CarregarGruposVisualizacao,
+		Aberto: false,
+	},
+	{
+		URI:    "/mosaicos",
+		Metodo: http.MethodGet,
+		Funcao: CarregarMosaicos,
+		Aberto: false,
+	},
+	{
+		URI:    "/mosaicos/{id}",
+		Metodo: http.MethodGet,
+		Funcao: CarregarMosaicoView,
+		Aberto: false,
+	},
+	{
 		URI:    "/rtmp-falhas",
 		Metodo: http.MethodGet,
 		Funcao: CarregarRtmpFalhas,
+		Aberto: false,
+	},
+	{
+		URI:    "/ips-banidos",
+		Metodo: http.MethodGet,
+		Funcao: CarregarIpsBanidos,
+		Aberto: false,
+	},
+	{
+		URI:    "/relatorio-operacional",
+		Metodo: http.MethodGet,
+		Funcao: CarregarRelatorioOperacional,
+		Aberto: false,
+	},
+	{
+		URI:    "/api/relatorio-operacional/stream",
+		Metodo: http.MethodGet,
+		Funcao: ProxyRelatorioStream,
+		Aberto: false,
+	},
+	{
+		URI:    "/api/relatorio-operacional/health",
+		Metodo: http.MethodGet,
+		Funcao: ProxyRelatorioHealth,
+		Aberto: false,
+	},
+	{
+		URI:    "/api/relatorio-operacional/metric",
+		Metodo: http.MethodGet,
+		Funcao: ProxyRelatorioMetric,
+		Aberto: false,
+	},
+	{
+		URI:    "/api/cameras/resumo",
+		Metodo: http.MethodGet,
+		Funcao: ProxyCamerasResumo,
+		Aberto: false,
+	},
+	{
+		URI:    "/api/cameras/franqueado",
+		Metodo: http.MethodGet,
+		Funcao: ProxyCamerasFranqueado,
 		Aberto: false,
 	},
 	{
@@ -112,6 +214,12 @@ var Rotas = []auxiliar.Rota{
 		URI:    "/api/rtmp-bans",
 		Metodo: http.MethodGet,
 		Funcao: ProxyRtmpBans,
+		Aberto: false,
+	},
+	{
+		URI:    "/api/rtmp-bans/franqueado",
+		Metodo: http.MethodGet,
+		Funcao: ProxyRtmpBansFranqueado,
 		Aberto: false,
 	},
 	{
@@ -325,6 +433,12 @@ var Rotas = []auxiliar.Rota{
 		Aberto: false,
 	},
 	{
+		URI:    "/api/cameras/{id}/stream/reativar",
+		Metodo: http.MethodPost,
+		Funcao: ProxyReativarStreamCamera,
+		Aberto: false,
+	},
+	{
 		URI:    "/api/gravacao-segmentos",
 		Metodo: http.MethodGet,
 		Funcao: ProxyListarGravacaoSegmentos,
@@ -358,6 +472,60 @@ var Rotas = []auxiliar.Rota{
 		URI:    "/api/gravacao-segmento/video",
 		Metodo: http.MethodGet,
 		Funcao: ProxyGravacaoSegmentoVideo,
+		Aberto: false,
+	},
+	{
+		URI:    "/api/grupos-visualizacao",
+		Metodo: http.MethodGet,
+		Funcao: ProxyListarGruposVisualizacao,
+		Aberto: false,
+	},
+	{
+		URI:    "/api/grupos-visualizacao/disponiveis",
+		Metodo: http.MethodGet,
+		Funcao: ProxyListarGruposDisponiveis,
+		Aberto: false,
+	},
+	{
+		URI:    "/api/grupos-visualizacao/{id}",
+		Metodo: http.MethodGet,
+		Funcao: ProxyGetGrupoVisualizacao,
+		Aberto: false,
+	},
+	{
+		URI:    "/api/grupos-visualizacao/{id}",
+		Metodo: http.MethodPut,
+		Funcao: ProxyUpdateGrupoVisualizacao,
+		Aberto: false,
+	},
+	{
+		URI:    "/api/grupos-visualizacao/{id}",
+		Metodo: http.MethodDelete,
+		Funcao: ProxyDeleteGrupoVisualizacao,
+		Aberto: false,
+	},
+	{
+		URI:    "/api/grupos-visualizacao",
+		Metodo: http.MethodPost,
+		Funcao: ProxyCreateGrupoVisualizacao,
+		Aberto: false,
+	},
+	{
+		URI:    "/api/grupos-visualizacao/{id}/composicao",
+		Metodo: http.MethodPut,
+		Funcao: ProxySaveGrupoComposicao,
+		Aberto: false,
+	},
+	{
+		URI:    "/api/grupos-visualizacao/{id}/reordenar",
+		Metodo: http.MethodPut,
+		Funcao: ProxyReordenarGrupoCameras,
+		Aberto: false,
+	},
+	{
+		URI:    "/api/grupos-visualizacao/{id}/cameras",
+		Metodo: http.MethodGet,
+		Funcao: ProxyGetGrupoCameras,
 		Aberto: false,
 	},
 }
