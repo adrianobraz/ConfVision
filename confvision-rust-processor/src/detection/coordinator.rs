@@ -166,7 +166,14 @@ impl DetectionContext {
         let detections = match self.yolo.infer_frame(decoded, jpeg).await {
             Ok(d) => d,
             Err(e) => {
-                warn!(camera_id = self.camera_id, error = %e, "yolo infer");
+                if e.is_yolo_busy() {
+                    self.stats
+                        .yolo_skipped_busy
+                        .fetch_add(1, Ordering::Relaxed);
+                    debug!(camera_id = self.camera_id, error = %e, "yolo infer adiado (backpressure)");
+                } else {
+                    warn!(camera_id = self.camera_id, error = %e, "yolo infer");
+                }
                 return;
             }
         };

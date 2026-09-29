@@ -65,7 +65,8 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.rstrip("/") or "/"
         if path == "/health":
             with _active_lock:
-                busy = _active >= MAX_QUEUE
+                # Uma vaga de reserva: evita enfileirar threads bloqueadas em infer lento.
+                busy = _active >= max(1, MAX_QUEUE - 1)
                 act = _active
             body = json.dumps(
                 {
@@ -87,7 +88,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         with _active_lock:
-            if _active >= MAX_QUEUE:
+            if _active >= max(1, MAX_QUEUE - 1):
                 err = json.dumps({"error": "sidecar busy"}).encode("utf-8")
                 _write_json_response(self, 503, err)
                 return

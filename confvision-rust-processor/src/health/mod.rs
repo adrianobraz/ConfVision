@@ -115,6 +115,9 @@ pub struct HealthResponse {
     pub events_published: u64,
     pub events_queue_full: u64,
     pub events_captured: u64,
+    pub yolo_inferences: u64,
+    pub yolo_skipped_busy: u64,
+    pub yolo_matches: u64,
 }
 
 #[derive(Serialize)]
@@ -189,6 +192,21 @@ pub async fn health_handler(State(st): State<AppState>) -> Json<HealthResponse> 
             .events_queue_full
             .load(Ordering::Relaxed),
         events_captured: st.analytics.capture_stats.processed.load(Ordering::Relaxed),
+        yolo_inferences: st
+            .analytics
+            .detection_stats
+            .yolo_inferences
+            .load(Ordering::Relaxed),
+        yolo_skipped_busy: st
+            .analytics
+            .detection_stats
+            .yolo_skipped_busy
+            .load(Ordering::Relaxed),
+        yolo_matches: st
+            .analytics
+            .detection_stats
+            .matches
+            .load(Ordering::Relaxed),
     })
 }
 
@@ -423,6 +441,9 @@ mod integration_tests {
             events_published: 0,
             events_queue_full: 0,
             events_captured: 0,
+            yolo_inferences: 0,
+            yolo_skipped_busy: 0,
+            yolo_matches: 0,
         };
         let v = serde_json::to_value(&health).unwrap();
         assert!(v.get("capacity_state").is_some());

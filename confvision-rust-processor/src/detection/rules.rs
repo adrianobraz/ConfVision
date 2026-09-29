@@ -61,6 +61,7 @@ pub fn evaluate_detections<'a>(
 pub fn camera_conf_min(camera: &Value, default: f64) -> f64 {
     camera
         .get("confianca_minima")
+        .or_else(|| camera.get("confianca_min"))
         .or_else(|| camera.get("conf_min"))
         .and_then(|v| v.as_f64())
         .unwrap_or(default)
