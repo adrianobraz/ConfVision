@@ -18,7 +18,7 @@ Relacionado: [STREAM_RETRY_POLICY.md](./STREAM_RETRY_POLICY.md), [PAINEL_ATIVO_V
 
 | Simples | Técnico | `error_class` | Política | Ação automática |
 |---------|---------|---------------|----------|-----------------|
-| “Câmera sem vídeo no servidor” / path errado | RTSP **404**, `not found`, `unexpected rtsp response status: 404` | `rtsp_404` | PathAbsent | Backoff crescente (1 min → 60 min); contadores em `stream_falhas_consecutivas`; após limiar horário → `analitico_pausado` + `stream_motivo_pausa=sistema_stream_*`; evento `stream_failure` no ping |
+| “Câmera sem vídeo no servidor” / path errado | RTSP **404**, `not found`, `unexpected rtsp response status: 404` | `rtsp_404` | PathAbsent | **Pausa imediata** do analítico (`PauseAnalytic` → `sistema_stream_rtsp_404`); worker para de reconectar a cada 120s; painel: badge pulsante + Reativar stream |
 | “Senha ou usuário RTSP incorreto” | **401/403**, `unauthorized` | `rtsp_auth` | Auth | Espera **30 min** entre tentativas; **não** pausa analítico só por auth (corrigir credencial no dispositivo/publisher) |
 | “Vídeo chega quebrado / trava e reconecta” | **FU-A H.264**: `FU-A has start bit unset`, fragmentation unit RTP | `rtp_h264_fu_a` | Transient | Reconnect com backoff local; evento **`stream_incident`** (esboço) grava `stream_ultimo_erro` + `stream_erro_classe` no Postgres; **não** conta como 404 |
 | “Rede instável ou MediaMTX lento” | `timeout`, `timed out`, `connection refused`, `broken pipe` | `network_timeout` | Transient | Idem transient + `stream_incident` |

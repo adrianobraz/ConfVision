@@ -114,12 +114,10 @@ impl StreamPolicyState {
 
         if class == StreamFailureClass::PathAbsent {
             self.failures_consecutive = self.failures_consecutive.saturating_add(1);
-            let delay = Duration::from_secs(cfg.delay_path_absent_secs.max(30));
-            self.next_probe_at = Some(
-                Utc::now()
-                    + chrono::Duration::from_std(delay).unwrap_or(chrono::Duration::minutes(2)),
-            );
-            return StreamHealthAction::RetryAfter(delay);
+            self.local_paused = true;
+            return StreamHealthAction::PauseAnalytic {
+                reason: "sistema_stream_rtsp_404".into(),
+            };
         }
 
         self.failures_consecutive = self.failures_consecutive.saturating_add(1);
@@ -196,5 +194,19 @@ mod tests {
         let nf = "unexpected rtsp response status: 404";
         assert_eq!(classify_stream_error_code(nf), "rtsp_404");
         assert_eq!(classify_rtsp_error(nf), StreamFailureClass::PathAbsent);
+    }
+
+    #[test]
+    fn path_absent_pauses_analytic_immediately() {
+        let mut s = StreamPolicyState::default();
+        let action = s.on_failure(&cfg(), StreamFailureClass::PathAbsent, None);
+        assert!(s.local_paused);
+        assert_eq!(s.failures_consecutive, 1);
+        match action {
+            StreamHealthAction::PauseAnalytic { reason } => {
+                assert_eq!(reason, "sistema_stream_rtsp_404");
+            }
+            other => panic!("expected PauseAnalytic, got {other:?}"),
+        }
     }
 }
