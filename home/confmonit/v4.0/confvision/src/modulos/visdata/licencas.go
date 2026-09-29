@@ -167,3 +167,42 @@ UPDATE vis_camera SET grava_continua = false, grava_movimento = false, grava_tim
 	}
 	return GetCameraByID(ctx, cameraID)
 }
+
+// EstornarLicencaFatura reverte pagamento registrado (ops financeiro).
+func EstornarLicencaFatura(ctx context.Context, licID int, observacao string) (map[string]any, error) {
+	if licID <= 0 {
+		return nil, fmt.Errorf("vis_licenca_id obrigatorio")
+	}
+	db, err := DB()
+	if err != nil {
+		return nil, err
+	}
+	var obsArg any
+	if strings.TrimSpace(observacao) != "" {
+		obsArg = observacao
+	}
+	var idFra, st sql.NullString
+	var camID sql.NullInt64
+	err = db.QueryRowContext(ctx, `
+UPDATE vis_licenca SET
+  pago_em = NULL,
+  valido_ate = NULL,
+  id_pagamento = NULL,
+  status = CASE WHEN vis_camera_id IS NOT NULL THEN 'em_uso' ELSE 'disponivel' END,
+  observacao = COALESCE($2, observacao)
+WHERE id = $1 AND pago_em IS NOT NULL
+RETURNING id_franqueado, status, vis_camera_id`, licID, obsArg).Scan(&idFra, &st, &camID)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("licenca nao encontrada ou pagamento ja estornado")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{
+		"id":               licID,
+		"id_franqueado":    nullStr(idFra),
+		"status":           nullStr(st),
+		"vis_camera_id":    nullInt(camID),
+		"estorno_aplicado": true,
+	}, nil
+}

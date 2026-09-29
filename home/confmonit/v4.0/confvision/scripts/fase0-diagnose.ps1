@@ -67,7 +67,7 @@ try {
     $max = $y.max_queue
     Info "yolo sidecar HTTP $($yr.StatusCode) active=$act max=$max busy=$($y.busy) slots=$($y.infer_slots)"
     if ($y.busy -eq $true -or $yr.StatusCode -eq 503) {
-        Bad "YOLO sidecar saturado (503/busy) — Rust deve usar YOLO_HEALTH_PROBE/backoff; reinicie sidecar se active_requests preso"
+        Bad "YOLO sidecar saturado (503/busy) - use YOLO_HEALTH_PROBE/backoff e reinicie sidecar se active_requests preso"
     } elseif ($max -gt 0 -and $act -ge ($max - 1)) {
         Bad "YOLO sidecar quase cheio active=$act max=$max"
     } else {
@@ -106,7 +106,7 @@ if ($env:POSTGRES_URL) {
     $out = go run . 2>&1 | Out-String
     Pop-Location
     if ($out -match "id\s+15\s+ESCRITORIO\s+offline\s+<nil>") {
-        Info "vis_camera.status offline + ultimo_stream_ok_em null (status cadastro nao vem do Rust; stream_ok no ping)"
+        Info "vis_camera.status offline + ultimo_stream_ok_em null (status cadastro nao vem do Rust, stream_ok no ping)"
     }
     if ($out -match "rust-processor-pilot-b-02\s+(\d+)") {
         $n = [int]$Matches[1]

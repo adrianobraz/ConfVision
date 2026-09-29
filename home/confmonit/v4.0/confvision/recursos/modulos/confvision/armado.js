@@ -91,6 +91,9 @@ const ConfVisionArmado = {
         if (code === 'sistema_stream_rtsp_404') {
             return 'Analítico desligado: RTSP 404 (path inexistente no MediaMTX). Corrija a publicação RTMP e reative.'
         }
+        if (code === 'sistema_stream_h264_nal') {
+            return 'Analítico desligado: vídeo H.264 inválido (NAL corrupto). Corrija encoder/RTMP na câmera e reative.'
+        }
         if (code.indexOf('sistema_stream') === 0) {
             return 'Analítico pausado automaticamente por falha de stream. Corrija e use Reativar stream.'
         }

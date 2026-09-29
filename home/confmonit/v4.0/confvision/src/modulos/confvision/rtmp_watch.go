@@ -5,6 +5,7 @@ import (
 	"confvision/src/auxiliar"
 	"confvision/src/config"
 	"confvision/src/seguranca"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -191,31 +192,18 @@ func ProxyRtmpPublishURL(w http.ResponseWriter, r *http.Request) {
 	cookie, _ := seguranca.LerCookies(r)
 	idFraSessao := seguranca.IdFranqueadoDoCookie(cookie)
 
-	path := fmt.Sprintf("%s/vis_camera/%s?vis_camera_id=%s",
-		strings.TrimRight(config.XanoBaseUrl, "/"), id, id)
-	resp, err := http.Get(path)
+	ctx := r.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	cam, err := getCameraOperacional(ctx, cameraID)
 	if err != nil {
+		msg := err.Error()
+		if strings.Contains(msg, "nao encontrada") {
+			auxiliar.RespostaErro(w, http.StatusNotFound, err)
+			return
+		}
 		auxiliar.RespostaErro(w, http.StatusBadGateway, err)
-		return
-	}
-	defer resp.Body.Close()
-	raw, err := io.ReadAll(resp.Body)
-	if err != nil {
-		auxiliar.RespostaErro(w, http.StatusBadGateway, err)
-		return
-	}
-	if resp.StatusCode == http.StatusNotFound {
-		auxiliar.RespostaErro(w, http.StatusNotFound, fmt.Errorf("camera nao encontrada"))
-		return
-	}
-	if resp.StatusCode >= 400 {
-		auxiliar.RespostaErro(w, http.StatusBadGateway, fmt.Errorf("xano HTTP %d: %s", resp.StatusCode, string(raw)))
-		return
-	}
-
-	var cam map[string]any
-	if err := json.Unmarshal(raw, &cam); err != nil {
-		auxiliar.RespostaErro(w, http.StatusBadGateway, fmt.Errorf("parse camera: %w", err))
 		return
 	}
 	idFra := strings.TrimSpace(fmt.Sprint(cam["id_franqueado"]))
@@ -228,7 +216,7 @@ func ProxyRtmpPublishURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mtx, err := fetchMediamtxForCamera(cameraID)
+	mtx, err := resolveMediamtxOperacional(ctx, cameraID)
 	if err != nil {
 		auxiliar.RespostaErro(w, http.StatusBadGateway, err)
 		return

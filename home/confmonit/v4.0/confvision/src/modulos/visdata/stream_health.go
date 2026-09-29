@@ -149,6 +149,10 @@ func notifyCameraStreamPaused(
 		titulo = fmt.Sprintf("Stream RTSP 404 — analítico desligado (câmera %s)", strings.TrimSpace(nome.String))
 		dica = "O path RTSP não existe no MediaMTX. Corrija o encode/publicação RTMP e use Reativar stream."
 	}
+	if reason == "sistema_stream_h264_nal" {
+		titulo = fmt.Sprintf("Vídeo H.264 inválido — analítico desligado (câmera %s)", strings.TrimSpace(nome.String))
+		dica = "Stream corrompido (NAL). Ajuste codec/bitrate/RTMP na câmera ou DVR e clique em Reativar stream."
+	}
 
 	detail := map[string]any{
 		"stream_motivo_pausa": reason,
