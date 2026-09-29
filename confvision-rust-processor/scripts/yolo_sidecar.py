@@ -73,6 +73,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_error(501, "use POST /v1/detect or GET /health")
 
     def do_POST(self):
+        global _active
         if self.path.rstrip("/") != "/v1/detect":
             self.send_error(404)
             return

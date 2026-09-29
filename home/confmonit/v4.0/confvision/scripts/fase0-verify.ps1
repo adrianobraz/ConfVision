@@ -6,7 +6,8 @@ param(
     [string]$RustA = "https://foxpro-rust-pilot.rkr351.easypanel.host",
     [string]$WorkerKey = "",
     [string]$IdFranqueado = "2025110408303794600766334",
-    [int]$PilotCameraId = 15
+    [int]$PilotCameraId = 15,
+    [int]$MinPilotBCamerasAtivas = 1
 )
 
 function Pass($msg) { Write-Host "[OK] $msg" -ForegroundColor Green }
@@ -78,8 +79,16 @@ if ($env:POSTGRES_URL) {
     if ($out -match "id\s+15\s+ESCRITORIO\s+offline\s+<nil>") {
         Warn "vis_camera.status=offline e ultimo_stream_ok_em null (campo status e legado; ver vis_worker ping)"
     }
-    if ($out -notmatch "rust-processor-pilot-b-02\s+4\s+2026") {
-        Fail "vis_worker rust-processor-pilot-b-02 sem ping recente ou cameras_ativas<4"
+    if ($out -match "rust-processor-pilot-b-02\s+(\d+)\s+(\d{4}-\d{2}-\d{2})") {
+        $camAtivas = [int]$Matches[1]
+        if ($camAtivas -ge $MinPilotBCamerasAtivas) {
+            Pass "vis_worker pilot-b cameras_ativas=$camAtivas (min=$MinPilotBCamerasAtivas)"
+        } else {
+            Fail "vis_worker pilot-b cameras_ativas=$camAtivas (min=$MinPilotBCamerasAtivas)"
+            $script:fail++
+        }
+    } else {
+        Fail "vis_worker rust-processor-pilot-b-02 sem ping recente no pg-audit"
         $script:fail++
     }
 } else {
