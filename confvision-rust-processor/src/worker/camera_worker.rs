@@ -13,6 +13,7 @@ use crate::stream_policy::{
 use crate::worker::stream_health_queue::{
     enqueue_stream_action, enqueue_stream_failure, enqueue_stream_incident,
 };
+use crate::worker::H264NalPauseContext;
 
 use crate::analytics::AnalyticsRuntime;
 use crate::camera::{
@@ -41,6 +42,8 @@ async fn run_session_with_pipeline(
     cancel: CameraCancel,
     global_frames: Arc<AtomicU64>,
     simulate: bool,
+    stream_policy: Arc<RwLock<StreamPolicyState>>,
+    health_queue: Arc<RwLock<Vec<crate::api::CameraStreamHealthReport>>>,
 ) -> Result<crate::rtsp::RtspLoopStats, crate::error::AppError> {
     let pipeline = FramePipeline::new(cfg.frame_buffer_max, metrics.clone(), state.clone());
     let decode_ctx = SessionDecodeContext::new();
@@ -99,6 +102,7 @@ async fn run_session_with_pipeline(
                 motion_gate_for_consumer,
                 motion_sensitivity,
                 detection_for_consumer,
+                None,
             )
             .await;
         });
@@ -116,6 +120,12 @@ async fn run_session_with_pipeline(
         let decode_policy_for_consumer = decode_policy.clone();
         let motion_gate_for_consumer = motion_gate.clone();
         let detection_for_consumer = detection.clone();
+        let nal_pause = H264NalPauseContext::new(
+            camera_id,
+            health_queue.clone(),
+            stream_policy.clone(),
+            session_shutdown_tx.clone(),
+        );
         let consumer = tokio::spawn(async move {
             run_frame_consumer(
                 consumer_pipeline,
@@ -128,6 +138,7 @@ async fn run_session_with_pipeline(
                 motion_gate_for_consumer,
                 motion_sensitivity,
                 detection_for_consumer,
+                Some(nal_pause),
             )
             .await;
         });
@@ -288,6 +299,8 @@ pub async fn run_camera_worker(
                 cancel,
                 global_frames.clone(),
                 true,
+                stream_policy.clone(),
+                health_queue.clone(),
             )
             .await;
             break;
@@ -306,6 +319,8 @@ pub async fn run_camera_worker(
             cancel,
             global_frames.clone(),
             false,
+            stream_policy.clone(),
+            health_queue.clone(),
         )
         .await
         {
@@ -345,7 +360,10 @@ pub async fn run_camera_worker(
                     let mut pol = stream_policy.write().await;
                     let action = pol.on_failure(&stream_cfg, failure_class, camera_created_at);
                     mirror_policy_to_state(&state, &pol).await;
-                    if failure_class == StreamFailureClass::PathAbsent {
+                    if matches!(
+                        failure_class,
+                        StreamFailureClass::PathAbsent | StreamFailureClass::H264Corrupt
+                    ) {
                         enqueue_stream_failure(
                             &health_queue,
                             camera_id,

@@ -465,6 +465,7 @@ pub async fn run_frame_consumer(
     motion_gate: Option<Arc<MotionGatedSession>>,
     motion_sensitivity: MotionSensitivity,
     detection: Option<Arc<crate::detection::DetectionContext>>,
+    h264_nal_pause: Option<crate::worker::H264NalPauseContext>,
 ) {
     let mut h264_decoder = H264Decoder::with_acceleration_and_policy(acceleration, decode_policy);
     let mut motion_detector = MotionDetector::with_sensitivity(motion_sensitivity);
@@ -495,6 +496,17 @@ pub async fn run_frame_consumer(
                         }
 
                         let outcome = if decode_enabled {
+                            if let Some(ctx) = h264_nal_pause.as_ref() {
+                                if crate::stream_policy::h264_access_unit_has_zero_nal_length(
+                                    &f.payload,
+                                ) {
+                                    ctx.trigger_immediate_pause(
+                                        "invalid NAL unit size (length prefix zero)".into(),
+                                    )
+                                    .await;
+                                    break;
+                                }
+                            }
                             if f.decoder_reset {
                                 h264_decoder.discard_session_state();
                             }
@@ -590,7 +602,14 @@ pub async fn run_frame_consumer(
                                 }
                                 Ok(DecodeOutcome::NotReady) => ConsumerFrameOutcome::NotReady,
                                 Ok(DecodeOutcome::Failed(e)) => {
+                                    let err_text = e.to_string();
                                     tracing::debug!(error = %e, seq = f.seq, "h264 decode");
+                                    if let Some(ctx) = h264_nal_pause.as_ref() {
+                                        if crate::stream_policy::is_h264_nal_corruption(&err_text) {
+                                            ctx.trigger_immediate_pause(err_text).await;
+                                            break;
+                                        }
+                                    }
                                     ConsumerFrameOutcome::DecodeFailed
                                 }
                                 Err(_) => {
@@ -829,6 +848,7 @@ mod tests {
                 false,
                 None,
                 MotionSensitivity::default(),
+                None,
                 None,
             )
             .await;

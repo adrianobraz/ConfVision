@@ -42,18 +42,17 @@ impl LoadSheddingCoordinator {
         self.shed_ids.read().await.contains(&camera_id)
     }
 
+    /// Só CPU/RAM reais — não usar `CapacityState::Critical` (100% do teto planejado ≠ overload).
     fn resource_hot(snap: &CapacitySnapshot, enter_pct: f64) -> bool {
         let cpu = snap.cpu.percent.unwrap_or(0.0);
         let mem = snap.memory.percent.unwrap_or(0.0);
-        cpu >= enter_pct || mem >= enter_pct || snap.state == CapacityState::Critical
+        cpu >= enter_pct || mem >= enter_pct
     }
 
     fn resource_cool(snap: &CapacitySnapshot, exit_pct: f64) -> bool {
         let cpu = snap.cpu.percent.unwrap_or(100.0);
         let mem = snap.memory.percent.unwrap_or(100.0);
-        cpu <= exit_pct
-            && mem <= exit_pct
-            && matches!(snap.state, CapacityState::Healthy | CapacityState::Warning)
+        cpu <= exit_pct && mem <= exit_pct && snap.state != CapacityState::Unknown
     }
 
     pub async fn tick(&self, manager: &Arc<CameraManager>) {

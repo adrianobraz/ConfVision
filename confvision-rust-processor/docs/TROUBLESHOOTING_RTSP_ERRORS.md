@@ -20,6 +20,7 @@ Relacionado: [STREAM_RETRY_POLICY.md](./STREAM_RETRY_POLICY.md), [PAINEL_ATIVO_V
 |---------|---------|---------------|----------|-----------------|
 | “Câmera sem vídeo no servidor” / path errado | RTSP **404**, `not found`, `unexpected rtsp response status: 404` | `rtsp_404` | PathAbsent | **Pausa imediata** do analítico (`PauseAnalytic` → `sistema_stream_rtsp_404`); worker para de reconectar a cada 120s; painel: badge pulsante + Reativar stream |
 | “Senha ou usuário RTSP incorreto” | **401/403**, `unauthorized` | `rtsp_auth` | Auth | Espera **30 min** entre tentativas; **não** pausa analítico só por auth (corrigir credencial no dispositivo/publisher) |
+| “Vídeo H.264 inválido (NAL)” | `Invalid NAL unit size`, length prefix **0** no access unit | `h264_invalid_nal` | H264Corrupt | **Pausa imediata** do analítico (`sistema_stream_h264_nal`); `vis_stream_relatorio` + badge no painel; Reativar stream após corrigir encoder |
 | “Vídeo chega quebrado / trava e reconecta” | **FU-A H.264**: `FU-A has start bit unset`, fragmentation unit RTP | `rtp_h264_fu_a` | Transient | Reconnect com backoff local; evento **`stream_incident`** (esboço) grava `stream_ultimo_erro` + `stream_erro_classe` no Postgres; **não** conta como 404 |
 | “Rede instável ou MediaMTX lento” | `timeout`, `timed out`, `connection refused`, `broken pipe` | `network_timeout` | Transient | Idem transient + `stream_incident` |
 | “Falha ao abrir stream (genérico)” | Outros erros de demux/decode/OpenCV | `unknown_transient` | Transient | Reconnect; incidente opcional se houver texto de erro |

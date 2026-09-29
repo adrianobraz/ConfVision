@@ -2,7 +2,9 @@ mod policy;
 mod types;
 
 pub use policy::{
-    classify_rtsp_error, classify_stream_error_code, delay_after_failure, should_auto_pause,
+    classify_rtsp_error, classify_stream_error_code, delay_after_failure,
+    h264_access_unit_has_zero_nal_length, is_h264_nal_corruption, should_auto_pause,
+    STREAM_PAUSE_REASON_H264_NAL,
 };
 pub use types::{StreamFailureClass, StreamHealthAction, StreamPolicySnapshot, StreamRetryConfig};
 
@@ -120,6 +122,14 @@ impl StreamPolicyState {
             };
         }
 
+        if class == StreamFailureClass::H264Corrupt {
+            self.failures_consecutive = self.failures_consecutive.saturating_add(1);
+            self.local_paused = true;
+            return StreamHealthAction::PauseAnalytic {
+                reason: policy::STREAM_PAUSE_REASON_H264_NAL.into(),
+            };
+        }
+
         self.failures_consecutive = self.failures_consecutive.saturating_add(1);
 
         if !self.ever_stream_ok && grace_elapsed(cfg, camera_created_at) {
@@ -208,5 +218,25 @@ mod tests {
             }
             other => panic!("expected PauseAnalytic, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn h264_corrupt_pauses_analytic_immediately() {
+        let mut s = StreamPolicyState::default();
+        let action = s.on_failure(&cfg(), StreamFailureClass::H264Corrupt, None);
+        assert!(s.local_paused);
+        match action {
+            StreamHealthAction::PauseAnalytic { reason } => {
+                assert_eq!(reason, policy::STREAM_PAUSE_REASON_H264_NAL);
+            }
+            other => panic!("expected PauseAnalytic, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn detects_zero_nal_length_prefix() {
+        use policy::h264_access_unit_has_zero_nal_length;
+        assert!(h264_access_unit_has_zero_nal_length(&[0, 0, 0, 0, 0x67]));
+        assert!(!h264_access_unit_has_zero_nal_length(&[0, 0, 0, 1, 0x67]));
     }
 }

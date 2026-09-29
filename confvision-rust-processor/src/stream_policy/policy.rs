@@ -6,9 +6,13 @@ pub fn classify_rtsp_error(message: &str) -> StreamFailureClass {
     match classify_stream_error_code(message) {
         "rtsp_auth" => StreamFailureClass::Auth,
         "rtsp_404" => StreamFailureClass::PathAbsent,
+        "h264_invalid_nal" => StreamFailureClass::H264Corrupt,
         _ => StreamFailureClass::Transient,
     }
 }
+
+/// Motivo Postgres/painel (`stream_motivo_pausa`); prefixo `sistema_stream` obrigatório.
+pub const STREAM_PAUSE_REASON_H264_NAL: &str = "sistema_stream_h264_nal";
 
 /// Código estável para ping/API (`stream_erro_classe`), independente da política de retry.
 pub fn classify_stream_error_code(message: &str) -> &'static str {
@@ -22,6 +26,9 @@ pub fn classify_stream_error_code(message: &str) -> &'static str {
         || m.contains("unexpected rtsp response status")
     {
         return "rtsp_404";
+    }
+    if is_h264_nal_corruption(message) {
+        return "h264_invalid_nal";
     }
     if m.contains("fu-a")
         || m.contains("fu_a")
@@ -39,6 +46,34 @@ pub fn classify_stream_error_code(message: &str) -> &'static str {
         return "network_timeout";
     }
     "unknown_transient"
+}
+
+pub fn is_h264_nal_corruption(message: &str) -> bool {
+    let m = message.to_ascii_lowercase();
+    m.contains("invalid nal")
+        || m.contains("nal unit size")
+        || m.contains("error splitting the input into nal")
+}
+
+/// Access unit AVCC (4-byte BE length + NAL): detect prefixo length=0 (erro FFmpeg típico).
+pub fn h264_access_unit_has_zero_nal_length(payload: &[u8]) -> bool {
+    let mut offset = 0usize;
+    while offset + 4 <= payload.len() {
+        let len = u32::from_be_bytes([
+            payload[offset],
+            payload[offset + 1],
+            payload[offset + 2],
+            payload[offset + 3],
+        ]) as usize;
+        if len == 0 {
+            return true;
+        }
+        offset = offset.saturating_add(4).saturating_add(len);
+        if offset > payload.len() {
+            break;
+        }
+    }
+    false
 }
 
 pub fn delay_after_failure(failures: u32, cfg: &StreamRetryConfig) -> Duration {
