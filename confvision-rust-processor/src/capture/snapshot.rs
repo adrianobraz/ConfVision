@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use image::{codecs::jpeg::JpegEncoder, ExtendedColorType, ImageBuffer, Luma};
 use tracing::warn;
 
+use crate::buffer;
 use crate::decode::{DECODED_LUMA_HEIGHT, DECODED_LUMA_WIDTH};
 use crate::error::{AppError, AppResult};
 
@@ -30,13 +31,20 @@ pub fn write_luma_jpeg(
 }
 
 pub fn luma_to_jpeg_bytes(luma: &[u8], width: u32, height: u32, quality: u8) -> AppResult<Vec<u8>> {
+    let plane_len = (width as usize) * (height as usize);
+    let mut raw = buffer::acquire(plane_len);
+    if raw.len() < plane_len {
+        raw.resize(plane_len, 0);
+    }
+    raw[..plane_len].copy_from_slice(luma);
     let img: ImageBuffer<Luma<u8>, Vec<u8>> =
-        ImageBuffer::from_raw(width, height, luma.to_vec())
+        ImageBuffer::from_raw(width, height, raw)
             .ok_or_else(|| AppError::Config("failed to build luma image".into()))?;
-    let mut buf = Vec::new();
+    let mut buf = buffer::acquire(plane_len / 2);
     let mut enc = JpegEncoder::new_with_quality(&mut buf, quality);
     enc.encode(img.as_raw(), width, height, ExtendedColorType::L8)
         .map_err(|e| AppError::Other(e.into()))?;
+    buffer::release(img.into_raw(), plane_len);
     Ok(buf)
 }
 

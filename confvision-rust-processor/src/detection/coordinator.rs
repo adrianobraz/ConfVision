@@ -116,17 +116,22 @@ impl DetectionContext {
             }
         }
 
-        let jpeg = match crate::capture::snapshot::luma_to_jpeg_bytes(
-            &decoded.luma,
-            decoded.luma_width,
-            decoded.luma_height,
-            self.cfg.snapshot_jpeg_quality,
-        ) {
-            Ok(b) => b,
-            Err(e) => {
-                warn!(camera_id = self.camera_id, error = %e, "jpeg encode");
-                return;
+        let need_jpeg = self.yolo.uses_jpeg_for_infer();
+        let jpeg = if need_jpeg {
+            match crate::capture::snapshot::luma_to_jpeg_bytes(
+                &decoded.luma,
+                decoded.luma_width,
+                decoded.luma_height,
+                self.cfg.snapshot_jpeg_quality,
+            ) {
+                Ok(b) => b,
+                Err(e) => {
+                    warn!(camera_id = self.camera_id, error = %e, "jpeg encode");
+                    return;
+                }
             }
+        } else {
+            Vec::new()
         };
 
         if self.cfg.yolo_infer_async {
@@ -158,7 +163,7 @@ impl DetectionContext {
 
     async fn run_yolo_pipeline(self: &Arc<Self>, jpeg: &[u8], decoded: &DecodedFrame) {
         self.stats.yolo_inferences.fetch_add(1, Ordering::Relaxed);
-        let detections = match self.yolo.infer_jpeg(jpeg).await {
+        let detections = match self.yolo.infer_frame(decoded, jpeg).await {
             Ok(d) => d,
             Err(e) => {
                 warn!(camera_id = self.camera_id, error = %e, "yolo infer");

@@ -139,6 +139,8 @@ pub struct Config {
     pub yolo_http_timeout_sec: u64,
     pub yolo_max_inflight: usize,
     pub yolo_infer_async: bool,
+    pub yolo_onnx_input_size: u32,
+    pub frame_buffer_pool_max: usize,
     pub capture_enabled: bool,
     pub capture_workers: usize,
     pub capture_dir: std::path::PathBuf,
@@ -321,6 +323,8 @@ impl Config {
             yolo_http_timeout_sec: env_u64("YOLO_HTTP_TIMEOUT_SEC", 60).max(5),
             yolo_max_inflight: env_usize("YOLO_MAX_INFLIGHT", 4).max(1),
             yolo_infer_async: env_bool("YOLO_INFER_ASYNC", true),
+            yolo_onnx_input_size: env_u32("YOLO_ONNX_INPUT_SIZE", 640).clamp(320, 1280),
+            frame_buffer_pool_max: env_usize("FRAME_BUFFER_POOL_MAX", 128).clamp(16, 4096),
             capture_enabled: {
                 let qb = env_or("QUEUE_BACKEND", "none").to_ascii_lowercase();
                 let default_cap = env_bool("YOLO_ENABLED", false) && qb != "none";
@@ -409,6 +413,8 @@ impl Config {
             yolo_http_timeout_sec: 60,
             yolo_max_inflight: 4,
             yolo_infer_async: true,
+            yolo_onnx_input_size: 640,
+            frame_buffer_pool_max: 128,
             capture_enabled: false,
             capture_workers: 2,
             capture_dir: std::path::PathBuf::from("/tmp/confvision"),

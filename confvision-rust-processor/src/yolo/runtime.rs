@@ -3,6 +3,7 @@ use std::sync::Arc;
 use tracing::info;
 
 use crate::config::{Config, YoloBackend};
+use crate::decode::DecodedFrame;
 use crate::error::{AppError, AppResult};
 
 use super::http::HttpYoloClient;
@@ -45,8 +46,12 @@ impl YoloRuntime {
                 let path = cfg.yolo_model_path.as_ref().ok_or_else(|| {
                     AppError::Config("YOLO_BACKEND=onnx exige YOLO_MODEL_PATH".into())
                 })?;
-                let engine = super::onnx::OnnxYolo::load(path)?;
-                info!(path = %path, "YOLO ONNX carregado");
+                let engine = super::onnx::OnnxYolo::load(
+                    path,
+                    cfg.yolo_onnx_input_size,
+                    cfg.yolo_conf_default as f32,
+                )?;
+                info!(path = %path, input = cfg.yolo_onnx_input_size, "YOLO ONNX carregado");
                 Ok(Self::Onnx(Arc::new(engine)))
             }
             #[cfg(not(feature = "yolo-onnx"))]
@@ -61,7 +66,7 @@ impl YoloRuntime {
             Self::Off => "none",
             Self::Http(_) => "http",
             #[cfg(feature = "yolo-onnx")]
-            Self::Onnx(_) => "onnx",
+            Self::Onnx(e) => e.device_label(),
         }
     }
 
@@ -69,12 +74,43 @@ impl YoloRuntime {
         !matches!(self, Self::Off)
     }
 
+    pub fn uses_jpeg_for_infer(&self) -> bool {
+        matches!(self, Self::Http(_))
+    }
+
+    /// Inferência preferencial: ONNX usa luma direto (sem JPEG/Base64); HTTP usa JPEG.
+    pub async fn infer_frame(&self, decoded: &DecodedFrame, jpeg: &[u8]) -> AppResult<Vec<PersonDetection>> {
+        match self {
+            Self::Off => Ok(vec![]),
+            Self::Http(c) => {
+                if jpeg.is_empty() {
+                    return Ok(vec![]);
+                }
+                c.infer_jpeg(jpeg).await
+            }
+            #[cfg(feature = "yolo-onnx")]
+            Self::Onnx(e) => {
+                let engine = Arc::clone(e);
+                let frame = decoded.clone();
+                tokio::task::spawn_blocking(move || engine.infer_luma_sync(&frame))
+                    .await
+                    .map_err(|e| AppError::Other(e.into()))?
+            }
+        }
+    }
+
     pub async fn infer_jpeg(&self, jpeg: &[u8]) -> AppResult<Vec<PersonDetection>> {
         match self {
             Self::Off => Ok(vec![]),
             Self::Http(c) => c.infer_jpeg(jpeg).await,
             #[cfg(feature = "yolo-onnx")]
-            Self::Onnx(e) => e.infer_jpeg(jpeg).await,
+            Self::Onnx(e) => {
+                let engine = Arc::clone(e);
+                let data = jpeg.to_vec();
+                tokio::task::spawn_blocking(move || engine.infer_jpeg_sync(&data))
+                    .await
+                    .map_err(|e| AppError::Other(e.into()))?
+            }
         }
     }
 }

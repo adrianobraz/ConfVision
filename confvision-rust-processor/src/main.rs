@@ -1,5 +1,10 @@
+#[cfg(all(feature = "jemalloc", not(target_env = "msvc")))]
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 mod analytics;
 mod api;
+mod buffer;
 mod camera;
 mod capacity;
 mod capture;
@@ -55,6 +60,7 @@ async fn main() {
     };
 
     logging::init_logging(&cfg.log_level);
+    buffer::init_global_pool(cfg.frame_buffer_pool_max);
     redis::log_redis_status(&cfg);
     media::log_media_status(&cfg);
 

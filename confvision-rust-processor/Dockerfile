@@ -30,7 +30,7 @@ COPY Cargo.toml Cargo.lock ./
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/app/target \
-    cargo chef cook --release --features ffmpeg-decode --recipe-path recipe.json
+    cargo chef cook --release --features ffmpeg-decode,jemalloc --recipe-path recipe.json
 COPY src ./src
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
@@ -38,7 +38,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     rm -f target/release/confvision-rust-processor \
     && rm -rf target/release/.fingerprint/confvision-rust-processor-* \
     && rm -f target/release/deps/confvision_rust_processor-* \
-    && cargo build --release --features ffmpeg-decode -p confvision-rust-processor \
+    && cargo build --release --features ffmpeg-decode,jemalloc -p confvision-rust-processor \
     && cp /app/target/release/confvision-rust-processor /app/confvision-rust-processor \
     && test "$(stat -c%s /app/confvision-rust-processor)" -gt 1500000 \
     && grep -aq 'confvision-rust-processor starting' /app/confvision-rust-processor
