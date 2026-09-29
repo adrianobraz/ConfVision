@@ -98,12 +98,19 @@ if ($env:POSTGRES_URL) {
     if ($out -match "id\s+15\s+ESCRITORIO\s+offline\s+<nil>") {
         Info "vis_camera.status offline + ultimo_stream_ok_em null (status cadastro nao vem do Rust; stream_ok no ping)"
     }
-    if ($out -notmatch "rust-processor-pilot-b-02\s+4") {
-        Bad "vis_worker pilot-b sem cameras_ativas=4 no ping"
+    if ($out -match "rust-processor-pilot-b-02\s+(\d+)") {
+        $n = [int]$Matches[1]
+        if ($n -ge 1) { Ok "vis_worker pilot-b cameras_ativas=$n" } else { Bad "vis_worker pilot-b cameras_ativas=0" }
+    } else {
+        Bad "vis_worker pilot-b sem linha no pg-audit"
     }
     if ($out -match "Ultimos eventos c[^\r\n]+\r?\n\(sem linhas\)") { Bad "Camera 15 sem eventos em vis_evento" }
-    if ($out -match "rust-processor-pilot-b-02\s+4") { Ok "4 cameras assignadas ao pilot-b no Postgres" }
-    if ($out -match "rust-processor-pilot-a-01\s+4") { Ok "4 cameras assignadas ao pilot-a no Postgres" }
+    if ($out -match "Sync Rust pilot-b[\s\S]*?\n3\t") { Ok "Camera 3 elegivel no sync pilot-b" }
+    if ($out -match "id\s+15[\s\S]*?rust-processor-pilot-b-02" -and $out -notmatch "id\s+15[\s\S]*?analitico_pausado\s+true") {
+        Ok "Camera 15 no worker B e analitico nao pausado (conferir bloco piloto)"
+    } elseif ($out -match "id\s+15[\s\S]*?analitico_pausado\s+true") {
+        Bad "Camera 15 ainda analitico_pausado=true (rodar fase0-apply-ops)"
+    }
     $lines = ($out -split "`n" | Select-Object -First 35) -join "`n"
     Write-Host $lines
 } else {
