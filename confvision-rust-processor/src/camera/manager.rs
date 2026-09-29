@@ -74,7 +74,29 @@ impl CameraManager {
     }
 
     pub async fn drain_stream_health_reports(&self) -> Vec<CameraStreamHealthReport> {
+        self.queue_stream_ok_for_online_cameras().await;
         std::mem::take(&mut *self.pending_stream_health.write().await)
+    }
+
+    /// Envia `stream_ok` no worker ping para câmeras com RTSP ativo (não só ao fechar sessão).
+    pub async fn queue_stream_ok_for_online_cameras(&self) {
+        let states = self.states.read().await;
+        let mut pending = self.pending_stream_health.write().await;
+        for (camera_id, shared) in states.iter() {
+            let snap = shared.read().await;
+            if snap.status != crate::camera::CameraStatus::Online {
+                continue;
+            }
+            pending.push(CameraStreamHealthReport {
+                camera_id: *camera_id,
+                event: "stream_ok".into(),
+                failures_consecutive: Some(0),
+                hourly_attempts: Some(0),
+                last_error: None,
+                error_class: None,
+                pause_reason: None,
+            });
+        }
     }
 
     async fn policy_for_camera(&self, cam: &CameraRecord) -> Arc<RwLock<StreamPolicyState>> {
