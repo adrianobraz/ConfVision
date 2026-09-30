@@ -87,14 +87,16 @@
                             </div>
 
                             <div id="grupo-cv-campos-alarme" class="row mx-0 p-0">
-                            <div class="col-lg-6 mb-1 text-start">
+                            <div id="grupo-particao" class="col-lg-6 mb-1 text-start">
                                 <label for="dispositivo-particao-alarme" class="form-label mb-0">
                                     Partição:
                                 </label>
                                 <select type="text" maxlength="15" class="form-control form-control-sm
-                                        text-uppercase  text-center" id="dispositivo-particao-alarme">
-
+                                        text-uppercase text-center cv-particao-select" id="dispositivo-particao-alarme">
                                 </select>
+                                <input type="text" maxlength="2" inputmode="numeric"
+                                    class="form-control form-control-sm text-center cv-particao-input d-none"
+                                    id="dispositivo-particao-camera" placeholder="Ex: 01">
                             </div>
 
                             <div class="col-lg-6 mb-1 text-start">
@@ -243,7 +245,7 @@
     <!-- CONTAINER PRINCIPAL -->
 
     {{ template "link-js" . }}
-    <script src="/recursos/modulos/configuracao/gerenciar-dispositivo/gerenciar-dispositivo.js?v=20260714cli2"></script>
+    <script src="/recursos/modulos/configuracao/gerenciar-dispositivo/gerenciar-dispositivo.js?v=20260825part3"></script>
     </div>
 </body>
 

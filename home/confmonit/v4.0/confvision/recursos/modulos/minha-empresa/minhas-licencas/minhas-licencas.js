@@ -17,6 +17,9 @@ $(document).ready(function () {
     $('#cv-fatura-filtro').on('change', carregarFaturas)
     $('#cv-fatura-atualizar').on('click', carregarFaturas)
 
+    $('#cv-cap-qty').on('input change', cvCapAtualizarCalculadora)
+    $('#cv-cap-contratar-btn').on('click', cvCapContratar)
+
     $(document).on('click', '.cv-lic-comprar-btn', function () {
         const plano = $(this).data('plano')
         const qty = parseInt($('#cv-qty-' + plano).val(), 10) || 1
@@ -26,10 +29,12 @@ $(document).ready(function () {
     // Deep-link: /minhas-licencas?tab=comprar|faturas|resumo
     const params = new URLSearchParams(window.location.search || '')
     const tabIni = (params.get('tab') || '').toLowerCase()
-    if (tabIni === 'comprar' || tabIni === 'faturas' || tabIni === 'resumo') {
+    if (tabIni === 'comprar' || tabIni === 'faturas' || tabIni === 'resumo' || tabIni === 'processamento') {
         cvLicAtivarTab(tabIni)
     }
 })
+
+var cvCapState = null
 
 function cvLicIdFranqueado() {
     return ConfVisionUrls.idFranqueado()
@@ -51,11 +56,12 @@ function cvLicAtivarTab(tab) {
     $('#cv-lic-tabs .nav-link').removeClass('active')
     $('#cv-lic-tabs .nav-link[data-tab="' + tab + '"]').addClass('active')
 
-    $('#tab-resumo, #tab-comprar, #tab-faturas').addClass('d-none')
+    $('#tab-resumo, #tab-comprar, #tab-faturas, #tab-processamento').addClass('d-none')
     $('#tab-' + tab).removeClass('d-none')
 
     if (tab === 'comprar') carregarPlanos()
     if (tab === 'faturas') carregarFaturas()
+    if (tab === 'processamento') carregarCapacidade()
 }
 
 function cvLicFormatMoney(v) {
@@ -100,6 +106,7 @@ function carregarResumo() {
         contentType: 'application/json',
         data: JSON.stringify({ id_franqueado: id })
     }).done(function (r) {
+        cvCapState = r.capacidade || null
         cvLicRenderResumo(r)
         cvLicRenderListaLicencas(r.licencas || [])
         cvLicAplicarAlerta(r)
@@ -132,12 +139,28 @@ function cvLicMotivoLabel(motivo, liberado) {
 
 function cvLicAplicarAlerta(r) {
     const el = $('#cv-lic-alerta')
-    if (!r || r.liberado !== false) {
+    const cap = r.capacidade || cvCapState
+    const semCap = cap && cap.tem_contrato_ativo === false
+
+    if ((!r || r.liberado !== false) && !semCap) {
         el.addClass('d-none').empty()
         return
     }
 
     let texto = 'Seu acesso depende de licenças pagas ou FranqueadoPro Pro+ ativo.'
+    if (semCap) {
+        texto = 'Contrate a capacidade de processamento antes de comprar licenças ou cadastrar câmeras.'
+        if ((r.faturas_abertas || []).length > 0 || (cap && cap.tem_pendente)) {
+            texto += ' Há fatura de capacidade ou licença em aberto — após o pagamento, a liberação é feita pela equipe financeira.'
+        }
+        el.removeClass('d-none').html(
+            '<strong><i class="bi bi-exclamation-triangle-fill"></i> Capacidade obrigatória</strong>' +
+            '<p class="mb-0 mt-2">' + texto + '</p>' +
+            '<p class="mb-0 mt-2"><button type="button" class="cv-btn-primary btn-sm" onclick="cvLicAtivarTab(\'processamento\')">Contratar processamento</button></p>'
+        )
+        return
+    }
+
     if ((r.faturas_abertas || []).length > 0) {
         texto += ' Você possui fatura(s) em aberto — após o pagamento, a liberação é feita pela equipe financeira.'
         cvLicAtivarTab('faturas')
@@ -164,12 +187,37 @@ function cvLicRenderResumo(r) {
         '<h5 class="mb-0 me-auto">Situação do acesso</h5>' + liberado +
         '</div>' +
         motivoHtml +
+        cvLicHtmlCapacidadeResumo(r.capacidade) +
         '<div class="cv-lic-resumo-grid">' +
         statBox('Pendentes', resumo.pendente) +
         statBox('Disponíveis', resumo.disponivel) +
         statBox('Em uso', resumo.em_uso) +
         statBox('Expiradas', resumo.expirada) +
         statBox('Total', resumo.total) +
+        '</div>'
+    )
+}
+
+function cvLicHtmlCapacidadeResumo(cap) {
+    if (!cap) return ''
+    const cfg = cap.config || {}
+    const ativo = cap.tem_contrato_ativo
+        ? '<span class="cv-lic-badge ok">Ativa</span>'
+        : '<span class="cv-lic-badge err">Sem contrato</span>'
+    const pend = cap.tem_pendente
+        ? ' <span class="cv-lic-badge warn">Pendente pagamento</span>'
+        : ''
+    return (
+        '<div class="cv-lic-cap-resumo-inline mb-3">' +
+        '<div class="d-flex flex-wrap gap-2 align-items-center mb-2">' +
+        '<h6 class="mb-0 me-auto">Capacidade de processamento</h6>' + ativo + pend +
+        '</div>' +
+        '<div class="cv-lic-resumo-grid cv-lic-cap-grid">' +
+        statBox('Em uso', cap.em_uso) +
+        statBox('Contratadas', cap.contratada) +
+        statBox('Disponíveis', cap.disponivel) +
+        statBox('Mínimo', cap.quantidade_minima_efetiva || cfg.quantidade_minima) +
+        '</div>' +
         '</div>'
     )
 }
@@ -362,6 +410,18 @@ function carregarPlanos() {
     const id = cvLicIdFranqueado()
     if (!id) return
 
+    if (cvCapState && cvCapState.tem_contrato_ativo === false) {
+        $('#cv-lic-planos-camera').html(
+            '<div class="cv-lic-cap-bloqueio">' +
+            '<p class="mb-2"><strong>Contrate a capacidade de processamento primeiro.</strong></p>' +
+            '<p class="cv-lic-muted mb-3">Licenças de câmera só podem ser compradas após contratar vagas de processamento.</p>' +
+            '<button type="button" class="cv-btn-primary btn-sm" onclick="cvLicAtivarTab(\'processamento\')">Ir para Processamento</button>' +
+            '</div>'
+        )
+        $('#cv-lic-planos-gravacao').html('')
+        return
+    }
+
     $('#cv-lic-planos-camera').html('<p class="cv-lic-muted mb-0">Carregando planos de câmera…</p>')
     $('#cv-lic-planos-gravacao').html('<p class="cv-lic-muted mb-0">Carregando planos de gravação…</p>')
 
@@ -476,8 +536,8 @@ function cvLicComprar(plano, quantidade) {
     if (!plano || !id) return
 
     CvMsg.confirmar(
-        'Gerar fatura?',
-        'Gerar fatura para ' + quantidade + ' licença(s) do plano ' + cvLicLabelPlano(plano) + '.\n\nA licença só fica disponível após confirmar o pagamento.'
+        'Comprar licenças?',
+        'Adicionar ' + quantidade + ' licença(s) do plano ' + cvLicLabelPlano(plano) + '.\n\nSerá gerada uma fatura em aberto. As licenças ficam disponíveis após a confirmação do pagamento.'
     ).then(function (r) {
         if (!r.isConfirmed) return
         $.ajax({
@@ -490,16 +550,48 @@ function cvLicComprar(plano, quantidade) {
                 itens: [{ plano: plano, quantidade: quantidade }]
             })
         }).done(function (res) {
-            const ref = res.fatura && res.fatura.referencia ? res.fatura.referencia : ''
-            CvMsg.sucesso(
-                'Pedido registrado.' + (ref ? '\nFatura: ' + ref : '') + '\nAguarde a confirmação de pagamento.'
-            )
+            const fatura = res.fatura || {}
+            const ref = fatura.referencia || fatura.id || '—'
+            CvMsg.sucesso('Fatura gerada: ' + ref + '.\nAguarde a confirmação do pagamento para usar as licenças.')
             carregarResumo()
             cvLicAtivarTab('faturas')
         }).fail(function (xhr) {
             CvMsg.erro('Erro ao comprar: ' + cvLicErroAjax(xhr))
         })
     })
+}
+
+function cvLicResumoItensFatura(itens) {
+    if (!itens || !itens.length) return []
+    const map = {}
+    itens.forEach(function (it) {
+        const key = String(it.descricao || 'Licença').trim()
+        if (!map[key]) {
+            map[key] = {
+                descricao: key,
+                quantidade: 0,
+                valor_unitario: parseFloat(it.valor_unitario) || 0,
+                valor_total: 0
+            }
+        }
+        map[key].quantidade += parseInt(it.quantidade, 10) || 1
+        const vt = parseFloat(it.valor_total)
+        const vu = parseFloat(it.valor_unitario) || 0
+        map[key].valor_total += isNaN(vt) ? vu : vt
+    })
+    return Object.keys(map).map(function (k) { return map[k] })
+}
+
+function cvLicHtmlItensFatura(itens) {
+    const resumo = cvLicResumoItensFatura(itens)
+    if (!resumo.length) return '<span class="cv-lic-muted">—</span>'
+    return resumo.map(function (r) {
+        return '<div class="cv-lic-fat-item">' +
+            '<span class="cv-lic-fat-item-nome">' + r.descricao + '</span>' +
+            '<span class="cv-lic-fat-item-qtd">' + r.quantidade + ' un.</span>' +
+            '<span class="cv-lic-fat-item-val">' + cvLicFormatMoney(r.valor_unitario) + ' · ' + cvLicFormatMoney(r.valor_total) + '</span>' +
+            '</div>'
+    }).join('')
 }
 
 function carregarFaturas() {
@@ -529,22 +621,146 @@ function carregarFaturas() {
         let rows = ''
         lista.forEach(function (f) {
             const st = f.status === 'paga' ? 'ok' : (f.status === 'aberta' ? 'warn' : 'warn')
+            const resumo = cvLicResumoItensFatura(f.itens || [])
+            const licCell = cvLicHtmlItensFatura(f.itens || [])
+            const qtdCell = resumo.length
+                ? resumo.map(function (r) { return r.quantidade }).join('<br>')
+                : '—'
+            const unitCell = resumo.length
+                ? resumo.map(function (r) { return cvLicFormatMoney(r.valor_unitario) }).join('<br>')
+                : '—'
             rows += '<tr>' +
                 '<td>' + (f.referencia || f.id) + '</td>' +
-                '<td>' + (f.tipo || '—') + '</td>' +
+                '<td class="cv-lic-fat-lic">' + licCell + '</td>' +
+                '<td class="text-end">' + qtdCell + '</td>' +
+                '<td class="text-end">' + unitCell + '</td>' +
+                '<td class="text-end">' + cvLicFormatMoney(f.valor_total) + '</td>' +
                 '<td><span class="cv-lic-badge ' + st + '">' + (f.status || '—') + '</span></td>' +
-                '<td>' + cvLicFormatMoney(f.valor_total) + '</td>' +
                 '<td>' + cvLicFormatData(f.vencimento_em) + '</td>' +
                 '</tr>'
         })
 
         $('#cv-lic-faturas').html(
             '<table class="cv-lic-table"><thead><tr>' +
-            '<th>Referência</th><th>Tipo</th><th>Status</th><th>Valor</th><th>Vencimento</th>' +
+            '<th>Referência</th><th>Licença</th><th class="text-end">Qtd</th><th class="text-end">Unit.</th><th class="text-end">Total</th><th>Status</th><th>Vencimento</th>' +
             '</tr></thead><tbody>' + rows + '</tbody></table>' +
             '<p class="cv-lic-muted small mt-2 mb-0">Pagamento confirmado manualmente pela equipe financeira.</p>'
         )
     }).fail(function () {
         $('#cv-lic-faturas').html('<p class="cv-lic-muted">Erro ao carregar faturas.</p>')
+    })
+}
+
+function carregarCapacidade() {
+    const id = cvLicIdFranqueado()
+    if (!id) {
+        $('#cv-lic-cap-resumo').html('<p class="cv-lic-muted">Franqueado não identificado.</p>')
+        return
+    }
+
+    $.ajax({
+        url: '/cvCapacidadeResumo',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ id_franqueado: id })
+    }).done(function (cap) {
+        cvCapState = cap
+        cvCapRenderPainel(cap)
+        cvCapAtualizarCalculadora()
+    }).fail(function (xhr) {
+        $('#cv-lic-cap-resumo').html('<p class="cv-lic-muted">Erro ao carregar capacidade.</p>')
+        console.error(xhr.responseText)
+    })
+}
+
+function cvCapRenderPainel(cap) {
+    const cfg = cap.config || {}
+    const ativo = cap.tem_contrato_ativo
+        ? '<span class="cv-lic-badge ok">Contrato ativo</span>'
+        : '<span class="cv-lic-badge err">Sem contrato ativo</span>'
+    const pend = cap.tem_pendente
+        ? '<span class="cv-lic-badge warn ms-1">Aguardando pagamento</span>'
+        : ''
+
+    let detalhe = ''
+    if (cap.contrato_ativo) {
+        const c = cap.contrato_ativo
+        detalhe = '<p class="cv-lic-muted small mb-0">Contrato #' + c.id + ' · ' + c.quantidade_contratada + ' vagas · ' +
+            cvLicFormatMoney(c.valor_mensal) + '/mês · válido até ' + cvLicFormatData(c.valido_ate) + '</p>'
+    } else if (cap.contrato_pendente) {
+        const p = cap.contrato_pendente
+        detalhe = '<p class="cv-lic-muted small mb-0">Pendente #' + p.id + ' · ' + p.quantidade_contratada + ' vagas · ' +
+            cvLicFormatMoney(p.valor_mensal) + ' — aguardando confirmação do pagamento</p>'
+    }
+
+    $('#cv-lic-cap-resumo').html(
+        '<div class="d-flex flex-wrap gap-2 align-items-center mb-2">' +
+        '<h5 class="mb-0 me-auto">Sua capacidade</h5>' + ativo + pend +
+        '</div>' +
+        '<div class="cv-lic-resumo-grid cv-lic-cap-grid mb-2">' +
+        statBox('Em uso', cap.em_uso) +
+        statBox('Contratadas', cap.contratada) +
+        statBox('Disponíveis', cap.disponivel) +
+        statBox('Mínimo exigido', cap.quantidade_minima_efetiva || cfg.quantidade_minima) +
+        '</div>' +
+        detalhe
+    )
+
+    const min = cap.quantidade_minima_efetiva || cfg.quantidade_minima || 10
+    $('#cv-cap-qty').attr('min', min)
+    if (parseInt($('#cv-cap-qty').val(), 10) < min) {
+        $('#cv-cap-qty').val(min)
+    }
+    $('#cv-cap-min-hint').text('Mínimo: ' + min + ' (central ou câmeras em uso)')
+}
+
+function cvCapAtualizarCalculadora() {
+    const id = cvLicIdFranqueado()
+    const qty = parseInt($('#cv-cap-qty').val(), 10) || 0
+    if (!id || qty <= 0) return
+
+    $.ajax({
+        url: '/cvCapacidadeCotacao',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ id_franqueado: id, quantidade: qty })
+    }).done(function (c) {
+        $('#cv-lic-cap-calc').html(
+            '<div><span class="cv-lic-muted">Total mensal</span><br><strong class="cv-lic-cap-total">' + cvLicFormatMoney(c.valor_mensal) + '</strong></div>'
+        )
+    }).fail(function (xhr) {
+        $('#cv-lic-cap-calc').html('<span class="text-danger small">' + cvLicErroAjax(xhr) + '</span>')
+    })
+}
+
+function cvCapContratar() {
+    const id = cvLicIdFranqueado()
+    const qty = parseInt($('#cv-cap-qty').val(), 10) || 0
+    if (!id || qty <= 0) return
+
+    CvMsg.confirmar(
+        'Contratar capacidade?',
+        'Contratar ' + qty + ' vaga(s) de câmera.\n\nSerá gerada uma fatura em aberto. A capacidade fica ativa após confirmação do pagamento.'
+    ).then(function (r) {
+        if (!r.isConfirmed) return
+        $.ajax({
+            url: '/cvCapacidadeContratar',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                id_franqueado: id,
+                quantidade: qty,
+                admin_usuario: localStorage.getItem('nomeUsuario') || localStorage.getItem('email') || 'franqueado'
+            })
+        }).done(function (res) {
+            const fatura = res.fatura || {}
+            const ref = fatura.referencia || fatura.id || '—'
+            CvMsg.sucesso('Fatura gerada: ' + ref + '.\nAguarde a confirmação do pagamento para ativar a capacidade.')
+            carregarResumo()
+            carregarCapacidade()
+            cvLicAtivarTab('faturas')
+        }).fail(function (xhr) {
+            CvMsg.erro('Erro ao contratar: ' + cvLicErroAjax(xhr))
+        })
     })
 }

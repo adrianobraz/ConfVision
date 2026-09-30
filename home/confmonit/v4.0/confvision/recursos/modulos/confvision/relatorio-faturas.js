@@ -35,6 +35,35 @@ function formatMoneyFat(v) {
     return 'R$ ' + n.toFixed(2).replace('.', ',')
 }
 
+function resumoItensFatura(itens) {
+    if (!itens || !itens.length) return []
+    const map = {}
+    itens.forEach(function (it) {
+        const key = String(it.descricao || 'Licença').trim()
+        if (!map[key]) {
+            map[key] = {
+                descricao: key,
+                quantidade: 0,
+                valor_unitario: parseFloat(it.valor_unitario) || 0,
+                valor_total: 0
+            }
+        }
+        map[key].quantidade += parseInt(it.quantidade, 10) || 1
+        const vt = parseFloat(it.valor_total)
+        const vu = parseFloat(it.valor_unitario) || 0
+        map[key].valor_total += isNaN(vt) ? vu : vt
+    })
+    return Object.keys(map).map(function (k) { return map[k] })
+}
+
+function htmlItensFatura(itens) {
+    const resumo = resumoItensFatura(itens)
+    if (!resumo.length) return '—'
+    return resumo.map(function (r) {
+        return escHtmlFat(r.descricao) + ' · ' + r.quantidade + '× ' + formatMoneyFat(r.valor_unitario)
+    }).join('<br>')
+}
+
 function formatDataFat(valor) {
     if (!valor) return '—'
     if (typeof confVisionFormatarData === 'function') {
@@ -128,7 +157,7 @@ function renderTabelaFaturas() {
 
     if (!cacheFaturas.length) {
         $tbody.append(
-            '<tr><td colspan="6"><div class="cv-empty">Nenhuma fatura de licença encontrada</div></td></tr>'
+            '<tr><td colspan="8"><div class="cv-empty">Nenhuma fatura de licença encontrada</div></td></tr>'
         )
         $total.text('')
         return
@@ -139,7 +168,7 @@ function renderTabelaFaturas() {
 
     if (!lista.length) {
         $tbody.append(
-            '<tr><td colspan="6"><div class="cv-empty">Nenhuma fatura encontrada com esse filtro</div></td></tr>'
+            '<tr><td colspan="8"><div class="cv-empty">Nenhuma fatura encontrada com esse filtro</div></td></tr>'
         )
         $total.text('0 de ' + geral)
         return
@@ -158,14 +187,19 @@ function renderTabelaFaturas() {
     })
 
     ordenada.forEach(function (f) {
+        const resumo = resumoItensFatura(f.itens || [])
+        const qtd = resumo.length ? resumo.map(function (r) { return r.quantidade }).join('<br>') : '—'
+        const unit = resumo.length ? resumo.map(function (r) { return formatMoneyFat(r.valor_unitario) }).join('<br>') : '—'
         $tbody.append(
             '<tr>' +
             '<td data-label="Referência"><strong>' + escHtmlFat(f.referencia || ('#' + f.id)) + '</strong></td>' +
+            '<td data-label="Licença">' + htmlItensFatura(f.itens || []) + '</td>' +
+            '<td data-label="Qtd" class="text-end">' + qtd + '</td>' +
+            '<td data-label="Unit." class="text-end">' + unit + '</td>' +
             '<td data-label="Tipo">' + escHtmlFat(labelTipoFat(f.tipo)) + '</td>' +
             '<td data-label="Status">' + badgeStatusFat(f.status) + '</td>' +
-            '<td data-label="Valor">' + escHtmlFat(formatMoneyFat(f.valor_total)) + '</td>' +
+            '<td data-label="Total">' + escHtmlFat(formatMoneyFat(f.valor_total)) + '</td>' +
             '<td data-label="Vencimento">' + escHtmlFat(formatDataFat(f.vencimento_em)) + '</td>' +
-            '<td data-label="Observação">' + escHtmlFat(f.observacao || '—') + '</td>' +
             '</tr>'
         )
     })
@@ -177,13 +211,13 @@ function carregarRelatorioFaturas() {
 
     if (!idFranqueado) {
         $tbody.html(
-            '<tr><td colspan="6"><div class="cv-empty">Sessão inválida. Faça login novamente.</div></td></tr>'
+            '<tr><td colspan="8"><div class="cv-empty">Sessão inválida. Faça login novamente.</div></td></tr>'
         )
         return
     }
 
     $tbody.html(
-        '<tr><td colspan="6"><div class="cv-detail-loading">' +
+        '<tr><td colspan="8"><div class="cv-detail-loading">' +
         '<i class="bi bi-arrow-repeat"></i> Carregando faturas…</div></td></tr>'
     )
 
@@ -199,7 +233,7 @@ function carregarRelatorioFaturas() {
     }).fail(function (xhr) {
         console.error('Erro ao carregar faturas', xhr)
         $tbody.html(
-            '<tr><td colspan="6"><div class="cv-empty">Erro ao carregar faturas</div></td></tr>'
+            '<tr><td colspan="8"><div class="cv-empty">Erro ao carregar faturas</div></td></tr>'
         )
     })
 }

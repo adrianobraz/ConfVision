@@ -4,6 +4,7 @@ import (
 	"confvision/src/auxiliar"
 	"confvision/src/modulos/visdata"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -13,10 +14,15 @@ func ProxyClienteExtGet(w http.ResponseWriter, r *http.Request) {
 	idFra := idFranqueadoSessao(r)
 	idCli := strings.TrimSpace(r.URL.Query().Get("id_cliente"))
 	if idCli == "" {
-		auxiliar.RespostaErro(w, http.StatusBadRequest, errMsg("id_cliente obrigatorio"))
+		auxiliar.RespostaErro(w, http.StatusBadRequest, fmt.Errorf("id_cliente obrigatorio"))
 		return
 	}
 	codigo, err := visdata.GetClienteCodigoInterno(r.Context(), idFra, idCli)
+	if err != nil {
+		auxiliar.RespostaErro(w, http.StatusInternalServerError, err)
+		return
+	}
+	codEmpresa, err := visdata.GetClienteCodEmpresa(r.Context(), idFra, idCli)
 	if err != nil {
 		auxiliar.RespostaErro(w, http.StatusInternalServerError, err)
 		return
@@ -25,6 +31,7 @@ func ProxyClienteExtGet(w http.ResponseWriter, r *http.Request) {
 		"id_franqueado":  idFra,
 		"id_cliente":     idCli,
 		"codigo_interno": codigo,
+		"cod_empresa":    codEmpresa,
 	})
 }
 
@@ -44,7 +51,7 @@ func ProxyClienteExtPut(w http.ResponseWriter, r *http.Request) {
 	}
 	idCli := strings.TrimSpace(strVal(payload, "id_cliente"))
 	if idCli == "" {
-		auxiliar.RespostaErro(w, http.StatusBadRequest, errMsg("id_cliente obrigatorio"))
+		auxiliar.RespostaErro(w, http.StatusBadRequest, fmt.Errorf("id_cliente obrigatorio"))
 		return
 	}
 	codigo := strVal(payload, "codigo_interno")
@@ -52,7 +59,19 @@ func ProxyClienteExtPut(w http.ResponseWriter, r *http.Request) {
 		auxiliar.RespostaErro(w, http.StatusInternalServerError, err)
 		return
 	}
+	if _, ok := payload["cod_empresa"]; ok {
+		codEmpresa := strVal(payload, "cod_empresa")
+		if err := visdata.SetClienteCodEmpresa(r.Context(), idFra, idCli, codEmpresa); err != nil {
+			auxiliar.RespostaErro(w, http.StatusInternalServerError, err)
+			return
+		}
+	}
 	saved, err := visdata.GetClienteCodigoInterno(r.Context(), idFra, idCli)
+	if err != nil {
+		auxiliar.RespostaErro(w, http.StatusInternalServerError, err)
+		return
+	}
+	savedEmpresa, err := visdata.GetClienteCodEmpresa(r.Context(), idFra, idCli)
 	if err != nil {
 		auxiliar.RespostaErro(w, http.StatusInternalServerError, err)
 		return
@@ -61,6 +80,7 @@ func ProxyClienteExtPut(w http.ResponseWriter, r *http.Request) {
 		"id_franqueado":  idFra,
 		"id_cliente":     idCli,
 		"codigo_interno": saved,
+		"cod_empresa":    savedEmpresa,
 	})
 }
 
@@ -88,11 +108,3 @@ func toString(v any) string {
 		return s
 	}
 }
-
-func errMsg(msg string) error {
-	return &simpleErr{msg: msg}
-}
-
-type simpleErr struct{ msg string }
-
-func (e *simpleErr) Error() string { return e.msg }

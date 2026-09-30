@@ -225,10 +225,22 @@ var CvWhitelabel = (function () {
         }
     }
 
+    function tenantFromDados(dados, idFranqueado) {
+        if (dados && dados.id_central) return 'cen:' + dados.id_central
+        return resolveIdFranqueado(idFranqueado || (dados && dados.id_franqueado))
+    }
+
     function ingestDadosWhitelabel(dados, idFranqueado) {
         if (!dados) return
-        var id = resolveIdFranqueado(idFranqueado || dados.id_franqueado)
-        if (dados.id_franqueado) setTenant(dados.id_franqueado)
+        var id = tenantFromDados(dados, idFranqueado)
+        if (dados.id_central) {
+            setTenant(id)
+            try {
+                localStorage.setItem('idCentralUUID', dados.id_central)
+            } catch (e) { /* ignore */ }
+        } else if (dados.id_franqueado) {
+            setTenant(dados.id_franqueado)
+        }
         if (dados.logo_data) {
             applyLogo(dados.logo_data, id)
         } else if (id) {
@@ -318,6 +330,24 @@ var CvWhitelabel = (function () {
         })
     }
 
+    var CV_CENTRAL_WL_APP = 'confvision'
+
+    function loadCentralMarcaSession() {
+        var idCen = ''
+        try {
+            idCen = localStorage.getItem('idCentralUUID') || ''
+        } catch (e) { /* ignore */ }
+        if (!idCen) return $.Deferred().resolve().promise()
+        return $.ajax({
+            url: '/centralMarcaPorCentral',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ id_central: idCen, app: CV_CENTRAL_WL_APP })
+        }).done(function (r) {
+            ingestDadosWhitelabel(r && r.dados)
+        }).fail(function () { /* ignore */ })
+    }
+
     /** Páginas autenticadas: cache imediato; Xano no máximo 1x por sessão. */
     function loadForSession() {
         var idFra = resolveIdFranqueado()
@@ -332,7 +362,9 @@ var CvWhitelabel = (function () {
             return $.Deferred().resolve().promise()
         }
 
-        return syncFromServer(idFra, false)
+        return loadCentralMarcaSession().always(function () {
+            syncFromServer(idFra, false)
+        })
     }
 
     function notifyBrandSaved(idFranqueado) {

@@ -155,12 +155,14 @@ Ver template completo: [`.env.producao.example`](.env.producao.example)
 **Novidade — dispatch terminal CV01 (analítico):**
 
 ```env
-RECEPTOR_WEB_URL=http://185.130.61.3:5000
-RECEPTOR_WEB_SENHA=<SenhaWeb receptorWeb>
+RECEPTOR_WEB_URL=http://127.0.0.1:5000
+RECEPTOR_WEB_SENHA=<SENHA_WEB receptorWeb no core-4>
 TERMINAL_NOTIFY_ENABLED=true
 POSTGRES_URL=postgres://confmonit:SENHA@191.96.156.116:5432/confmonit?sslmode=disable
 BD_HOST_MV4=...
 ```
+
+`185.130.61.3` = DNS receptor TCP (2030/2031). HTTP receptorWeb `:5000` = **core-4** (`127.0.0.1`).
 
 Deploy terminal: [`../../confvision/DEPLOY_TERMINAL_DISPATCH.md`](../../confvision/DEPLOY_TERMINAL_DISPATCH.md)
 

@@ -94,6 +94,10 @@ const ConfVisionArmado = {
         if (code === 'sistema_stream_h264_nal') {
             return 'Analítico desligado: vídeo H.264 inválido (NAL corrupto). Corrija encoder/RTMP na câmera e reative.'
         }
+        if (code === 'sistema_stream_video_track_not_set_up') {
+            return 'Câmera com problema: video track não configurado no fluxo RTMP. ' +
+                'O sistema pausou a câmera automaticamente. Corrija o encode e use Reativar stream.'
+        }
         if (code.indexOf('sistema_stream') === 0) {
             return 'Analítico pausado automaticamente por falha de stream. Corrija e use Reativar stream.'
         }

@@ -70,6 +70,37 @@
     gap: 1rem;
 }
 
+.cv-lic-cap-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+}
+
+.cv-lic-cap-resumo-inline {
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--cv-border);
+    border-radius: var(--cv-radius);
+    background: rgba(56, 189, 248, 0.04);
+}
+
+.cv-lic-cap-calc {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    min-height: 3rem;
+}
+
+.cv-lic-cap-total {
+    color: var(--cv-accent);
+    font-size: 1.15rem;
+}
+
+.cv-lic-cap-bloqueio {
+    padding: 1rem 0;
+}
+
+.cv-lic-cap-card {
+    border-left: 3px solid var(--cv-accent);
+}
+
 .cv-lic-comprar-intro {
     border-left: 3px solid var(--cv-accent);
 }
@@ -246,6 +277,29 @@
     color: var(--cv-text-muted);
     font-weight: 500;
     font-size: 0.85rem;
+}
+
+.cv-lic-fat-lic {
+    min-width: 180px;
+    max-width: 280px;
+}
+
+.cv-lic-fat-item {
+    font-size: 0.85rem;
+    line-height: 1.35;
+    padding: 0.15rem 0;
+}
+
+.cv-lic-fat-item-nome {
+    display: block;
+    color: var(--cv-text);
+}
+
+.cv-lic-fat-item-qtd,
+.cv-lic-fat-item-val {
+    display: block;
+    color: var(--cv-text-muted);
+    font-size: 0.8rem;
 }
 
 .cv-lic-resumo-grid {

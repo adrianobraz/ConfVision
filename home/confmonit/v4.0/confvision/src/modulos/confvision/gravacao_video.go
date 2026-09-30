@@ -2,6 +2,8 @@ package confvision
 
 import (
 	"confvision/src/config"
+	"confvision/src/modulos/visdata"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -131,6 +133,20 @@ func gravacaoURLAutorizada(idFranqueado, videoURL string) (bool, error) {
 }
 
 func listarGravacaoStorageFranqueado(idFranqueado string) ([]gravacaoStorageResumo, error) {
+	if config.VisPostgresEnabled {
+		list, err := visdata.ListGravacaoStorageByFranqueado(context.Background(), idFranqueado, "ativo", false)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]gravacaoStorageResumo, 0, len(list))
+		for _, st := range list {
+			out = append(out, gravacaoStorageResumo{
+				S3Endpoint: strings.TrimSpace(fmt.Sprint(st["s3_endpoint"])),
+				S3Bucket:   strings.TrimSpace(fmt.Sprint(st["s3_bucket"])),
+			})
+		}
+		return out, nil
+	}
 	path := fmt.Sprintf("%s/vis_gravacao_storage_by_franqueado?id_franqueado=%s&status=ativo",
 		config.XanoBaseUrl, url.QueryEscape(idFranqueado))
 

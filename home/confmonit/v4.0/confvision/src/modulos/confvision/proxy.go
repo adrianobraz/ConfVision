@@ -133,7 +133,7 @@ func ProxyListarCameras(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	path := fmt.Sprintf("/vis_camera_by_franqueado?id_franqueado=%s", url.QueryEscape(idFranqueado))
-	proxyVisOrXano(w, r, http.MethodGet, path)
+	proxyXano(w, r, http.MethodGet, path)
 }
 
 // listarCamerasCliente — usa endpoint by_cliente se existir; senão filtra by_franqueado no Go.
@@ -259,7 +259,7 @@ func ProxyListarLicencas(w http.ResponseWriter, r *http.Request) {
 	if unidade != "" {
 		path += fmt.Sprintf("&unidade=%s", unidade)
 	}
-	proxyVisOrXano(w, r, http.MethodGet, path)
+	proxyXano(w, r, http.MethodGet, path)
 }
 
 func ProxyListarGravacaoStorage(w http.ResponseWriter, r *http.Request) {
@@ -269,53 +269,53 @@ func ProxyListarGravacaoStorage(w http.ResponseWriter, r *http.Request) {
 	if status != "" {
 		path += fmt.Sprintf("&status=%s", status)
 	}
-	proxyVisOrXano(w, r, http.MethodGet, path)
+	proxyXano(w, r, http.MethodGet, path)
 }
 
 func ProxyCriarGravacaoStorage(w http.ResponseWriter, r *http.Request) {
-	proxyVisOrXano(w, r, http.MethodPost, "/vis_gravacao_storage")
+	proxyXano(w, r, http.MethodPost, "/vis_gravacao_storage")
 }
 
 func ProxyAtualizarGravacaoStorage(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	path := fmt.Sprintf("/vis_gravacao_storage/%s?vis_gravacao_storage_id=%s", id, id)
-	proxyVisOrXano(w, r, http.MethodPut, path)
+	proxyXano(w, r, http.MethodPut, path)
 }
 
 func ProxyAtivarGravacaoCamera(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	path := fmt.Sprintf("/vis_camera/gravacao/ativar/%s?vis_camera_id=%s", id, id)
-	proxyVisOrXano(w, r, http.MethodPost, path)
+	proxyXano(w, r, http.MethodPost, path)
 }
 
 func ProxyDesativarGravacaoCamera(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	path := fmt.Sprintf("/vis_camera/gravacao/desativar/%s?vis_camera_id=%s", id, id)
-	proxyVisOrXano(w, r, http.MethodPost, path)
+	proxyXano(w, r, http.MethodPost, path)
 }
 
 func ProxyLiberarLicencaCamera(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	path := fmt.Sprintf("/vis_camera/licenca/liberar/%s?vis_camera_id=%s", id, id)
-	proxyVisOrXano(w, r, http.MethodPost, path)
+	proxyXano(w, r, http.MethodPost, path)
 }
 
 func ProxyFlushGravacaoCamera(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	path := fmt.Sprintf("/vis_camera/gravacao/flush/%s?vis_camera_id=%s", id, id)
-	proxyVisOrXano(w, r, http.MethodPost, path)
+	proxyXano(w, r, http.MethodPost, path)
 }
 
 func ProxyPausarAnaliticoCamera(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	path := fmt.Sprintf("/vis_camera/analitico/pausar/%s?vis_camera_id=%s", id, id)
-	proxyVisOrXano(w, r, http.MethodPost, path)
+	proxyXano(w, r, http.MethodPost, path)
 }
 
 func ProxyReativarStreamCamera(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	path := fmt.Sprintf("/vis_camera_stream_reactivate?camera_id=%s", id)
-	proxyVisOrXano(w, r, http.MethodPost, path)
+	proxyXano(w, r, http.MethodPost, path)
 }
 
 func ProxyGetGradeCliente(w http.ResponseWriter, r *http.Request) {
@@ -420,7 +420,7 @@ func ProxyListarGravacaoSegmentos(w http.ResponseWriter, r *http.Request) {
 	if ate != "" {
 		path += "&ate=" + url.QueryEscape(ate)
 	}
-	proxyVisOrXano(w, r, http.MethodGet, path)
+	proxyXano(w, r, http.MethodGet, path)
 }
 
 func cameraPertenceAoCliente(cameraID, idCliente string) bool {
@@ -474,7 +474,7 @@ func cameraPertenceAoCliente(cameraID, idCliente string) bool {
 }
 
 func ProxyCriarLicenca(w http.ResponseWriter, r *http.Request) {
-	proxyVisOrXano(w, r, http.MethodPost, "/vis_licenca")
+	proxyXano(w, r, http.MethodPost, "/vis_licenca")
 }
 
 func ProxyListarEventos(w http.ResponseWriter, r *http.Request) {
@@ -503,7 +503,7 @@ func ProxyListarEventos(w http.ResponseWriter, r *http.Request) {
 	}
 	path := fmt.Sprintf("/vis_evento_by_franqueado_page?id_franqueado=%s&page=%s", url.QueryEscape(idFranqueado), page)
 	path = appendEventosFiltroQuery(path, r)
-	proxyVisOrXano(w, r, http.MethodGet, path)
+	proxyXano(w, r, http.MethodGet, path)
 }
 
 func appendEventosFiltroQuery(path string, r *http.Request) string {
@@ -560,11 +560,11 @@ func listarEventosCliente(w http.ResponseWriter, r *http.Request, cookie map[str
 func ProxyGetEventoClips(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	path := fmt.Sprintf("/vis_evento/%s/clips?id=%s", id, id)
-	proxyVisOrXano(w, r, http.MethodGet, path)
+	proxyXano(w, r, http.MethodGet, path)
 }
 
 func ProxyCriarCamera(w http.ResponseWriter, r *http.Request) {
-	proxyVisOrXano(w, r, http.MethodPost, "/vis_camera")
+	proxyXano(w, r, http.MethodPost, "/vis_camera")
 }
 
 func ProxyGetCamera(w http.ResponseWriter, r *http.Request) {
@@ -584,35 +584,35 @@ func ProxyGetCamera(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	path := fmt.Sprintf("/vis_camera/%s?vis_camera_id=%s", id, id)
-	proxyVisOrXano(w, r, http.MethodGet, path)
+	proxyXano(w, r, http.MethodGet, path)
 }
 
 func ProxyExcluirCameraArea(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	path := fmt.Sprintf("/vis_camera_area/%s?id=%s", id, id)
-	proxyVisOrXano(w, r, http.MethodDelete, path)
+	proxyXano(w, r, http.MethodDelete, path)
 }
 
 func ProxyListarCameraAreas(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	path := fmt.Sprintf("/vis_camera_area_by_camera?vis_camera_id=%s", id)
-	proxyVisOrXano(w, r, http.MethodGet, path)
+	proxyXano(w, r, http.MethodGet, path)
 }
 
 func ProxyCriarCameraArea(w http.ResponseWriter, r *http.Request) {
-	proxyVisOrXano(w, r, http.MethodPost, "/vis_camera_area")
+	proxyXano(w, r, http.MethodPost, "/vis_camera_area")
 }
 
 func ProxyAtualizarCameraArea(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	path := fmt.Sprintf("/vis_camera_area/%s?id=%s", id, id)
-	proxyVisOrXano(w, r, http.MethodPut, path)
+	proxyXano(w, r, http.MethodPut, path)
 }
 
 func ProxyAtualizarCamera(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	path := fmt.Sprintf("/vis_camera/%s?vis_camera_id=%s", id, id)
-	proxyVisOrXano(w, r, http.MethodPut, path)
+	proxyXano(w, r, http.MethodPut, path)
 	go func() {
 		inv, _ := json.Marshal(map[string]any{"vis_camera_id": id})
 		if gresp, gerr := guardRequest(http.MethodPost, "/cache/invalidate", inv); gerr == nil && gresp != nil {

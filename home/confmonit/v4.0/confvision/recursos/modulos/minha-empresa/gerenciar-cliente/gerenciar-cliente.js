@@ -21,7 +21,6 @@ $(document).ready(function () {
     $('#filtro-status-cliente').on('change', GerenciarClienteCarregarTabela)
 
     GerenciarClienteInicializarTipo(11)
-    GerenciarClienteCarregarPacotes()
     GerenciarClienteCarregarTabela()
     localStorage.setItem('idCamera', 'NOVO')
     localStorage.setItem('idCliente', '')
@@ -251,34 +250,6 @@ function GerenciarClienteCarregarTabela() {
     cvPagClientes.reset()
 }
 
-function GerenciarClienteCarregarPacotes() {
-    const id = localStorage.getItem('idFranqueado')
-    $.ajax({
-        start: boxProcessando(),
-        url: `/clienteCarregarPacotes`,
-        method: 'Post',
-        data: JSON.stringify({ idVinculo: id })
-    }).fail(function (e) {        
-        log(localStorage.getItem('log'), e)
-    }).done(function (r) {
-        
-        boxFechar()
-        // log(localStorage.getItem('log'), r)
-        $('#pacote').empty()
-        if (r.status != 'Vazio') {
-            r.dados.forEach(i => {  
-                $("#pacote").append(
-                    `<option value="${i.idPacote}">${i.nome}</option>`
-                )
-            });
-        } else {
-            $("#pacote").append(
-                `<option value="">FAVOR CADASTRAR UM PACOTE</option>`
-            )
-        }
-    })
-}
-
 function GerenciarClienteMontaLinha(i) {
 
     let btnAtivoImg
@@ -485,7 +456,6 @@ function GerenciarClienteInserir() {
         data: JSON.stringify(
             {
                 idFranqueado: localStorage.getItem('idFranqueado'),
-                idPacote: $('#pacote').val(),
                 nome: $('#nome').val(),
                 nick: $('#nick').val(),
                 documento1: limpaDocumento(documento1),
@@ -499,7 +469,7 @@ function GerenciarClienteInserir() {
                 telefone2: formatarCelular($('#telefone2').val()),
                 email1: $('#email1').val().toLowerCase(),
                 email2: $('#email2').val().toLowerCase(),
-                
+                codigoInterno: ($('#codigo-interno').val() || '').trim().toUpperCase()
             }
 
         )
@@ -509,8 +479,11 @@ function GerenciarClienteInserir() {
     }).done(function (r) {
         boxFechar()
         boxInseridoSucesso(r.dados)
-        GerenciarClienteLimparFormulario()
-        GerenciarClienteCarregarTabela()
+        const novoId = typeof r.dados === 'string' ? r.dados : ((r.dados && (r.dados.idCliente || r.dados.id)) || '')
+        salvarCodigosIntegracaoCliente(novoId || localStorage.getItem('idCliente')).always(function () {
+            GerenciarClienteLimparFormulario()
+            GerenciarClienteCarregarTabela()
+        })
     })
 }
 
@@ -561,8 +534,6 @@ function GerenciarClienteBuscar(id) {
 
             }
 
-            $('#pacote').val(d.idPacote)
-
             $('#uf').val(d.uf)
 
             $('#endereco').val(d.endereco)
@@ -582,7 +553,41 @@ function GerenciarClienteBuscar(id) {
             $('#email2').val(d.email2)
             $('#cep').val(d.cep)
 
+            $('#codigo-interno').val((d.codigoInterno || '').toString())
+            carregarCodigosIntegracaoCliente(d.idCliente)
+
         }
+    })
+}
+
+function carregarCodigosIntegracaoCliente(idCliente) {
+    if (!idCliente) {
+        $('#codigo-interno').val('')
+        $('#codigo-empresa').val('')
+        return
+    }
+    $.get('/api/cliente-ext?id_cliente=' + encodeURIComponent(idCliente))
+        .done(function (r) {
+            if (r && r.codigo_interno) {
+                $('#codigo-interno').val(String(r.codigo_interno))
+            }
+            if (r && r.cod_empresa) {
+                $('#codigo-empresa').val(String(r.cod_empresa))
+            }
+        })
+}
+
+function salvarCodigosIntegracaoCliente(idCliente) {
+    if (!idCliente) return $.Deferred().resolve().promise()
+    return $.ajax({
+        url: '/api/cliente-ext',
+        method: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            id_cliente: String(idCliente),
+            codigo_interno: ($('#codigo-interno').val() || '').trim().toUpperCase(),
+            cod_empresa: ($('#codigo-empresa').val() || '').trim().toUpperCase()
+        })
     })
 }
 
@@ -624,7 +629,6 @@ function GerenciarClienteAlterar() {
         data: JSON.stringify(
             {
                 idCliente: localStorage.getItem('idCliente'),
-                idPacote: $('#pacote').val(),
                 nome: $('#nome').val(),
                 nick: $('#nick').val(),
                 documento1: documento1,
@@ -637,18 +641,24 @@ function GerenciarClienteAlterar() {
                 cidade: $('#cidade').val(),
                 email1: $('#email1').val(),
                 email2: $('#email2').val(),
-                cep: $('#cep').val()
+                cep: $('#cep').val(),
+                codigoInterno: ($('#codigo-interno').val() || '').trim().toUpperCase()
             }
         )
     }).fail(function (e) {
         console.log(e)
         boxErro("erro ao alterar o cliente")
     }).done(function (r) {
-        
-        
-        boxAteradoSucesso()
-        GerenciarClienteLimparFormulario()
-        GerenciarClienteCarregarTabela()
+        salvarCodigosIntegracaoCliente(localStorage.getItem('idCliente'))
+            .fail(function (xhr) {
+                const msg = (xhr && xhr.responseJSON && xhr.responseJSON.status) || 'Erro ao salvar códigos de integração'
+                boxAdvertenciaAuto(msg)
+            })
+            .always(function () {
+                boxAteradoSucesso()
+                GerenciarClienteLimparFormulario()
+                GerenciarClienteCarregarTabela()
+            })
     })
 
 }
@@ -730,12 +740,6 @@ function GerenciarClienteValidarCamposBranco() {
     
     if ($('#email1').val() == "") {
         boxAdvertenciaCampoAuto("O campo Email, não poder ficar em branco", '#email1')
-        return true
-    }
-
-    if ($('#pacote').val() == "") {
-        boxAdvertenciaCampoAuto("O campo pacote, não poder ficar em branco", '#pacote')
-        
         return true
     }
 

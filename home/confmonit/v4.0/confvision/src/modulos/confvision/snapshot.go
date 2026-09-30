@@ -50,7 +50,7 @@ func TirarSnapshotCamera(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	cam, err := buscarCameraXano(cameraID)
+	cam, err := buscarCameraOperacional(r.Context(), cameraID)
 	if err != nil {
 		auxiliar.RespostaErro(w, http.StatusBadRequest, err)
 		return
@@ -99,8 +99,8 @@ func TirarSnapshotCamera(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := atualizarCadSnapshotXano(cameraID, &url); err != nil {
-		log.Printf("confvision snapshot xano falhou camera=%s: %v", cameraID, err)
+	if err := atualizarSnapshotOperacional(ctx, cam.ID, &url); err != nil {
+		log.Printf("confvision snapshot persistencia falhou camera=%s: %v", cameraID, err)
 		auxiliar.RespostaErro(w, http.StatusBadGateway, err)
 		return
 	}
@@ -134,7 +134,7 @@ func RemoverSnapshotCamera(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	cam, err := buscarCameraXano(cameraID)
+	cam, err := buscarCameraOperacional(r.Context(), cameraID)
 	if err != nil {
 		auxiliar.RespostaErro(w, http.StatusBadRequest, err)
 		return
@@ -161,8 +161,8 @@ func RemoverSnapshotCamera(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := limparCadSnapshotXano(cameraID); err != nil {
-		log.Printf("confvision snapshot remover xano falhou camera=%s: %v", cameraID, err)
+	if err := atualizarSnapshotOperacional(ctx, cam.ID, nil); err != nil {
+		log.Printf("confvision snapshot remover persistencia falhou camera=%s: %v", cameraID, err)
 		auxiliar.RespostaErro(w, http.StatusBadGateway, err)
 		return
 	}

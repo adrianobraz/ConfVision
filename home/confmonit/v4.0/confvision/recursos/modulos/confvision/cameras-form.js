@@ -124,6 +124,20 @@ function ordenarLicencas(lista) {
     })
 }
 
+function licencaValidaParaUso(lic) {
+    if (!lic || lic.valido_ate == null || lic.valido_ate === '') return true
+    const t = Date.parse(String(lic.valido_ate))
+    if (Number.isNaN(t)) return true
+    return t > Date.now()
+}
+
+function filtrarLicencasUsoValidas(lista) {
+    return (lista || []).filter(licencaValidaParaUso)
+}
+
+const CV_MSG_SEM_LICENCA_VALIDA =
+    'Nenhuma licença disponível com prazo válido. Renove ou compre em Minhas licenças.'
+
 function labelPlanoGravacao(plano) {
     return CV_PLANOS_GRAVACAO[plano] || plano || '—'
 }
@@ -220,6 +234,11 @@ function selecionarAbaForm(tab) {
     $('#btn-ajuda-encode-rtmp-acoes').toggleClass('d-none', alvo !== 'url')
 }
 
+function atualizarBotoesLicencaPainel() {
+    const licTrocar = normalizarId($('#sel-trocar-licenca').val())
+    $('#btn-trocar-licenca-cam').prop('disabled', !licTrocar)
+}
+
 function atualizarBotoesGravacaoPainel(temLicencaGrav) {
     const licAtivar = normalizarId($('#sel-gravacao-licenca').val())
     const licTrocar = normalizarId($('#sel-trocar-gravacao-licenca').val())
@@ -295,7 +314,7 @@ function carregarLicencasGravacaoPainel(cam) {
         })
         .done(function (r) {
             const bruto = (r && r.dados) ? r.dados : (Array.isArray(r) ? r : [])
-            preencherSelectLicencasGravacao(ordenarLicencas(bruto), temLicenca)
+            preencherSelectLicencasGravacao(ordenarLicencas(filtrarLicencasUsoValidas(bruto)), temLicenca)
         })
 }
 
@@ -625,7 +644,7 @@ function carregarLicencasDisponiveis() {
         })
         .done(function (r) {
             const bruto = (r && r.dados) ? r.dados : (Array.isArray(r) ? r : [])
-            const lista = ordenarLicencas(bruto)
+            const lista = ordenarLicencas(filtrarLicencasUsoValidas(bruto))
             licencasDisponiveis = lista
             const sel = $('#sel-licenca').empty().append('<option value="">Selecione uma licença…</option>')
             lista.forEach(function (lic) {
@@ -636,7 +655,7 @@ function carregarLicencasDisponiveis() {
             })
             $('#box-selecionar-licenca').removeClass('d-none')
             if (!lista.length) {
-                $('#lbl-licenca-vazia').removeClass('d-none')
+                $('#lbl-licenca-vazia').removeClass('d-none').text(CV_MSG_SEM_LICENCA_VALIDA)
                 sel.prop('disabled', true)
             } else {
                 $('#lbl-licenca-vazia').addClass('d-none')
@@ -668,6 +687,7 @@ function onLicencaChange() {
 
 function onTrocarLicencaChange() {
     const id = normalizarId($('#sel-trocar-licenca').val())
+    atualizarBotoesLicencaPainel()
     if (!id) {
         licencaSelecionadaId = licencaAtualId
         planoAtualCam = planoInicialCam
@@ -696,7 +716,7 @@ function carregarLicencasParaTroca(cam) {
         })
         .done(function (r) {
             const bruto = (r && r.dados) ? r.dados : (Array.isArray(r) ? r : [])
-            const lista = ordenarLicencas(bruto)
+            const lista = ordenarLicencas(filtrarLicencasUsoValidas(bruto))
             licencasDisponiveis = lista
             const sel = $('#sel-trocar-licenca').empty().append('<option value="">Manter licença atual</option>')
             lista.forEach(function (lic) {
@@ -709,10 +729,13 @@ function carregarLicencasParaTroca(cam) {
             if (!lista.length) {
                 sel.prop('disabled', true)
                 $('#lbl-trocar-licenca-vazia').removeClass('d-none')
+                $('#btn-trocar-licenca-cam').addClass('d-none')
             } else {
                 sel.prop('disabled', false)
                 $('#lbl-trocar-licenca-vazia').addClass('d-none')
+                $('#btn-trocar-licenca-cam').removeClass('d-none')
             }
+            atualizarBotoesLicencaPainel()
         })
 }
 
@@ -728,7 +751,7 @@ function carregarLicencasParaVincular() {
         })
         .done(function (r) {
             const bruto = (r && r.dados) ? r.dados : (Array.isArray(r) ? r : [])
-            const lista = ordenarLicencas(bruto)
+            const lista = ordenarLicencas(filtrarLicencasUsoValidas(bruto))
             licencasDisponiveis = lista
             const sel = $('#sel-vincular-licenca').empty().append('<option value="">Selecione uma licença…</option>')
             lista.forEach(function (lic) {
@@ -801,6 +824,51 @@ function liberarLicencaCamForm() {
     })
 }
 
+function trocarLicencaCamForm() {
+    const licId = normalizarId($('#sel-trocar-licenca').val())
+    if (!cameraEditId || !licId) {
+        boxMesagemAtencaoPersonalizada('Selecione a nova licença.')
+        return
+    }
+    if (String(licId) === String(licencaAtualId || '')) {
+        boxMesagemAtencaoPersonalizada('Selecione uma licença diferente da atual.')
+        return
+    }
+    CvMsg.confirmar('Trocar licença?', 'A licença atual voltará para disponível.').then(function (r) {
+        if (!r.isConfirmed) return
+        const $btn = $('#btn-trocar-licenca-cam')
+        $btn.prop('disabled', true)
+        const payload = {
+            vis_camera_id: parseInt(cameraEditId, 10),
+            vis_licenca_id: parseInt(licId, 10),
+            id_franqueado: ConfVisionUrls.idFranqueado(),
+            id_dispositivo: cameraEditCache && cameraEditCache.id_dispositivo,
+            nome: cameraEditCache && cameraEditCache.nome,
+            ativo: $('#inp-ativo').is(':checked'),
+            deteccao_humano: $('#inp-deteccao').is(':checked')
+        }
+        $.ajax({
+            url: `/api/cameras/${cameraEditId}`,
+            method: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify(payload)
+        })
+            .done(function (res) {
+                const cam = parseCameraResponse(res) || {}
+                cameraEditCache = cam
+                boxSucessoAuto('Licença trocada com sucesso.')
+                configurarPlanoEdicao(cam)
+                selecionarAbaForm('licenca')
+            })
+            .fail(function (xhr) {
+                boxMesagemAtencaoPersonalizada(extrairErroApi(xhr) || 'Erro ao trocar licença.')
+            })
+            .always(function () {
+                atualizarBotoesLicencaPainel()
+            })
+    })
+}
+
 function configurarPlanoEdicao(cam) {
     licencaAtualId = cam.vis_licenca_id || null
     licencaSelecionadaId = licencaAtualId
@@ -831,6 +899,7 @@ function configurarPlanoEdicao(cam) {
         $('#lbl-licenca-atual').text(`#${licencaAtualId} — ${labelPlano(planoInicialCam)}`)
         $('#box-licenca-atual').removeClass('d-none')
         $('#box-liberar-licenca').removeClass('d-none')
+        $('#box-trocar-licenca').removeClass('d-none')
         carregarLicencasParaTroca(cam)
         configurarPainelGravacao(cam)
         return
@@ -944,6 +1013,20 @@ function selecionarOptionSetor(sel, pend) {
     }
 
     return !!sel.val()
+}
+
+function padParticaoTerminal(valor) {
+    const digits = String(valor || '').replace(/\D/g, '')
+    if (!digits) return String(valor || '').trim()
+    return digits.length >= 2 ? digits.slice(-2) : digits.padStart(2, '0')
+}
+
+function padZonauserTerminal(valor) {
+    const raw = String(valor || '').trim()
+    if (!raw) return ''
+    const digits = raw.replace(/\D/g, '')
+    if (!digits || digits.length !== raw.length) return raw
+    return digits.length >= 3 ? digits.slice(-3) : digits.padStart(3, '0')
 }
 
 function resolverParticaoPayload(disp) {
@@ -1295,6 +1378,7 @@ $(document).ready(function () {
     $('#sel-trocar-licenca').on('change', onTrocarLicencaChange)
     $('#sel-vincular-licenca').on('change', onVincularLicencaChange)
     $('#btn-liberar-licenca-cam').on('click', liberarLicencaCamForm)
+    $('#btn-trocar-licenca-cam').on('click', trocarLicencaCamForm)
     $('#sel-gravacao-licenca, #sel-trocar-gravacao-licenca').on('change', function () {
         atualizarBotoesGravacaoPainel(temLicencaGravacaoCam(cameraEditCache))
     })
@@ -1595,7 +1679,9 @@ function montarPayload() {
     const setorOpt = $('#sel-setor option:selected')
     const idSetor = normalizarId(setorOpt.val())
     const zonaNumero = setorOpt.data('numero')
-    const zonauser = zonaNumero != null && String(zonaNumero) !== '' ? String(zonaNumero) : ''
+    const zonauser = padZonauserTerminal(
+        zonaNumero != null && String(zonaNumero) !== '' ? String(zonaNumero) : ''
+    )
 
     const tipoCamera = tipoCameraSelecionado()
     if (!tipoCamera) {
@@ -1609,7 +1695,7 @@ function montarPayload() {
             id_cliente: idCliente,
             id_dispositivo: idDispositivo,
             conta: resolverContaPayload(disp),
-            particao: resolverParticaoPayload(disp),
+            particao: padParticaoTerminal(resolverParticaoPayload(disp)),
             protocolo: tipoCamera,
             canal: ($('#inp-canal').val() || '').trim(),
             setor: setorOpt.text() && idSetor ? setorOpt.text().trim() : '',

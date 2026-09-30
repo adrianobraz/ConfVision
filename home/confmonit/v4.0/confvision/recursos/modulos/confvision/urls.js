@@ -157,6 +157,7 @@ function confVisionAuthGuard() {
             '/carregar-menu-confvision',
             '/eventos',
             '/ao-vivo',
+            '/mosaicos',
             '/gravacoes/timeline',
             '/gravacoes/dvr',
             '/relatorio-armado'
@@ -330,6 +331,7 @@ function confVisionNavAtiva() {
         '/grade-horario'
     ]
     const configuracaoPaths = [
+        '/integracao-eventos',
         '/carregar-whitelabel',
         '/carregar-dominio',
         '/minhas-licencas',
@@ -344,7 +346,9 @@ function confVisionNavAtiva() {
         '/eventos',
         '/relatorio-armado',
         '/relatorio-licencas',
-        '/relatorio-faturas'
+        '/relatorio-faturas',
+        '/rtmp-falhas',
+        '/ips-banidos'
     ]
 
     function ativarDropdownItem($item) {
@@ -402,12 +406,18 @@ function confVisionNavAtiva() {
             ativo = path === '/relatorio-licencas' || path.startsWith('/relatorio-licencas')
         } else if (hrefPath === '/relatorio-faturas') {
             ativo = path === '/relatorio-faturas' || path.startsWith('/relatorio-faturas')
+        } else if (hrefPath === '/rtmp-falhas') {
+            ativo = path === '/rtmp-falhas' || path.startsWith('/rtmp-falhas')
+        } else if (hrefPath === '/ips-banidos') {
+            ativo = path === '/ips-banidos' || path.startsWith('/ips-banidos')
         } else if (hrefPath === '/minhas-licencas' || href.indexOf('/minhas-licencas') === 0) {
             ativo = path === '/minhas-licencas' || path.startsWith('/minhas-licencas')
         } else if (hrefPath === '/carregar-whitelabel') {
             ativo = path.startsWith('/carregar-whitelabel')
         } else if (hrefPath === '/carregar-dominio') {
             ativo = path.startsWith('/carregar-dominio')
+        } else if (hrefPath === '/integracao-eventos') {
+            ativo = path === '/integracao-eventos' || path.startsWith('/integracao-eventos/')
         }
 
         if (ativo) ativarDropdownItem($(this))

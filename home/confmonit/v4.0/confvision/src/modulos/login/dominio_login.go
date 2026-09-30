@@ -22,10 +22,10 @@ func clientePermitidoNoHost(hostLogin, idFranqueado string) (bool, error) {
 	}
 	fqdn, err := fqdnCVFranqueado(idFranqueado)
 	if err != nil {
-		return false, err
+		return true, nil
 	}
 	if fqdn == "" {
-	 return true, nil
+		return true, nil
 	}
 	return normalizarHost(hostLogin) == normalizarHost(fqdn), nil
 }

@@ -28,3 +28,14 @@ func TestComplementoImagemMoni(t *testing.T) {
 		t.Fatalf("got %q want %q", got, want)
 	}
 }
+
+func TestDemoMoniHashes(t *testing.T) {
+	config.ImagemPublicSecret = "Kp9mX2vR7nQw4sTf8hJc3bLd6yAe1uZi5oN0gM"
+	for _, id := range []int{990001, 990002, 990003} {
+		codigo := CodigoImagemPublica(id)
+		if codigo == "" {
+			t.Fatalf("codigo vazio id=%d", id)
+		}
+		t.Logf("%d=%s", id, codigo)
+	}
+}

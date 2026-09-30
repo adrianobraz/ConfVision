@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 func ProxyIntegracaoGet(w http.ResponseWriter, r *http.Request) {
@@ -18,7 +19,7 @@ func ProxyIntegracaoGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	path := fmt.Sprintf("/vis_integracao_franqueado?id_franqueado=%s", url.QueryEscape(idFra))
-	proxyVisOrXano(w, r, http.MethodGet, path)
+	proxyXano(w, r, http.MethodGet, path)
 }
 
 func ProxyIntegracaoSalvar(w http.ResponseWriter, r *http.Request) {
@@ -29,18 +30,22 @@ func ProxyIntegracaoSalvar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Body = io.NopCloser(bytes.NewReader(body))
-	proxyVisOrXano(w, r, http.MethodPut, "/vis_integracao_franqueado")
+	proxyXano(w, r, http.MethodPut, "/vis_integracao_franqueado")
 }
 
 func ProxyIntegracaoTestar(w http.ResponseWriter, r *http.Request) {
 	idFra := idFranqueadoSessao(r)
+	body, err := mergeFranqueadoBody(r, idFra)
+	if err != nil {
+		auxiliar.RespostaErro(w, http.StatusBadRequest, err)
+		return
+	}
 	if idFra == "" {
 		auxiliar.RespostaErro(w, http.StatusBadRequest, fmt.Errorf("id_franqueado obrigatorio"))
 		return
 	}
-	body, _ := json.Marshal(map[string]any{"id_franqueado": idFra})
 	r.Body = io.NopCloser(bytes.NewReader(body))
-	proxyVisOrXano(w, r, http.MethodPost, "/vis_integracao_franqueado/test")
+	proxyXano(w, r, http.MethodPost, "/vis_integracao_franqueado/test")
 }
 
 func ProxyIntegracaoLog(w http.ResponseWriter, r *http.Request) {
@@ -49,9 +54,26 @@ func ProxyIntegracaoLog(w http.ResponseWriter, r *http.Request) {
 		auxiliar.RespostaErro(w, http.StatusBadRequest, fmt.Errorf("id_franqueado obrigatorio"))
 		return
 	}
-	limit := r.URL.Query().Get("limit")
+	q := r.URL.Query()
+	limit := q.Get("limit")
+	if limit == "" {
+		limit = "50"
+	}
+	offset := q.Get("offset")
 	path := fmt.Sprintf("/vis_integracao_log?id_franqueado=%s&limit=%s", url.QueryEscape(idFra), url.QueryEscape(limit))
-	proxyVisOrXano(w, r, http.MethodGet, path)
+	if offset != "" {
+		path += "&offset=" + url.QueryEscape(offset)
+	}
+	if v := strings.TrimSpace(q.Get("data_de")); v != "" {
+		path += "&data_de=" + url.QueryEscape(v)
+	}
+	if v := strings.TrimSpace(q.Get("data_ate")); v != "" {
+		path += "&data_ate=" + url.QueryEscape(v)
+	}
+	if v := strings.TrimSpace(q.Get("cliente_nome")); v != "" {
+		path += "&cliente_nome=" + url.QueryEscape(v)
+	}
+	proxyXano(w, r, http.MethodGet, path)
 }
 
 func idFranqueadoSessao(r *http.Request) string {

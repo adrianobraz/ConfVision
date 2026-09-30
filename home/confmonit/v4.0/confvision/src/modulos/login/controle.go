@@ -58,6 +58,9 @@ func normalizarHost(host string) string {
 	if i := strings.Index(h, ":"); i >= 0 {
 		h = h[:i]
 	}
+	if strings.HasPrefix(h, "www.") {
+		h = h[4:]
+	}
 	return h
 }
 
@@ -152,10 +155,10 @@ func LoginLogar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tenantDominio := resolverTenantDominio(r, reqLogin.IDFranqueadoDominio)
+	hostLogin := normalizarHost(r.Host)
 
 	// 1) Tenta login como franqueado
-	switch tentarLoginFranqueado(w, email, senha, tenantDominio) {
+	switch tentarLoginFranqueado(w, email, senha) {
 	case loginResponded:
 		return
 	case loginOK:
@@ -163,7 +166,7 @@ func LoginLogar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2) Tenta login como cliente
-	switch tentarLoginCliente(w, email, senha, tenantDominio) {
+	switch tentarLoginCliente(w, email, senha, hostLogin) {
 	case loginResponded:
 		return
 	case loginOK:
@@ -181,7 +184,7 @@ const (
 	loginResponded
 )
 
-func tentarLoginFranqueado(w http.ResponseWriter, email, senha, tenantDominio string) loginOutcome {
+func tentarLoginFranqueado(w http.ResponseWriter, email, senha string) loginOutcome {
 	status, corpo, erro := postJSON(fmt.Sprintf("%s/v4/franqueado/logar", config.ApiUrl), map[string]string{
 		"email": email,
 		"senha": senha,
@@ -206,11 +209,6 @@ func tentarLoginFranqueado(w http.ResponseWriter, email, senha, tenantDominio st
 	}
 	if login.Dados.Tipo != "FRA" || strings.TrimSpace(login.Dados.IdVinculo) == "" {
 		return loginSkip
-	}
-
-	if tenantDominio != "" && tenantDominio != strings.TrimSpace(login.Dados.IdVinculo) {
-		auxiliar.RespostaErro(w, http.StatusForbidden, errors.New("usuario nao autorizado neste dominio"))
-		return loginResponded
 	}
 
 	// Fonte canonica Xano: plano ConfVision, incluso no FP Pro+ ou licenca de camera
@@ -238,7 +236,7 @@ func tentarLoginFranqueado(w http.ResponseWriter, email, senha, tenantDominio st
 	return loginOK
 }
 
-func tentarLoginCliente(w http.ResponseWriter, email, senha, tenantDominio string) loginOutcome {
+func tentarLoginCliente(w http.ResponseWriter, email, senha, hostLogin string) loginOutcome {
 	status, corpo, erro := postJSON(fmt.Sprintf("%s/v4/cliente/logar", config.ApiUrl), map[string]string{
 		"email1": email,
 		"senha":  senha,
@@ -275,8 +273,9 @@ func tentarLoginCliente(w http.ResponseWriter, email, senha, tenantDominio strin
 		return loginResponded
 	}
 
-	if tenantDominio != "" && tenantDominio != idFranqueado {
-		auxiliar.RespostaErro(w, http.StatusForbidden, errors.New("usuario nao autorizado neste dominio"))
+	permitido, _ := clientePermitidoNoHost(hostLogin, idFranqueado)
+	if !permitido {
+		auxiliar.RespostaErro(w, http.StatusForbidden, errors.New(errAcessoNegado))
 		return loginResponded
 	}
 

@@ -6,8 +6,6 @@ import (
 	"strings"
 )
 
-const sqlGruposFromJSON = `COALESCE(ARRAY(SELECT json_array_elements_text($1::json)), ARRAY[]::text[])`
-
 func encodeGruposJSON(grupos []string) (string, error) {
 	if grupos == nil {
 		grupos = []string{}

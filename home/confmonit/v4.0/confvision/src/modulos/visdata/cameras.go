@@ -93,7 +93,7 @@ WHERE c.ativo = TRUE
 	args := []any{}
 	n := 1
 	if workerID != "" {
-		query += fmt.Sprintf(" AND NULLIF(BTRIM(c.worker_id), '') = $%d", n)
+		query += fmt.Sprintf(" AND c.worker_id = $%d", n)
 		args = append(args, workerID)
 		n++
 	}
@@ -147,14 +147,6 @@ func CreateCamera(ctx context.Context, input map[string]any) (map[string]any, er
 	}
 	if err != nil {
 		return nil, humanizeDBErr(err)
-	}
-	if meta := MaybeAutoAssignAfterCreate(ctx, out); meta != nil {
-		out["d5_assign"] = meta
-		if wid := trimAny(meta["worker_id"]); wid != "" {
-			out["worker_id"] = wid
-		} else if refreshed, rerr := GetCameraByID(ctx, intFromAny(out["id"])); rerr == nil {
-			out = refreshed
-		}
 	}
 	return out, nil
 }
@@ -215,7 +207,8 @@ FROM vis_licenca WHERE id = $1 FOR UPDATE`, licID).Scan(
 		return nil, fmt.Errorf("Licenca informada nao e de camera — use licenca de plano online/sensor/analitico")
 	}
 	if lic.ValidoAte.Valid && lic.ValidoAte.Time.Before(time.Now()) {
-		return nil, fmt.Errorf("Licenca expirada")
+		_, _ = tx.ExecContext(ctx, `UPDATE vis_licenca SET status = 'expirada' WHERE id = $1`, licID)
+		return nil, fmt.Errorf("Licenca #%d expirada. Renove em Minhas licencas ou selecione outra licenca valida.", licID)
 	}
 
 	if err := CheckCapacidadeDisponivel(ctx, idFra, true); err != nil {
@@ -555,7 +548,8 @@ FROM vis_licenca WHERE id = $1 FOR UPDATE`, licID).Scan(
 		return "", fmt.Errorf("Licenca selecionada nao e de camera")
 	}
 	if lic.ValidoAte.Valid && lic.ValidoAte.Time.Before(time.Now()) {
-		return "", fmt.Errorf("Licenca expirada")
+		_, _ = tx.ExecContext(ctx, `UPDATE vis_licenca SET status = 'expirada' WHERE id = $1`, licID)
+		return "", fmt.Errorf("Licenca #%d expirada. Renove em Minhas licencas ou selecione outra licenca valida.", licID)
 	}
 	return lic.Plano.String, nil
 }

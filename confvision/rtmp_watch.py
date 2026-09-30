@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Deque, Optional
 
+from log_rotate import maybe_rotate_log
 from rtmp_messages import classificar_motivo, mensagem_amigavel
 from rtmp_token import STREAM_APP, parse_chave_rtmp
 
@@ -203,6 +204,14 @@ class RtmpLogParser:
         if not line.strip():
             return None
 
+        low = line.lower()
+        if "dts is not monotonically" in low or "dts is not strictly increasing" in low:
+            return self._handle_stream_diag(line, "hls_dts_nao_monotono")
+        if "video track" in low and "not set up" in low:
+            return self._handle_stream_diag(line, "rtmp_video_track_nao_configurado")
+        if "no video frames" in low and "audio" in low:
+            return self._handle_stream_diag(line, "rtmp_so_audio_sem_video")
+
         # Formato alternativo: path online fora do RE_LINE padrão de conn
         m_online = re.search(
             r"^(?P<ts>\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}).*\[path (?P<path>[^\]]+)\] stream is available",
@@ -225,6 +234,32 @@ class RtmpLogParser:
             return self._handle_rtmp_conn(ts, sub, msg)
 
         return None
+
+    def _handle_stream_diag(self, line: str, codigo: str) -> Optional[Falha]:
+        """HLS/muxer/RTMP — diagnóstico de encode (não auto-ban)."""
+        ts_m = re.match(r"^(?P<ts>\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})", line)
+        ts = ts_m.group("ts") if ts_m else datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M:%S")
+        path = ""
+        pm = re.search(r"\[(?:path|muxer)\s+([^\]]+)\]", line)
+        if pm:
+            path = pm.group(1).strip().rstrip("/")
+        if not path:
+            path = self._path_from_reason(line)
+        ip = ""
+        if path and path in self.publishers:
+            ip = str(self.publishers[path].get("ip") or "")
+        falha = self.store.add(
+            ts=ts,
+            ip=ip or "?",
+            porta="",
+            protocolo="HLS/RTMP",
+            path=path,
+            motivo_raw=line.strip()[:500],
+            forcar_codigo=codigo,
+        )
+        if falha:
+            self._log_falha(falha)
+        return falha
 
     def _handle_rtmp_conn(self, ts: str, sub: str, msg: str) -> Optional[Falha]:
         cm = RE_CONN.match(sub)
@@ -344,6 +379,7 @@ def follow_file(path: str, parser: RtmpLogParser, store: RtmpWatchStore, json_ou
     pos = 0
     inode = None
     last_save = 0.0
+    last_rotate = 0.0
     # Primeira abertura: começa no fim (evita replay/auto-ban do histórico)
     started = False
 
@@ -381,6 +417,11 @@ def follow_file(path: str, parser: RtmpLogParser, store: RtmpWatchStore, json_ou
             if json_out and now - last_save >= 5:
                 store.salvar_json(json_out)
                 last_save = now
+            if now - last_rotate >= 120:
+                if maybe_rotate_log(str(p)):
+                    last_rotate = now
+                else:
+                    last_rotate = now
 
             time.sleep(0.4)
         except Exception as exc:

@@ -100,12 +100,6 @@ var Rotas = []auxiliar.Rota{
 		Funcao: ClienteArmar,
 		Aberto: true,
 	},
-	{
-		URI:    "/clienteCarregarPacotes",
-		Metodo: http.MethodPost,
-		Funcao: clienteCarregarPacotes,
-		Aberto: false,
-	},
 }
 
 func carregarPaginaGerenciarCliente(w http.ResponseWriter, r *http.Request) {
@@ -209,7 +203,7 @@ func ClienteAlterar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	url := fmt.Sprintf("%s/v4/cliente/alteraById", config.ApiUrl)
+	url := fmt.Sprintf("%s/v4/cliente/alteraFp", config.ApiUrl)
 
 	resp, erro := seguranca.RequisiacaoAutenticada(r, http.MethodPost, url, bytes.NewBuffer(body))
 	if erro != nil {
@@ -625,7 +619,7 @@ func ClienteIncluir(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	url := fmt.Sprintf("%s/v4/cliente/insere", config.ApiUrl)
+	url := fmt.Sprintf("%s/v4/cliente/insereFp", config.ApiUrl)
 
 	resp, erro := seguranca.RequisiacaoAutenticada(r, http.MethodPost, url, bytes.NewBuffer(body))
 	if erro != nil {
@@ -645,35 +639,4 @@ func ClienteIncluir(w http.ResponseWriter, r *http.Request) {
 	}
 
 	auxiliar.RespostaAPP(w, body)
-}
-
-func clienteCarregarPacotes(w http.ResponseWriter, r *http.Request) {
-
-	// Recupera o dados do corpo da requisição
-	body, erro := io.ReadAll(r.Body)
-	if erro != nil {
-		auxiliar.RespostaErro(w, http.StatusBadRequest, erro)
-		return
-	}
-
-	url := fmt.Sprintf("%s/v4/pacote/listaByVinculo", config.ApiUrl)
-
-	resp, erro := seguranca.RequisiacaoAutenticada(r, http.MethodPost, url, bytes.NewBuffer(body))
-	if erro != nil {
-		auxiliar.RespostaErro(w, http.StatusBadRequest, erro)
-		return
-	}
-
-	if resp.StatusCode >= 400 {
-		auxiliar.TratarStatusCodeDeErro(w, resp)
-		return
-	}
-
-	corpo, erro := io.ReadAll(resp.Body)
-	if erro != nil {
-		auxiliar.RespostaErro(w, http.StatusBadRequest, erro)
-
-	}
-
-	auxiliar.RespostaAPP(w, corpo)
 }

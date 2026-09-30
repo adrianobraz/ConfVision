@@ -74,8 +74,10 @@ function fazerLogin(evento) {
         const status = (e.responseJSON && e.responseJSON.status) || ''
         if (status.indexOf('modulo ConfVision nao contratado') !== -1) {
             boxMesagemAtencaoPersonalizada('Módulo de câmeras não contratado. Entre em contato com a central.')
+        } else if (status.indexOf('acesso negado') !== -1) {
+            boxMesagemAtencaoPersonalizada('Acesso negado.')
         } else if (status.indexOf('usuario nao autorizado neste dominio') !== -1) {
-            boxMesagemAtencaoPersonalizada('Este usuário não pertence a este domínio.')
+            boxMesagemAtencaoPersonalizada('Acesso negado.')
         } else if (status.indexOf('usuario bloqueado') !== -1) {
             boxMesagemAtencaoPersonalizada('Conta suspensa, favor entrar em contato com a central')
         } else if (status === 'Erro: franqueado bloqueado') {

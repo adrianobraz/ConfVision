@@ -17,6 +17,7 @@ var (
 	XanoBaseUrl             string
 	XanoCvgBaseUrl          string
 	XanoApiPro              string
+	ApiFunctionURL          string
 	ProvisionerURL          string
 	ProvisionerKey          string
 	MediamtxHlsBase         string
@@ -53,6 +54,9 @@ var (
 	ImagemRateLimitPerHour  int
 	IntegracaoDispatchEnabled bool
 
+	ComunitiaWebhookURL    string
+	ComunitiaWebhookSecret string
+
 	ContaboS3AccessKey string
 	ContaboS3SecretKey string
 	ContaboS3Endpoint  string
@@ -72,7 +76,9 @@ var (
 	VisPostgresEnabled bool
 	VisWorkerAPIKey    string
 	VisReceptorBearer  string
-	ApiFunctionURL     string
+
+	WebhookInboundKey  string
+	WebhookAllowedIPs  string
 )
 
 func ConfigurarApp() {
@@ -89,7 +95,7 @@ func ConfigurarApp() {
 		XanoCvgBaseUrl = XanoBaseUrl
 	}
 	XanoApiPro = os.Getenv("XANO_API_FRANQUEADO_PRO")
-	ApiFunctionURL = strings.TrimSpace(os.Getenv("APIFUNCTION_URL"))
+	ApiFunctionURL = strings.TrimRight(strings.TrimSpace(os.Getenv("APIFUNCTION_URL")), "/")
 	ProvisionerURL = strings.TrimSpace(os.Getenv("PROVISIONER_URL"))
 	ProvisionerKey = strings.TrimSpace(os.Getenv("PROVISIONER_KEY"))
 	MediamtxHlsBase = os.Getenv("MEDIAMTX_HLS_BASE")
@@ -138,6 +144,8 @@ func ConfigurarApp() {
 	ImagemRateLimitPerMin = envInt("IMAGEM_RATE_LIMIT_PER_MIN", 60)
 	ImagemRateLimitPerHour = envInt("IMAGEM_RATE_LIMIT_PER_HOUR", 500)
 	IntegracaoDispatchEnabled = envBool("INTEGRACAO_DISPATCH_ENABLED", true)
+	ComunitiaWebhookURL = strings.TrimSpace(os.Getenv("COMUNITIA_WEBHOOK_URL"))
+	ComunitiaWebhookSecret = strings.TrimSpace(os.Getenv("COMUNITIA_WEBHOOK_SECRET"))
 
 	if os.Getenv("HTTPS") == "SIM" {
 		SiteHttps = true
@@ -175,6 +183,9 @@ func ConfigurarApp() {
 	if VisReceptorBearer == "" {
 		VisReceptorBearer = "1e2d2eef75ccd7cfea2e06d7ce1c63c4"
 	}
+
+	WebhookInboundKey = trimEnv(os.Getenv("WEBHOOK_INBOUND_KEY"))
+	WebhookAllowedIPs = trimEnv(os.Getenv("WEBHOOK_INBOUND_ALLOWED_IPS"))
 }
 
 func trimEnv(v string) string {
@@ -247,6 +258,10 @@ func envInt(name string, fallback int) int {
 		return fallback
 	}
 	return n
+}
+
+func ComunitiaWebhookEnabled() bool {
+	return ComunitiaWebhookURL != "" && ComunitiaWebhookSecret != ""
 }
 
 func envBool(name string, fallback bool) bool {

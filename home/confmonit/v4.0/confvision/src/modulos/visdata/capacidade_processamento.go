@@ -12,12 +12,14 @@ import (
 const planoCapacidadeProcessamento = "capacidade_processamento"
 
 type CapacidadeConfig struct {
-	IDCentral         string  `json:"id_central"`
-	IDRepresentante   string  `json:"id_representante"`
-	QuantidadeMinima  int     `json:"quantidade_minima"`
-	PrecoBaseCamera   float64 `json:"preco_base_camera"`
-	PrecoVendaCamera  float64 `json:"preco_venda_camera"`
-	PrecoEfetivoCamera float64 `json:"preco_efetivo_camera"`
+	IDCentral            string  `json:"id_central"`
+	IDRepresentante      string  `json:"id_representante"`
+	QuantidadeMinima     int     `json:"quantidade_minima"`
+	PrecoBaseCamera      float64 `json:"preco_base_camera"`
+	PrecoPisoBreakglass  float64 `json:"preco_piso_breakglass"`
+	PrecoVendaCamera     float64 `json:"preco_venda_camera"`
+	PrecoEfetivoCamera   float64 `json:"preco_efetivo_camera"`
+	ModoPreco            string  `json:"modo_preco,omitempty"`
 }
 
 type CapacidadeContrato struct {
@@ -64,10 +66,12 @@ func GetCapacidadeConfig(ctx context.Context, idCentral, idRepresentante string)
 
 	cfg, err := loadCapacidadeConfigRow(ctx, db, idCentral, idRepresentante)
 	if err == nil {
+		cfg.ModoPreco = modoPrecoCentral(ctx, db, idCentral)
 		return cfg, nil
 	}
 	if !strings.EqualFold(idRepresentante, "") {
 		if cfg2, err2 := loadCapacidadeConfigRow(ctx, db, idCentral, ""); err2 == nil {
+			cfg2.ModoPreco = modoPrecoCentral(ctx, db, idCentral)
 			return cfg2, nil
 		}
 	}
@@ -75,23 +79,48 @@ func GetCapacidadeConfig(ctx context.Context, idCentral, idRepresentante string)
 		if cfg3, err3 := loadCapacidadeConfigRow(ctx, db, "*", ""); err3 == nil {
 			cfg3.IDCentral = idCentral
 			cfg3.IDRepresentante = idRepresentante
+			cfg3.ModoPreco = modoPrecoCentral(ctx, db, idCentral)
 			return cfg3, nil
 		}
 	}
 	return CapacidadeConfig{}, fmt.Errorf("configuracao de capacidade nao encontrada")
 }
 
+func modoPrecoCentral(ctx context.Context, db *sql.DB, idCentral string) string {
+	idCentral = normalizeCentralID(idCentral)
+	if idCentral == "*" {
+		return "livre"
+	}
+	var modo sql.NullString
+	err := db.QueryRowContext(ctx, `
+SELECT modo_preco FROM fp_central_preco_config WHERE id_central = $1`, idCentral).Scan(&modo)
+	if err != nil || !modo.Valid {
+		return "livre"
+	}
+	if strings.ToLower(strings.TrimSpace(modo.String)) == "piso" {
+		return "piso"
+	}
+	return "livre"
+}
+
 func loadCapacidadeConfigRow(ctx context.Context, db *sql.DB, idCentral, idRep string) (CapacidadeConfig, error) {
 	var cfg CapacidadeConfig
 	var precoVenda sql.NullFloat64
+	var precoPiso sql.NullFloat64
 	err := db.QueryRowContext(ctx, `
-SELECT id_central, id_representante, quantidade_minima, preco_base_camera, preco_venda_camera
+SELECT id_central, id_representante, quantidade_minima, preco_base_camera,
+       COALESCE(preco_piso_breakglass, 0), preco_venda_camera
 FROM vis_capacidade_config
 WHERE id_central = $1 AND id_representante = $2`,
 		idCentral, idRep,
-	).Scan(&cfg.IDCentral, &cfg.IDRepresentante, &cfg.QuantidadeMinima, &cfg.PrecoBaseCamera, &precoVenda)
+	).Scan(&cfg.IDCentral, &cfg.IDRepresentante, &cfg.QuantidadeMinima, &cfg.PrecoBaseCamera, &precoPiso, &precoVenda)
 	if err != nil {
 		return cfg, err
+	}
+	if precoPiso.Valid && precoPiso.Float64 > 0 {
+		cfg.PrecoPisoBreakglass = precoPiso.Float64
+	} else {
+		cfg.PrecoPisoBreakglass = cfg.PrecoBaseCamera
 	}
 	if precoVenda.Valid && precoVenda.Float64 > 0 {
 		cfg.PrecoVendaCamera = precoVenda.Float64
@@ -526,10 +555,39 @@ func UpsertCapacidadeConfig(ctx context.Context, input map[string]any) (map[stri
 		precoBase = 11.50
 	}
 	precoVenda := floatVal(input, "preco_venda_camera")
+	breakglass := false
+	if bg := boolVal(input, "breakglass"); bg != nil {
+		breakglass = *bg
+	}
 
 	db, err := DB()
 	if err != nil {
 		return nil, err
+	}
+
+	modo := modoPrecoCentral(ctx, db, idCentral)
+	pisoBG := precoBase
+
+	if idRep == "" {
+		var existente sql.NullFloat64
+		_ = db.QueryRowContext(ctx, `
+SELECT COALESCE(preco_piso_breakglass, preco_base_camera, 0)
+FROM vis_capacidade_config
+WHERE id_central = $1 AND id_representante = ''`, idCentral).Scan(&existente)
+		if existente.Valid && existente.Float64 > 0 {
+			pisoBG = existente.Float64
+		}
+		if !breakglass && modo == "piso" && existente.Valid && precoBase < pisoBG {
+			return nil, fmt.Errorf("Central em modo piso: valor minimo e R$ %.2f", pisoBG)
+		}
+		if breakglass {
+			pisoBG = precoBase
+		}
+	} else {
+		cfgCentral, errC := loadCapacidadeConfigRow(ctx, db, idCentral, "")
+		if errC == nil && precoVenda > 0 && precoVenda < cfgCentral.PrecoBaseCamera {
+			return nil, fmt.Errorf("preco de venda nao pode ser menor que o piso da Central (R$ %.2f)", cfgCentral.PrecoBaseCamera)
+		}
 	}
 
 	var precoVendaArg any
@@ -537,16 +595,30 @@ func UpsertCapacidadeConfig(ctx context.Context, input map[string]any) (map[stri
 		precoVendaArg = precoVenda
 	}
 
-	_, err = db.ExecContext(ctx, `
-INSERT INTO vis_capacidade_config (id_central, id_representante, quantidade_minima, preco_base_camera, preco_venda_camera, updated_at)
-VALUES ($1,$2,$3,$4,$5,NOW())
+	if idRep == "" {
+		_, err = db.ExecContext(ctx, `
+INSERT INTO vis_capacidade_config (id_central, id_representante, quantidade_minima, preco_base_camera, preco_piso_breakglass, preco_venda_camera, updated_at)
+VALUES ($1,$2,$3,$4,$5,$6,NOW())
+ON CONFLICT (id_central, id_representante) DO UPDATE SET
+    quantidade_minima = EXCLUDED.quantidade_minima,
+    preco_base_camera = EXCLUDED.preco_base_camera,
+    preco_piso_breakglass = EXCLUDED.preco_piso_breakglass,
+    preco_venda_camera = EXCLUDED.preco_venda_camera,
+    updated_at = NOW()`,
+			idCentral, idRep, minQtd, precoBase, pisoBG, precoVendaArg,
+		)
+	} else {
+		_, err = db.ExecContext(ctx, `
+INSERT INTO vis_capacidade_config (id_central, id_representante, quantidade_minima, preco_base_camera, preco_piso_breakglass, preco_venda_camera, updated_at)
+VALUES ($1,$2,$3,$4,0,$5,NOW())
 ON CONFLICT (id_central, id_representante) DO UPDATE SET
     quantidade_minima = EXCLUDED.quantidade_minima,
     preco_base_camera = EXCLUDED.preco_base_camera,
     preco_venda_camera = EXCLUDED.preco_venda_camera,
     updated_at = NOW()`,
-		idCentral, idRep, minQtd, precoBase, precoVendaArg,
-	)
+			idCentral, idRep, minQtd, precoBase, precoVendaArg,
+		)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -555,35 +627,108 @@ ON CONFLICT (id_central, id_representante) DO UPDATE SET
 		return nil, err
 	}
 	return map[string]any{
-		"id_central":         cfg.IDCentral,
-		"id_representante":   cfg.IDRepresentante,
-		"quantidade_minima":  cfg.QuantidadeMinima,
-		"preco_base_camera":  cfg.PrecoBaseCamera,
-		"preco_venda_camera": cfg.PrecoVendaCamera,
-		"preco_efetivo_camera": cfg.PrecoEfetivoCamera,
+		"id_central":              cfg.IDCentral,
+		"id_representante":        cfg.IDRepresentante,
+		"quantidade_minima":       cfg.QuantidadeMinima,
+		"preco_base_camera":       cfg.PrecoBaseCamera,
+		"preco_piso_breakglass":   cfg.PrecoPisoBreakglass,
+		"preco_venda_camera":      cfg.PrecoVendaCamera,
+		"preco_efetivo_camera":    cfg.PrecoEfetivoCamera,
+		"modo_preco":              cfg.ModoPreco,
 	}, nil
+}
+
+// GetContratoCapacidade retorna contrato por id (ops/Xano).
+func GetContratoCapacidade(ctx context.Context, contratoID int) (map[string]any, error) {
+	if contratoID <= 0 {
+		return nil, fmt.Errorf("contrato_id obrigatorio")
+	}
+	db, err := DB()
+	if err != nil {
+		return nil, err
+	}
+	var c CapacidadeContrato
+	var pago, valido sql.NullTime
+	var idFat, obs sql.NullString
+	err = db.QueryRowContext(ctx, `
+SELECT id, id_franqueado, id_central, COALESCE(id_representante,''), quantidade_contratada,
+       quantidade_minima_snapshot, preco_por_camera, valor_mensal, status,
+       pago_em, valido_ate, id_fatura, COALESCE(observacao,'')
+FROM vis_capacidade_contrato WHERE id = $1`, contratoID).Scan(
+		&c.ID, &c.IDFranqueado, &c.IDCentral, &c.IDRepresentante,
+		&c.QuantidadeContratada, &c.QuantidadeMinimaSnapshot, &c.PrecoPorCamera, &c.ValorMensal,
+		&c.Status, &pago, &valido, &idFat, &obs,
+	)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("contrato nao encontrado")
+	}
+	if err != nil {
+		return nil, err
+	}
+	if pago.Valid {
+		c.PagoEm = &pago.Time
+	}
+	if valido.Valid {
+		c.ValidoAte = &valido.Time
+	}
+	if idFat.Valid {
+		c.IDFatura = idFat.String
+	}
+	if obs.Valid {
+		c.Observacao = obs.String
+	}
+	return contratoToMap(c), nil
+}
+
+// ListCapacidadePendentesRenovacao contratos ativos com valido_ate proximo.
+func ListCapacidadePendentesRenovacao(ctx context.Context, diasAntecedencia int) ([]map[string]any, error) {
+	if diasAntecedencia <= 0 {
+		diasAntecedencia = 5
+	}
+	db, err := DB()
+	if err != nil {
+		return nil, err
+	}
+	rows, err := db.QueryContext(ctx, `
+SELECT id, id_franqueado, id_central, COALESCE(id_representante,''), quantidade_contratada,
+       preco_por_camera, valor_mensal, valido_ate
+FROM vis_capacidade_contrato
+WHERE status = 'ativo'
+  AND valido_ate IS NOT NULL
+  AND valido_ate <= NOW() + ($1 || ' days')::interval
+  AND valido_ate >= NOW()
+ORDER BY valido_ate ASC`, diasAntecedencia)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]map[string]any, 0)
+	for rows.Next() {
+		var id, qtd int
+		var idFra, idCentral, idRep string
+		var preco, valor float64
+		var valido time.Time
+		if err := rows.Scan(&id, &idFra, &idCentral, &idRep, &qtd, &preco, &valor, &valido); err != nil {
+			return nil, err
+		}
+		cicloRef := fmt.Sprintf("CAP-%d-%s", id, valido.UTC().Format("20060102"))
+		out = append(out, map[string]any{
+			"id":                    id,
+			"id_franqueado":         idFra,
+			"id_central":            idCentral,
+			"id_representante":      idRep,
+			"quantidade_contratada": qtd,
+			"preco_por_camera":      preco,
+			"valor_mensal":          valor,
+			"valido_ate":            valido.UTC().Format(time.RFC3339),
+			"ciclo_ref":             cicloRef,
+			"desc_fatura":           fmt.Sprintf("ConfVision — Capacidade de processamento (%d cameras)", qtd),
+		})
+	}
+	return out, rows.Err()
 }
 
 func roundMoney(v float64) float64 {
 	return math.Round(v*100) / 100
-}
-
-func parseFloat(s string) (float64, error) {
-	var f float64
-	_, err := fmt.Sscan(s, &f)
-	return f, err
-}
-
-func ListCapacidadePendentesRenovacao(ctx context.Context, diasAntecedencia int) ([]map[string]any, error) {
-	_ = ctx
-	_ = diasAntecedencia
-	return []map[string]any{}, nil
-}
-
-func GetContratoCapacidade(ctx context.Context, contratoID int) (map[string]any, error) {
-	_ = ctx
-	if contratoID <= 0 {
-		return nil, fmt.Errorf("contrato_id invalido")
-	}
-	return map[string]any{"id": contratoID}, nil
 }

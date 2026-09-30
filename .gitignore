@@ -16,3 +16,9 @@ confvision-rust-processor/profile-output/
 home/confmonit/v4.0/confvision/confvision
 home/confmonit/v4.0/confvision/confvision-test-build.exe
 confvision/.env
+home/confmonit/v4.0/apifunction/deploy/apifunction/.env
+home/confmonit/v4.0/apifunction/deploy/apifunction/.env-*
+home/confmonit/v4.0/apifunction/deploy/apifunction/apifunction*
+home/confmonit/v4.0/apifunction/**/*.zip
+home/confmonit/v4.0/confvision/confvision-20260930T181656Z-1-001/
+home/confmonit/v4.0/franqueadopromais/docs/*CREDENCIAIS*

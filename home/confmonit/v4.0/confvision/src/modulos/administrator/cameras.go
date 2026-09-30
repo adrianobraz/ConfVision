@@ -5,6 +5,8 @@ import (
 	"confvision/src/config"
 	"confvision/src/conexao"
 	"confvision/src/modulos/confvision"
+	"confvision/src/modulos/visdata"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -65,8 +67,11 @@ func ApiListarCameras(w http.ResponseWriter, r *http.Request) {
 }
 
 func fetchTodasVisCameras() ([]map[string]any, error) {
+	if config.VisPostgresEnabled {
+		return visdata.ListAllCameras(context.Background())
+	}
 	if config.XanoBaseUrl == "" {
-		return nil, fmt.Errorf("XANO_BASE_URL nao configurado")
+		return nil, fmt.Errorf("postgres indisponivel e XANO_BASE_URL nao configurado")
 	}
 	u := strings.TrimRight(config.XanoBaseUrl, "/") + "/vis_camera"
 	resp, err := http.Get(u)

@@ -113,14 +113,36 @@ func CvgGradeByClientePUT(ctx context.Context, payload map[string]any) (int, []b
 	}
 	escopo := strVal(payload, "id_dispositivo_escopo")
 
+	for _, sl := range parseSlotsArray(payload["slots"]) {
+		if strVal(sl, "hora") == "" {
+			return bizErrJSON(fmt.Errorf("hora obrigatoria em cada slot (HH:MM)"))
+		}
+		acaoNorm := strVal(sl, "acao")
+		if acaoNorm != "ativar" && acaoNorm != "desativar" {
+			return bizErrJSON(fmt.Errorf("acao deve ser ativar ou desativar"))
+		}
+	}
+
+	out, err := cvgGradeByClientePUTOnce(ctx, payload, idCliente, idFranqueado, gradeAtiva, escopo)
+	if err != nil && isBadConn(err) {
+		resetDB()
+		out, err = cvgGradeByClientePUTOnce(ctx, payload, idCliente, idFranqueado, gradeAtiva, escopo)
+	}
+	if err != nil {
+		return errJSON(humanizeDBErr(err))
+	}
+	return okJSON(out)
+}
+
+func cvgGradeByClientePUTOnce(ctx context.Context, payload map[string]any, idCliente, idFranqueado string, gradeAtiva bool, escopo string) (map[string]any, error) {
 	db, err := DB()
 	if err != nil {
-		return errJSON(err)
+		return nil, err
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return errJSON(err)
+		return nil, err
 	}
 	defer tx.Rollback()
 
@@ -133,37 +155,17 @@ INSERT INTO vis_cliente_grade_config (id_franqueado, id_cliente, grade_ativa)
 VALUES ($1, $2, false) RETURNING id`, idFranqueado, idCliente).Scan(&cfgID)
 	}
 	if err != nil {
-		return errJSON(err)
+		return nil, err
 	}
 
 	if err := cvgEscopoSalvarTx(ctx, tx, idFranqueado, idCliente, escopo, gradeAtiva); err != nil {
-		return errJSON(err)
+		return nil, err
 	}
 
-	oldRows, err := tx.QueryContext(ctx, `
-SELECT id, COALESCE(id_dispositivo, '') FROM vis_cliente_grade_slot WHERE id_cliente = $1`, idCliente)
-	if err != nil {
-		return errJSON(err)
-	}
-	for oldRows.Next() {
-		var oldID int
-		var oldDisp string
-		if err := oldRows.Scan(&oldID, &oldDisp); err != nil {
-			oldRows.Close()
-			return errJSON(err)
-		}
-		if oldDisp == escopo {
-			if _, err := tx.ExecContext(ctx, `DELETE FROM vis_cliente_grade_slot WHERE id = $1`, oldID); err != nil {
-				oldRows.Close()
-				return errJSON(err)
-			}
-		}
-	}
-	if err := oldRows.Close(); err != nil {
-		return errJSON(err)
-	}
-	if err := oldRows.Err(); err != nil {
-		return errJSON(err)
+	if _, err := tx.ExecContext(ctx, `
+DELETE FROM vis_cliente_grade_slot
+WHERE id_cliente = $1 AND COALESCE(id_dispositivo, '') = $2`, idCliente, escopo); err != nil {
+		return nil, err
 	}
 
 	slotsIn := parseSlotsArray(payload["slots"])
@@ -171,12 +173,6 @@ SELECT id, COALESCE(id_dispositivo, '') FROM vis_cliente_grade_slot WHERE id_cli
 	for _, sl := range slotsIn {
 		horaNorm := strVal(sl, "hora")
 		acaoNorm := strVal(sl, "acao")
-		if horaNorm == "" {
-			return bizErrJSON(fmt.Errorf("hora obrigatoria em cada slot (HH:MM)"))
-		}
-		if acaoNorm != "ativar" && acaoNorm != "desativar" {
-			return bizErrJSON(fmt.Errorf("acao deve ser ativar ou desativar"))
-		}
 		ativo := true
 		if v := boolVal(sl, "ativo"); v != nil {
 			ativo = *v
@@ -192,7 +188,7 @@ RETURNING id, created_at`,
 			idFranqueado, idCliente, escopo, diaSemana, horaNorm, acaoNorm, ativo,
 		).Scan(&slotID, &createdAt)
 		if err != nil {
-			return errJSON(err)
+			return nil, err
 		}
 		slotsSalvos = append(slotsSalvos, map[string]any{
 			"id":             slotID,
@@ -208,15 +204,15 @@ RETURNING id, created_at`,
 	}
 
 	if err := tx.Commit(); err != nil {
-		return errJSON(err)
+		return nil, err
 	}
 
-	return okJSON(map[string]any{
+	return map[string]any{
 		"success":     true,
 		"id_cliente":  idCliente,
 		"grade_ativa": gradeAtiva,
 		"slots":       slotsSalvos,
-	})
+	}, nil
 }
 
 // CvgGradeListGET lista grades por franqueado (cliente+dispositivo com slots salvos).
@@ -226,18 +222,31 @@ func CvgGradeListGET(ctx context.Context, q url.Values) (int, []byte, error) {
 		return bizErrJSON(fmt.Errorf("id_franqueado obrigatorio"))
 	}
 
+	itens, err := cvgGradeListData(ctx, idFranqueado)
+	if err != nil && isBadConn(err) {
+		resetDB()
+		itens, err = cvgGradeListData(ctx, idFranqueado)
+	}
+	if err != nil {
+		return errJSON(humanizeDBErr(err))
+	}
+
+	return okJSON(map[string]any{"itens": itens})
+}
+
+func cvgGradeListData(ctx context.Context, idFranqueado string) ([]map[string]any, error) {
 	db, err := DB()
 	if err != nil {
-		return errJSON(err)
+		return nil, err
 	}
 
 	rows, err := db.QueryContext(ctx, `
-SELECT DISTINCT id_cliente, COALESCE(id_dispositivo, '')
+SELECT DISTINCT id_cliente, COALESCE(id_dispositivo, '') AS id_dispositivo
 FROM vis_cliente_grade_slot
 WHERE id_franqueado = $1
-ORDER BY id_cliente ASC, id_dispositivo ASC`, idFranqueado)
+ORDER BY id_cliente ASC, COALESCE(id_dispositivo, '') ASC`, idFranqueado)
 	if err != nil {
-		return errJSON(err)
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -245,11 +254,11 @@ ORDER BY id_cliente ASC, id_dispositivo ASC`, idFranqueado)
 	for rows.Next() {
 		var idCliente, disp string
 		if err := rows.Scan(&idCliente, &disp); err != nil {
-			return errJSON(err)
+			return nil, err
 		}
 		ativa, err := cvgEscopoGradeAtiva(ctx, idCliente, disp)
 		if err != nil {
-			return errJSON(err)
+			return nil, err
 		}
 		itens = append(itens, map[string]any{
 			"id_cliente":     idCliente,
@@ -258,10 +267,10 @@ ORDER BY id_cliente ASC, id_dispositivo ASC`, idFranqueado)
 		})
 	}
 	if err := rows.Err(); err != nil {
-		return errJSON(err)
+		return nil, err
 	}
 
-	return okJSON(map[string]any{"itens": itens})
+	return itens, nil
 }
 
 // CvgGradeEscopoAtivaPATCH ativa/desativa grade por escopo sem alterar slots.

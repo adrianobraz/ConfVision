@@ -57,6 +57,31 @@ MOTIVOS = {
         "O publicador do path desconectou. Verifique rede/encode da câmera.",
         "warn",
     ),
+    "hls_dts_nao_monotono": (
+        "HLS: timestamps (DTS) inconsistentes",
+        "O encode RTMP envia DTS fora de ordem. HLS pode falhar ou travar. "
+        "No DVR: H.264 baseline, GOP fixo, desligue VBR agressivo; evite só-áudio intercalado.",
+        "error",
+    ),
+    "rtmp_video_track_nao_configurado": (
+        "Câmera com problema — video track não configurado",
+        "O ConfVision pausa o analítico automaticamente quando detecta "
+        "'video track not set up' no MediaMTX. Corrija H.264 + AAC no encoder/DVR "
+        "e use Reativar stream no painel.",
+        "error",
+    ),
+    "rtmp_so_audio_sem_video": (
+        "Stream só áudio (sem frames de vídeo)",
+        "O publisher não envia vídeo H.264. Analítico Rust/RTSP pode falhar. "
+        "Ative sub-stream de vídeo no NVR/DVR.",
+        "error",
+    ),
+    "ip_banido": (
+        "IP bloqueado temporariamente",
+        "Muitas falhas RTMP anteriores. Use IPs banidos no painel para desbanir ou aguarde o TTL. "
+        "O equipamento continua tentando reconectar — corrija URL/path no DVR.",
+        "info",
+    ),
     "closed_outro": (
         "Conexão RTMP fechada com erro",
         "Veja o motivo técnico. Em geral é URL, codec ou rede no cliente.",

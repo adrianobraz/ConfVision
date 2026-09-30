@@ -37,6 +37,11 @@ func ConfigurarRotas() *mux.Router {
 
 	visapi.RegistrarRotasWorkerAPI(r)
 
+	// Imagens publicas (Moni) — sem autenticacao, com rate limit no handler
+	// health ANTES de {codigo} — senao "health" vira codigo e retorna 404
+	r.HandleFunc("/imagens/health", Logger(confvision.ServirImagemPublicaHealth)).Methods(http.MethodGet, http.MethodHead)
+	r.HandleFunc("/imagens/{codigo}", Logger(confvision.ServirImagemPublica)).Methods(http.MethodGet)
+
 	for _, rota := range rotas {
 		if rota.Aberto {
 			r.HandleFunc(rota.URI, Logger(rota.Funcao)).Methods(rota.Metodo)
@@ -44,6 +49,9 @@ func ConfigurarRotas() *mux.Router {
 			r.HandleFunc(rota.URI, Logger(Autenticar(login.VerificarAcessoConfVision(administrator.RestringirEscopoPapel(login.RestringirCliente(rota.Funcao)))))).Methods(rota.Metodo)
 		}
 	}
+
+	// Catch-all Moni por ultimo — senao paths como /administrator (13 chars) viram codigo de imagem e retornam 404
+	r.HandleFunc("/{codigo:[0-9a-z]{12,}}", Logger(confvision.ServirImagemPublica)).Methods(http.MethodGet)
 
 	fileServer := http.FileServer(http.Dir("./recursos/"))
 	r.PathPrefix("/recursos/").Handler(http.StripPrefix("/recursos/", fileServer))

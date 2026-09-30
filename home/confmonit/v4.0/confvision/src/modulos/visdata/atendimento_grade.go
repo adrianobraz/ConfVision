@@ -295,21 +295,7 @@ func ResolveRecursoAtivoComHorarioCompat(ctx context.Context, idFranqueado, idCl
 
 	if !hasPol {
 		ok, err := resolveFromClienteConfig(ctx, idFranqueado, idCliente, recurso)
-		if err != nil {
-			return false, false, err
-		}
-		if !ok {
-			return false, false, nil
-		}
-		if IsGrupoEmergenciaAtendimento(ctiGrupo) {
-			return true, false, nil
-		}
-		resp := responsavelFromRecurso(recurso)
-		if resp == "" {
-			return true, false, nil
-		}
-		okGrade, err := DentroDaGrade(ctx, idFranqueado, idCliente, resp, time.Now())
-		return okGrade, false, err
+		return ok, false, err
 	}
 
 	ok, err := ResolveRecursoAtivoComHorario(ctx, idFranqueado, idCliente, recurso, ctiGrupo, nil)
@@ -367,31 +353,4 @@ func ProcessarEnvioParceiro(ctx context.Context, payload map[string]any) (map[st
 		"acao_final":   acao,
 		"finalizacao":  retorno,
 	}, nil
-}
-
-func resolveFromClienteConfig(ctx context.Context, idFranqueado, idCliente, recurso string) (bool, error) {
-	return ResolveRecursoAtivo(ctx, idFranqueado, idCliente, recurso, nil)
-}
-
-func franqueadoTemPoliticaAtendimento(ctx context.Context, idFranqueado string) (bool, error) {
-	db, err := DB()
-	if err != nil {
-		return false, err
-	}
-	var n int
-	err = db.QueryRowContext(ctx, `
-SELECT COUNT(*) FROM ops_franqueado_atendimento_politica WHERE id_franqueado = $1`, strings.TrimSpace(idFranqueado)).Scan(&n)
-	return n > 0, err
-}
-
-func clienteTemConfigAtendimento(ctx context.Context, idFranqueado, idCliente string) (bool, error) {
-	db, err := DB()
-	if err != nil {
-		return false, err
-	}
-	var n int
-	err = db.QueryRowContext(ctx, `
-SELECT COUNT(*) FROM ops_cliente_atendimento_config
-WHERE id_franqueado = $1 AND id_cliente = $2`, strings.TrimSpace(idFranqueado), strings.TrimSpace(idCliente)).Scan(&n)
-	return n > 0, err
 }

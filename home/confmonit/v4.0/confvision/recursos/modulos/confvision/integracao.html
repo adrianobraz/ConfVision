@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    {{ template "head" . }}
+    {{ template "confvision-head-extra" . }}
+</head>
+<body class="cv-app cv-integracao-page">
+    {{ template "variaveis-controle" . }}
+    {{ template "confvision-config" . }}
+    {{ template "confvision-nav" . }}
+
+    <main class="cv-main cv-main-wide">
+        <div class="cv-panel">
+            <div class="cv-panel-toolbar">
+                <h1 class="cv-page-title mb-0">Integração</h1>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-lg-6">
+                    <div class="cv-panel cv-panel-nested cv-int-log-panel">
+                        <h2 class="h6 mb-2">Histórico de envios</h2>
+                        <div class="cv-cameras-filtros cv-eventos-filtros mb-2">
+                            <div class="cv-cameras-filtro-status">
+                                <label class="cv-label" for="int-log-de">De</label>
+                                <input type="datetime-local" id="int-log-de" class="form-control form-control-sm">
+                            </div>
+                            <div class="cv-cameras-filtro-status">
+                                <label class="cv-label" for="int-log-ate">Até</label>
+                                <input type="datetime-local" id="int-log-ate" class="form-control form-control-sm">
+                            </div>
+                            <div class="cv-cameras-filtro-status cv-eventos-filtro-cliente">
+                                <label class="cv-label" for="int-log-cliente">Cliente</label>
+                                <input type="text" id="int-log-cliente" class="form-control form-control-sm" placeholder="Nome do cliente">
+                            </div>
+                            <div class="cv-eventos-filtro-acoes">
+                                <button type="button" id="btn-int-log-buscar" class="cv-btn-primary cv-btn-sm">
+                                    <i class="bi bi-search"></i> Buscar
+                                </button>
+                                <button type="button" id="btn-int-log-limpar" class="cv-btn-ghost cv-btn-sm" title="Limpar filtros">
+                                    Limpar
+                                </button>
+                            </div>
+                        </div>
+                        <div id="int-log-scroll" class="cv-int-log-scroll table-responsive">
+                            <table class="cv-table table-sm cv-int-log-table">
+                                <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Cliente</th>
+                                        <th>Câmera</th>
+                                        <th>Sistema</th>
+                                        <th>Evento</th>
+                                        <th>Status</th>
+                                        <th>Mensagem</th>
+                                        <th class="text-center" style="width:2.5rem" title="Ver mídia"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="int-log-body">
+                                    <tr><td colspan="8">Carregando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="int-log-loading" class="cv-int-log-loading small text-muted py-1 d-none">
+                            <i class="bi bi-hourglass-split cv-icon-spin"></i> Carregando mais...
+                        </div>
+                        <div id="int-log-fim" class="cv-int-log-fim small text-muted py-1 d-none">Fim do histórico</div>
+                    </div>
+                </div>
+
+                <div class="col-lg-6">
+                    <div class="cv-panel cv-panel-nested">
+                        <h2 class="h6 mb-1">Configuração</h2>
+                        <p class="cv-int-resumo-texto mb-3">Escolha o sistema de destino.</p>
+                        <form id="form-integracao" autocomplete="off">
+                            <input type="hidden" id="int-id" value="">
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="form-label">Sistema</label>
+                                    <select id="int-sistema" class="form-select form-select-sm">
+                                        <option value="nenhum">Nenhum</option>
+                                        <option value="moni">Moni</option>
+                                        <option value="dguard">dGuard</option>
+                                        <option value="segware">SegWare</option>
+                                        <option value="confmonit">ConfMonit (terminal)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="int-dupla-comunicacao" disabled>
+                                        <label class="form-check-label" for="int-dupla-comunicacao" title="Envia também para o ConfMonit (terminal)">Dupla comunicação</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="int-ativo">
+                                        <label class="form-check-label" for="int-ativo">Ativa</label>
+                                    </div>
+                                </div>
+                                <div class="col-12" id="int-nome-row-top">
+                                    <label class="form-label">Nome (opcional)</label>
+                                    <input type="text" id="int-nome" class="form-control form-control-sm" placeholder="Ex.: Central matriz">
+                                </div>
+                            </div>
+
+                            <div id="int-confmonit-licenca-aviso" class="alert alert-warning py-2 small mt-3 d-none">
+                                Este franqueado não possui licença de terminal ConfMonit. Contrate a licença para usar esta integração.
+                            </div>
+
+                            <div id="int-painel-config" class="cv-int-painel-sistema mt-3 d-none">
+                                <div id="int-externo-aviso" class="alert alert-warning py-2 small d-none"></div>
+
+                                <ul class="nav nav-tabs cv-form-tabs mb-3 d-none" id="int-moni-tabs" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active" type="button" data-tab="geral" id="int-tab-btn-geral">
+                                            <i class="bi bi-sliders"></i> Geral
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" type="button" data-tab="comunicacao" id="int-tab-btn-comunicacao">
+                                            <i class="bi bi-shield-lock"></i> Comunicação
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" type="button" data-tab="eventos" id="int-tab-btn-eventos">
+                                            <i class="bi bi-broadcast"></i> Eventos
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" type="button" data-tab="webhook" id="int-tab-btn-webhook">
+                                            <i class="bi bi-link-45deg"></i> Webhook
+                                        </button>
+                                    </li>
+                                </ul>
+
+                                <div class="cv-form-tab-panels" id="int-config-sections">
+                                    <div class="cv-form-tab-panel" data-tab-panel="geral">
+                                        <div class="row g-2">
+                                            <div class="col-12 d-none" id="int-nome-row-geral">
+                                                <label class="form-label">Nome (opcional)</label>
+                                                <div id="int-nome-slot-geral"></div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label">Protocolo</label>
+                                                <select id="int-protocolo" class="form-select form-select-sm">
+                                                    <option value="http">HTTP</option>
+                                                    <option value="https">HTTPS</option>
+                                                    <option value="tcp">TCP</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-5">
+                                                <label class="form-label">Host</label>
+                                                <input type="text" id="int-host" class="form-control form-control-sm" placeholder="192.168.0.100">
+                                            </div>
+                                            <div class="col-md-2">
+                                                <label class="form-label">Porta</label>
+                                                <input type="text" id="int-porta" class="form-control form-control-sm" placeholder="5443" inputmode="numeric">
+                                            </div>
+                                            <div class="col-md-2">
+                                                <label class="form-label">Endpoint</label>
+                                                <input type="text" id="int-endpoint" class="form-control form-control-sm" placeholder="GerarEvento">
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label">URL montada</label>
+                                                <div id="int-url-preview" class="cv-int-url-box small text-muted">—</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="cv-form-tab-panel d-none" data-tab-panel="comunicacao">
+                                        <div class="row g-2">
+                                            <div class="col-md-4">
+                                                <label class="form-label">Autenticação</label>
+                                                <select id="int-auth-tipo" class="form-select form-select-sm">
+                                                    <option value="none">Nenhuma</option>
+                                                    <option value="basic">Basic</option>
+                                                    <option value="bearer">Bearer</option>
+                                                    <option value="apikey">API Key</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4" id="int-auth-user-col">
+                                                <label class="form-label" id="int-auth-user-label">Usuário</label>
+                                                <input type="text" id="int-auth-user" class="form-control form-control-sm" autocomplete="off">
+                                            </div>
+                                            <div class="col-md-4" id="int-auth-pass-col">
+                                                <label class="form-label" id="int-auth-pass-label">Senha</label>
+                                                <input type="password" id="int-auth-pass" class="form-control form-control-sm" autocomplete="off">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="cv-form-tab-panel d-none" data-tab-panel="eventos">
+                                        <div class="row g-2 mb-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label">Empresa</label>
+                                                <input type="text" id="int-empresa" class="form-control form-control-sm" placeholder="001">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Código envio</label>
+                                                <input type="text" id="int-evento-codigo" class="form-control form-control-sm" placeholder="130">
+                                            </div>
+                                        </div>
+
+                                        <div class="cv-form-tab-card mb-3">
+                                            <h3 class="h6 mb-2">Envio</h3>
+                                            <div class="row g-2">
+                                                <div class="col-md-4">
+                                                    <label class="form-label">Identificação padrão</label>
+                                                    <input type="text" id="int-identificacao" class="form-control form-control-sm" placeholder="E" maxlength="20">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label">Setor</label>
+                                                    <input type="text" id="int-setor" class="form-control form-control-sm" placeholder="1">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label">Partição</label>
+                                                    <input type="text" id="int-particao" class="form-control form-control-sm" placeholder="01">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label">Cliente (teste)</label>
+                                                    <input type="text" id="int-cliente-teste" class="form-control form-control-sm" placeholder="0350">
+                                                    <p class="cv-form-hint mb-0 mt-1">Usado só no teste; não é salvo.</p>
+                                                </div>
+                                                <div class="col-md-4 d-flex align-items-end">
+                                                    <div class="form-check mb-2">
+                                                        <input class="form-check-input" type="checkbox" id="int-enviar-imagem" checked>
+                                                        <label class="form-check-label" for="int-enviar-imagem">Enviar foto</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4 d-flex align-items-end">
+                                                    <button type="button" id="btn-int-testar" class="btn btn-outline-secondary btn-sm mb-2 d-none">Testar envio</button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="row g-2">
+                                            <div class="col-12" id="int-imagem-url-row">
+                                                <label class="form-label">URL base das fotos (cadastre no Moni)</label>
+                                                <div id="int-imagem-info" class="cv-int-imagem-info small"></div>
+                                                <p class="cv-form-hint mb-0 mt-1">Teste usa imagem demo <code>6rorjlqej4wy</code> — demais: <code>yw4zz83ag4x9</code>, <code>qa5m9dx7p4el</code>.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="cv-form-tab-panel d-none" data-tab-panel="webhook">
+                                        <div class="row g-2">
+                                            <div class="col-12">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="int-webhook-inbound">
+                                                    <label class="form-check-label" for="int-webhook-inbound">Receber eventos do Moni (armar/desarmar)</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Código armar</label>
+                                                <input type="text" id="int-codigo-armar" class="form-control form-control-sm" placeholder="130">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Código desarmar</label>
+                                                <input type="text" id="int-codigo-desarmar" class="form-control form-control-sm" placeholder="131">
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label">URL do Webhook</label>
+                                                <p class="cv-form-hint mb-0">
+                                                    <code>https://moni.dnsid.com.br/webhook</code> —
+                                                    Token: <code id="int-webhook-token">—</code>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex flex-wrap gap-2 mt-3 d-none" id="int-moni-acoes">
+                                    <button type="button" id="btn-int-salvar" class="btn btn-primary btn-sm">Salvar</button>
+                                </div>
+                            </div>
+
+                            <div class="d-flex flex-wrap gap-2 mt-3" id="int-acoes-rodape">
+                                <button type="button" id="btn-int-salvar-rodape" class="btn btn-primary btn-sm">Salvar</button>
+                                <button type="button" id="btn-int-testar-rodape" class="btn btn-outline-secondary btn-sm d-none">Testar envio</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal fade cv-modal-midia" id="modal-evento-midia" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content cv-modal-content">
+                <div class="modal-header cv-modal-header">
+                    <h5 class="modal-title" id="modal-evento-midia-titulo">Mídia do evento</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body cv-modal-body">
+                    <div id="modal-evento-loading" class="cv-empty py-4">Carregando mídia...</div>
+                    <div id="modal-evento-conteudo" class="d-none">
+                        <div id="box-modal-snapshot" class="cv-evento-snapshot-wrap d-none">
+                            <h6 class="cv-evento-section-title">Snapshot</h6>
+                            <img id="modal-evento-snapshot" alt="Snapshot do evento" class="cv-evento-snapshot-img">
+                        </div>
+                        <div id="box-modal-clips" class="cv-evento-clips-wrap">
+                            <h6 class="cv-evento-section-title">Vídeos capturados</h6>
+                            <div id="modal-evento-clips"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{ template "link-js" . }}
+    <script src="/recursos/modulos/confvision/urls.js"></script>
+    <script src="/recursos/modulos/confvision/integracao.js?v=20260910logscroll"></script>
+</body>
+</html>

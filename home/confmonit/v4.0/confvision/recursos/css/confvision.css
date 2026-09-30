@@ -2656,66 +2656,6 @@ body.cv-app .form-check-input:checked {
     color: #fbbf24;
 }
 
-.cv-badge-alert {
-    background: rgba(248, 113, 113, 0.18);
-    color: var(--cv-danger);
-}
-
-.cv-badge-pulse {
-    animation: cv-badge-pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes cv-badge-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.55; }
-}
-
-.cv-stream-pause-banner {
-    margin: 0 1.25rem 1rem;
-    padding: 0.75rem 1rem;
-    border-radius: var(--cv-radius, 8px);
-    background: rgba(248, 113, 113, 0.12);
-    border: 1px solid rgba(248, 113, 113, 0.35);
-    color: var(--cv-text);
-    font-size: 0.9rem;
-    line-height: 1.45;
-}
-
-.cv-stream-pause-banner strong {
-    color: var(--cv-danger);
-}
-
-.cv-stream-pause-banner-list {
-    padding-left: 1.25rem;
-    margin: 0;
-}
-
-.cv-stream-pause-banner-list li {
-    margin-bottom: 0.35rem;
-}
-
-.cv-btn-link.cv-btn-reativar-stream-banner {
-    border: none;
-    background: none;
-    padding: 0;
-    color: var(--cv-accent);
-    text-decoration: underline;
-    cursor: pointer;
-    font-size: inherit;
-}
-
-.cv-table tr.cv-row-stream-pause td {
-    background: rgba(248, 113, 113, 0.06);
-}
-
-.cv-btn-reativar-stream {
-    color: var(--cv-success);
-}
-
-.cv-btn-reativar-stream:hover {
-    color: var(--cv-accent);
-}
-
 .cv-badge-ok {
     background: rgba(52, 211, 153, 0.15);
     color: var(--cv-success);
@@ -6588,5 +6528,51 @@ body.cv-grupo-editor-open {
     font-size: 0.875rem;
     color: var(--cv-muted, #64748b);
     margin-top: 0.25rem;
+}
+
+.cv-stream-pause-banner {
+    margin: 0 1.25rem 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--cv-radius, 8px);
+    background: rgba(248, 113, 113, 0.12);
+    border: 1px solid rgba(248, 113, 113, 0.35);
+    color: var(--cv-text);
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+.cv-stream-pause-banner strong {
+    color: var(--cv-danger);
+}
+
+.cv-stream-pause-banner-list {
+    padding-left: 1.25rem;
+    margin: 0;
+}
+
+.cv-stream-pause-banner-list li {
+    margin-bottom: 0.35rem;
+}
+
+.cv-btn-link.cv-btn-reativar-stream-banner {
+    border: none;
+    background: none;
+    padding: 0;
+    color: var(--cv-accent);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: inherit;
+}
+
+.cv-table tr.cv-row-stream-pause td {
+    background: rgba(248, 113, 113, 0.06);
+}
+
+.cv-btn-reativar-stream {
+    color: var(--cv-success);
+}
+
+.cv-btn-reativar-stream:hover {
+    color: var(--cv-accent);
 }
 

@@ -9,6 +9,8 @@ import (
 )
 
 func ListLicencasByFranqueado(ctx context.Context, idFranqueado, status, unidade string) (map[string]any, error) {
+	_ = ExpireLicencasDisponiveisVencidas(ctx, idFranqueado)
+
 	db, err := DB()
 	if err != nil {
 		return nil, err
@@ -22,6 +24,9 @@ FROM vis_licenca WHERE id_franqueado = $1`
 		q += fmt.Sprintf(" AND status = $%d", n)
 		args = append(args, status)
 		n++
+	}
+	if status == "disponivel" {
+		q += ` AND (valido_ate IS NULL OR valido_ate > NOW())`
 	}
 	if unidade != "" {
 		q += fmt.Sprintf(" AND unidade = $%d", n)
@@ -81,12 +86,16 @@ func CreateLicenca(ctx context.Context, input map[string]any) (map[string]any, e
 	if unidade == "" {
 		unidade = flags.Unidade
 	}
+	valor := floatVal(input, "valor")
+	if valor <= 0 {
+		valor = flags.Valor
+	}
 	var id int
 	var created time.Time
 	err = db.QueryRowContext(ctx, `
 INSERT INTO vis_licenca (id_franqueado, plano, unidade, valor, status, id_dispositivo, observacao, pago_em, valido_ate)
 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id, created_at`,
-		strVal(input, "id_franqueado"), plano, unidade, flags.Valor, status,
+		strVal(input, "id_franqueado"), plano, unidade, valor, status,
 		strVal(input, "id_dispositivo"), strVal(input, "observacao"),
 		parseTimeInput(input, "pago_em"), parseTimeInput(input, "valido_ate"),
 	).Scan(&id, &created)
@@ -96,7 +105,7 @@ VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id, created_at`,
 	return map[string]any{
 		"id": id, "created_at": created.UTC().Format(time.RFC3339),
 		"id_franqueado": strVal(input, "id_franqueado"), "plano": plano,
-		"unidade": unidade, "valor": flags.Valor, "status": status,
+		"unidade": unidade, "valor": valor, "status": status,
 	}, nil
 }
 
@@ -166,43 +175,4 @@ UPDATE vis_camera SET grava_continua = false, grava_movimento = false, grava_tim
 		_, _ = db.ExecContext(ctx, `UPDATE vis_licenca SET status = 'disponivel', vis_camera_id = NULL WHERE id = $1`, licID.Int64)
 	}
 	return GetCameraByID(ctx, cameraID)
-}
-
-// EstornarLicencaFatura reverte pagamento registrado (ops financeiro).
-func EstornarLicencaFatura(ctx context.Context, licID int, observacao string) (map[string]any, error) {
-	if licID <= 0 {
-		return nil, fmt.Errorf("vis_licenca_id obrigatorio")
-	}
-	db, err := DB()
-	if err != nil {
-		return nil, err
-	}
-	var obsArg any
-	if strings.TrimSpace(observacao) != "" {
-		obsArg = observacao
-	}
-	var idFra, st sql.NullString
-	var camID sql.NullInt64
-	err = db.QueryRowContext(ctx, `
-UPDATE vis_licenca SET
-  pago_em = NULL,
-  valido_ate = NULL,
-  id_pagamento = NULL,
-  status = CASE WHEN vis_camera_id IS NOT NULL THEN 'em_uso' ELSE 'disponivel' END,
-  observacao = COALESCE($2, observacao)
-WHERE id = $1 AND pago_em IS NOT NULL
-RETURNING id_franqueado, status, vis_camera_id`, licID, obsArg).Scan(&idFra, &st, &camID)
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("licenca nao encontrada ou pagamento ja estornado")
-	}
-	if err != nil {
-		return nil, err
-	}
-	return map[string]any{
-		"id":               licID,
-		"id_franqueado":    nullStr(idFra),
-		"status":           nullStr(st),
-		"vis_camera_id":    nullInt(camID),
-		"estorno_aplicado": true,
-	}, nil
 }

@@ -1,134 +1,227 @@
-/**
- * KPIs do home ConfVision (menu-confvision.html).
- */
-let homeKpiFiltro = 'total'
+/* Dashboard KPI — home ConfVision (franqueado) */
+const CV_PING_STALE_MIN = 15
+const CV_KPI_RING_SIZE = 44
+const CV_KPI_DONUT_SIZE = 52
 
-function initDashboardInteracao() {
-    const $dash = $('#cv-home-dashboard')
-    if (!$dash.length || ConfVisionUrls.ehCliente()) return
+const CV_DASH_CHART_ITEMS = [
+    { key: 'ativas', label: 'Ativas', color: '#34d399', cls: 'cv-dash-bar-ok' },
+    { key: 'inativas', label: 'Inativas', color: '#64748b', cls: 'cv-dash-bar-muted' },
+    { key: 'sem_comunicacao', label: 'Sem comun.', color: '#f59e0b', cls: 'cv-dash-bar-warn' },
+    { key: 'desarmadas', label: 'Desarmadas', color: '#eab308', cls: 'cv-dash-bar-warn' },
+    { key: 'pausadas', label: 'Pausadas', color: '#fb923c', cls: 'cv-dash-bar-warn' },
+    { key: 'bloqueadas', label: 'Bloqueadas', color: '#f87171', cls: 'cv-dash-bar-off' }
+]
 
-    $dash.removeClass('d-none')
+let homeResumoCache = null
+let homeFiltroKpi = null
 
-    $('.cv-dashboard-kpi-btn[data-kpi]').on('click', function () {
-        const kpi = String($(this).data('kpi') || 'total')
-        homeKpiFiltro = kpi
-        $('.cv-dashboard-kpi-btn[data-kpi]').removeClass('is-active')
-        $(this).addClass('is-active')
-        if (typeof renderHomeClientesCameras === 'function') {
-            renderHomeClientesCameras()
-        }
+function dashPct(val, denom) {
+    return denom > 0 ? Math.round((val / denom) * 100) : 0
+}
+
+function dashConicGradient(items, map, denom) {
+    let acc = 0
+    const stops = []
+    let sumRaw = 0
+    items.forEach(function (item) {
+        sumRaw += (map[item.key] || 0) / denom
     })
-
-    $('.cv-dashboard-kpi-btn[data-kpi="total"]').addClass('is-active')
-}
-
-function cameraPassaFiltroKpi(cam) {
-    if (!cam || homeKpiFiltro === 'total') return true
-    const A = ConfVisionArmado
-    switch (homeKpiFiltro) {
-        case 'ativas':
-            return A.cameraAnaliticoAtiva(cam) && !A.cameraBloqueadaAdmin(cam)
-        case 'inativas':
-            return !A.cameraAnaliticoAtiva(cam)
-        case 'desarmadas':
-            return String(cam.dispositivo_armado || cam.armado || '').toUpperCase() === 'N'
-        case 'sem_comunicacao':
-            return A.cameraSemComunicacao(cam, 15)
-        case 'pausadas':
-            return A.isAnaliticoPausado(cam)
-        case 'bloqueadas':
-            return A.cameraBloqueadaAdmin(cam)
-        default:
-            return true
+    const scale = sumRaw > 1 ? 1 / sumRaw : 1
+    items.forEach(function (item) {
+        const val = map[item.key] || 0
+        if (val <= 0) return
+        const slice = (val / denom) * 100 * scale
+        const from = acc
+        acc += slice
+        stops.push(item.color + ' ' + from.toFixed(2) + '% ' + acc.toFixed(2) + '%')
+    })
+    if (acc < 99.9) {
+        stops.push('rgba(255,255,255,0.08) ' + acc.toFixed(2) + '% 100%')
     }
-}
-
-function setKpiNum(kpi, n) {
-    const $btn = $('.cv-dashboard-kpi-btn[data-kpi="' + kpi + '"]')
-    if (!$btn.length) return
-    let $num = $btn.find('.cv-armado-resumo-num')
-    if (!$num.length) {
-        $btn.find('.cv-kpi-visual').first().html('<span class="cv-armado-resumo-num">0</span>')
-        $num = $btn.find('.cv-armado-resumo-num')
+    if (!stops.length) {
+        return 'conic-gradient(rgba(255,255,255,0.08) 0% 100%)'
     }
-    $num.text(String(n))
+    return 'conic-gradient(from -90deg, ' + stops.join(', ') + ')'
 }
 
-function renderDashboardChart(contagens) {
-    const $bars = $('#cv-dashboard-chart-bars')
-    if (!$bars.length) return
-    const keys = [
-        { k: 'ativas', label: 'Ativas', cls: 'cv-bar-on' },
-        { k: 'inativas', label: 'Inativas', cls: 'cv-bar-muted' },
-        { k: 'sem_comunicacao', label: 'Sem com.', cls: 'cv-bar-warn' },
-        { k: 'pausadas', label: 'Pausadas', cls: 'cv-bar-warn' },
-        { k: 'bloqueadas', label: 'Bloq.', cls: 'cv-bar-off' }
-    ]
-    const max = Math.max(1, ...keys.map(function (x) { return contagens[x.k] || 0 }))
-    $bars.html(keys.map(function (x) {
-        const v = contagens[x.k] || 0
-        const h = Math.round((v / max) * 100)
-        return (
-            '<div class="cv-chart-bar-wrap" title="' + x.label + ': ' + v + '">' +
-            '<div class="cv-chart-bar ' + x.cls + '" style="height:' + h + '%"></div>' +
-            '<span class="cv-chart-bar-label">' + v + '</span></div>'
-        )
-    }).join(''))
+function dashRingSvg(pct, color, size, stroke) {
+    size = size || CV_KPI_RING_SIZE
+    stroke = stroke || (size <= 48 ? 3 : 4)
+    const r = (size - stroke) / 2
+    const cx = size / 2
+    const cy = size / 2
+    const circ = 2 * Math.PI * r
+    const p = Math.min(100, Math.max(0, pct))
+    const offset = circ * (1 - p / 100)
+    return (
+        '<svg class="cv-dash-ring-svg" width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '" aria-hidden="true">' +
+        '<circle class="cv-dash-ring-track" cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke-width="' + stroke + '"/>' +
+        '<circle class="cv-dash-ring-arc" cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="' + stroke + '" stroke-linecap="round" stroke-dasharray="' + circ.toFixed(2) + '" stroke-dashoffset="' + offset.toFixed(2) + '" transform="rotate(-90 ' + cx + ' ' + cy + ')"/>' +
+        '</svg>'
+    )
 }
 
 function carregarDashboardResumo() {
-    if (ConfVisionUrls.ehCliente()) return
-    const idFranqueado = ConfVisionUrls.idFranqueado()
-    if (!idFranqueado) return
+    if (typeof ConfVisionUrls === 'undefined' || ConfVisionUrls.ehCliente()) return
+    const $box = $('#cv-home-dashboard')
+    if (!$box.length) return
 
     $.when(
-        $.get('/api/cameras?id_franqueado=' + encodeURIComponent(idFranqueado)),
-        $.get('/api/licencas?id_franqueado=' + encodeURIComponent(idFranqueado))
-    ).done(function (camResp, licResp) {
-        const cameras = ConfVisionArmado.normalizarLista(camResp[0])
-        const contagens = {
-            ativas: 0,
-            inativas: 0,
-            desarmadas: 0,
-            sem_comunicacao: 0,
-            pausadas: 0,
-            bloqueadas: 0,
-            total: cameras.length
+        $.get('/api/cameras/resumo'),
+        $.get('/api/rtmp-bans/franqueado')
+    ).done(function (resumoResp, bansResp) {
+        const r = resumoResp[0]
+        const bans = bansResp[0]
+        homeResumoCache = (r && r.dados) || null
+        if (homeResumoCache && homeResumoCache.ping_stale_min) {
+            window.CV_PING_STALE_MIN = homeResumoCache.ping_stale_min
         }
-        cameras.forEach(function (cam) {
-            const A = ConfVisionArmado
-            if (A.cameraBloqueadaAdmin(cam)) contagens.bloqueadas++
-            if (A.isAnaliticoPausado(cam)) contagens.pausadas++
-            if (A.cameraSemComunicacao(cam, 15)) contagens.sem_comunicacao++
-            if (!A.cameraAnaliticoAtiva(cam)) contagens.inativas++
-            else contagens.ativas++
-            if (String(cam.dispositivo_armado || cam.armado || '').toUpperCase() === 'N') {
-                contagens.desarmadas++
-            }
-        })
-        Object.keys(contagens).forEach(function (k) {
-            if (k !== 'total') setKpiNum(k, contagens[k])
-        })
-        setKpiNum('total', contagens.total)
-        renderDashboardChart(contagens)
-
-        const licBody = licResp[0]
-        if (licBody && licBody.resumo && typeof licBody.resumo.em_uso === 'number') {
-            /* resumo licencas disponivel para futuros KPIs */
-        }
+        renderDashboardResumo(homeResumoCache)
+        const totalBans = (bans && bans.total != null)
+            ? bans.total
+            : ((bans && bans.dados) || []).length
+        atualizarCardIpsBanidos(totalBans, '#cv-kpi-ips-banidos-card', '#cv-kpi-ips-banidos', '#cv-kpi-ips-banidos-ver')
     }).fail(function () {
-        /* home ainda carrega painel armado via menu.js */
+        $('#cv-dashboard-chart-bars').html(
+            '<div class="cv-empty">Não foi possível carregar o resumo das câmeras.</div>'
+        )
+    })
+}
+
+function atualizarCardIpsBanidos(total, cardSel, numSel, verSel) {
+    const n = total || 0
+    $(numSel).text(n)
+    const $card = $(cardSel)
+    const $ver = $(verSel)
+    $card.toggleClass('cv-ip-bans-link-alert', n > 0)
+    $ver.toggleClass('d-none', n <= 0)
+    if (n > 0) {
+        $card.attr('title', 'Ver ' + n + ' IP(s) banido(s) — clique para abrir')
+    } else {
+        $card.attr('title', 'Nenhum IP banido no momento')
+    }
+}
+
+function renderDashboardResumo(d) {
+    if (!d) return
+    const map = {
+        total: d.total || 0,
+        ativas: d.ativas || 0,
+        inativas: d.inativas || 0,
+        sem_comunicacao: d.sem_comunicacao || 0,
+        desarmadas: d.desarmadas || 0,
+        pausadas: d.pausadas || 0,
+        bloqueadas: d.bloqueadas || 0
+    }
+
+    renderDashboardCards(map)
+    renderDashboardChart(map)
+    $('#cv-home-dashboard').removeClass('d-none')
+}
+
+function renderDashboardCards(map) {
+    const items = CV_DASH_CHART_ITEMS
+    const total = map.total || 0
+    const denom = total > 0 ? total : 1
+
+    items.forEach(function (item) {
+        const val = map[item.key] || 0
+        const pct = dashPct(val, denom)
+        const $btn = $('.cv-dashboard-cards .cv-dashboard-kpi-btn[data-kpi="' + item.key + '"]')
+        const $vis = $btn.find('.cv-kpi-visual')
+        if (!$vis.length) return
+        $vis.html(
+            dashRingSvg(pct, item.color, CV_KPI_RING_SIZE, 3) +
+            '<span class="cv-kpi-ring-num">' + val + '</span>'
+        )
+        $btn.attr('title', 'Filtrar: ' + item.label + ' (' + val + ' de ' + total + ' · ' + pct + '%)')
     })
 
-    if ($('#cv-kpi-ips-banidos').length && typeof $.get === 'function') {
-        $.get('/api/rtmp-bans/franqueado?id_franqueado=' + encodeURIComponent(idFranqueado))
-            .done(function (r) {
-                const n = (r && r.dados && r.dados.length) || (r && r.total) || 0
-                $('#cv-kpi-ips-banidos').text(String(n))
-                if (n > 0) {
-                    $('#cv-kpi-ips-banidos-ver').removeClass('d-none')
-                    $('#cv-kpi-ips-banidos-card').addClass('cv-ip-bans-link-alert')
-                }
-            })
+    const gradient = dashConicGradient(items, map, denom)
+    const $totalBtn = $('.cv-dashboard-cards .cv-dashboard-kpi-btn[data-kpi="total"]')
+    const $totalVis = $totalBtn.find('.cv-kpi-visual')
+    if ($totalVis.length) {
+        $totalVis.html(
+            '<span class="cv-kpi-donut-ring" style="background:' + gradient + '"></span>' +
+            '<span class="cv-kpi-donut-hole"><span class="cv-kpi-ring-num">' + total + '</span></span>'
+        )
     }
+    $totalBtn.attr('title', total > 0
+        ? 'Total: ' + total + ' câmeras — clique para listar todas'
+        : 'Nenhuma câmera cadastrada')
+}
+
+function renderDashboardChart(map) {
+    const $bars = $('#cv-dashboard-chart-bars').empty()
+    const items = CV_DASH_CHART_ITEMS
+    const total = map.total || 0
+    const denom = total > 0 ? total : 1
+
+    items.forEach(function (item) {
+        const val = map[item.key] || 0
+        const pct = dashPct(val, denom)
+        $bars.append(
+            '<button type="button" class="cv-dash-bar-row cv-dashboard-kpi-btn" data-kpi="' + item.key + '" title="Filtrar: ' + item.label + ' (' + val + ' de ' + total + ')">' +
+            '<span class="cv-dash-bar-label">' + item.label + '</span>' +
+            '<span class="cv-dash-bar-track"><span class="cv-dash-bar-fill ' + item.cls + '" style="width:' + pct + '%"></span></span>' +
+            '<span class="cv-dash-bar-val">' + val + '</span>' +
+            '</button>'
+        )
+    })
+}
+
+function initDashboardInteracao() {
+    if (ConfVisionUrls.ehCliente()) return
+
+    $(document).on('click', '.cv-dashboard-kpi-btn', function () {
+        const kpi = String($(this).data('kpi') || '')
+        if (!kpi) return
+        if (homeFiltroKpi === kpi) {
+            homeFiltroKpi = null
+            $('.cv-dashboard-kpi-btn').removeClass('is-active')
+        } else {
+            homeFiltroKpi = kpi
+            $('.cv-dashboard-kpi-btn').removeClass('is-active')
+            $(this).addClass('is-active')
+        }
+        renderHomeClientesCameras()
+        const alvo = document.getElementById('box-clientes-cameras')
+        if (alvo) {
+            alvo.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+    })
+
+    $('#cv-home-filtros-estado').on('click', '.cv-home-filtro-chip', function () {
+        homeFiltroKpi = null
+        $('.cv-dashboard-kpi-btn').removeClass('is-active')
+    })
+}
+
+function cameraPassaFiltroKpi(cam) {
+    if (!homeFiltroKpi) return true
+    const k = homeFiltroKpi
+    const stale = (homeResumoCache && homeResumoCache.ping_stale_min) || CV_PING_STALE_MIN
+
+    if (k === 'total') return true
+    if (k === 'ativas') {
+        return ConfVisionArmado.cameraAnaliticoAtiva(cam)
+    }
+    if (k === 'inativas') {
+        return !ConfVisionArmado.cameraAnaliticoAtiva(cam)
+    }
+    if (k === 'bloqueadas') {
+        return ConfVisionArmado.cameraBloqueadaAdmin(cam)
+    }
+    if (k === 'sem_comunicacao') {
+        return ConfVisionArmado.cameraSemComunicacao(cam, stale)
+    }
+    if (k === 'pausadas') {
+        return ConfVisionArmado.cameraAnaliticoAtiva(cam) && ConfVisionArmado.isAnaliticoPausado(cam)
+    }
+    if (k === 'desarmadas') {
+        if (!ConfVisionArmado.cameraAnaliticoAtiva(cam)) return false
+        const somenteArmado = cam._somente_armado || ConfVisionArmado.isPlanoArmado(cam.plano)
+        return somenteArmado && cam._armado === 'N'
+    }
+    return true
 }

@@ -2,14 +2,18 @@ package login
 
 import (
 	"confvision/src/conexao"
+	"confvision/src/config"
+	"confvision/src/modulos/visdata"
 	"confvision/src/seguranca"
 	"confvision/src/xanopro"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 )
 
 func getUsaConfVision(idFranqueado string) (string, error) {
@@ -25,7 +29,9 @@ func getUsaConfVision(idFranqueado string) (string, error) {
 	defer db.Close()
 
 	var usa sql.NullString
-	erro = db.QueryRow(`
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	erro = db.QueryRowContext(ctx, `
 		SELECT UsaConfVision
 		FROM franqueado
 		WHERE ID_Franqueado = ?
@@ -95,8 +101,28 @@ func confVisionLiberadoXano(idFranqueado string) (liberado bool, ok bool) {
 	return usa == "S", true
 }
 
-// confVisionAcessoPermitido: Xano primeiro; se indisponivel, flag MySQL legada.
+func confVisionLiberadoPostgres(idFranqueado string) bool {
+	if !config.VisPostgresEnabled {
+		return false
+	}
+	ok, err := visdata.FranqueadoTemRecursosOperacionais(context.Background(), idFranqueado)
+	return err == nil && ok
+}
+
+// confVisionAcessoPermitido: Postgres operacional; MySQL legado (sem Xano para licencas).
 func confVisionAcessoPermitido(idFranqueado string) (bool, error) {
+	if config.VisPostgresEnabled {
+		if ok, motivo := visdataAcessoPostgres(idFranqueado); ok {
+			_ = motivo
+			return true, nil
+		}
+		usa, err := getUsaConfVision(idFranqueado)
+		if err != nil {
+			return false, err
+		}
+		return usa == "S", nil
+	}
+
 	if liberado, ok := confVisionLiberadoXano(idFranqueado); ok {
 		return liberado, nil
 	}
@@ -106,6 +132,27 @@ func confVisionAcessoPermitido(idFranqueado string) (bool, error) {
 		return false, err
 	}
 	return usa == "S", nil
+}
+
+func visdataAcessoPostgres(idFranqueado string) (bool, string) {
+	if !config.VisPostgresEnabled {
+		return false, ""
+	}
+	liberado, motivo, err := visdataResumoAcesso(context.Background(), idFranqueado)
+	if err != nil {
+		return false, ""
+	}
+	return liberado, motivo
+}
+
+func visdataResumoAcesso(ctx context.Context, idFranqueado string) (bool, string, error) {
+	out, err := visdata.ResumoPortal(ctx, idFranqueado)
+	if err != nil {
+		return false, "", err
+	}
+	liberado, _ := out["liberado"].(bool)
+	motivo, _ := out["motivo"].(string)
+	return liberado, motivo, nil
 }
 
 func getIdFranqueadoByUsuario(idUsuario string) (string, error) {

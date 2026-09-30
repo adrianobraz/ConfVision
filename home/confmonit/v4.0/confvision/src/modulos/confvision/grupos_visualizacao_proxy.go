@@ -15,7 +15,7 @@ import (
 )
 
 func proxyGrupoVis(w http.ResponseWriter, r *http.Request, metodo, path string) {
-	proxyVisOrXano(w, r, metodo, path)
+	proxyXano(w, r, metodo, path)
 }
 
 func idFranqueadoOuErro(w http.ResponseWriter, r *http.Request) (string, bool) {

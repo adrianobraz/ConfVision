@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    {{ template "head" . }}
+    {{ template "confvision-head-extra" . }}
+</head>
+<body class="cv-app cv-mosaico-view-page">
+    {{ template "variaveis-controle" . }}
+    {{ template "confvision-config" . }}
+    <input type="hidden" id="cfg-grupo-id" value="{{ .LinkJs }}">
+
+    <header class="cv-mosaic-topbar">
+        <div class="cv-mosaic-topbar-left">
+            <a href="/mosaicos" class="cv-btn-ghost cv-btn-sm"><i class="bi bi-arrow-left"></i> Mosaicos</a>
+            <div>
+                <h1 class="cv-mosaic-title mb-0" id="mosaico-nome">Carregando...</h1>
+                <p class="cv-mosaic-meta mb-0" id="mosaico-meta"></p>
+            </div>
+        </div>
+        <div class="cv-mosaic-tabs" id="mosaico-paginas" role="tablist"></div>
+    </header>
+
+    <main class="cv-mosaic-main" id="mosaico-main">
+        <div class="cv-mosaic-grid" id="mosaico-grid"></div>
+        <div class="cv-mosaic-empty d-none" id="mosaico-empty">
+            <i class="bi bi-camera-video-off"></i>
+            <p>Nenhuma câmera neste grupo.</p>
+        </div>
+    </main>
+
+    {{ template "link-js" . }}
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7"></script>
+    <script src="/recursos/modulos/confvision/urls.js?v=20260910mos1"></script>
+    <script src="/recursos/modulos/confvision/mosaic-cell.js?v=20260910mos1"></script>
+    <script src="/recursos/modulos/confvision/mosaico-view.js?v=20260910mosfs2"></script>
+</body>
+</html>

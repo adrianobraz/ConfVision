@@ -72,7 +72,14 @@ func ServirImagemPublica(w http.ResponseWriter, r *http.Request) {
 }
 
 func ServirImagemPublicaHealth(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		http.Error(w, "metodo nao permitido", http.StatusMethodNotAllowed)
+		return
+	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
+	if r.Method == http.MethodHead {
+		return
+	}
 	_, _ = w.Write([]byte("ok " + time.Now().UTC().Format(time.RFC3339)))
 }

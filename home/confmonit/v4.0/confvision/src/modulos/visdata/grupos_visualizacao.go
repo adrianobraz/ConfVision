@@ -59,20 +59,26 @@ ORDER BY g.nome ASC, g.id ASC`, idFranqueado, idCliente)
 	return scanGrupoRows(rows)
 }
 
-func GetGrupoVisualizacao(ctx context.Context, grupoID int, idFranqueado string, idCliente ...string) (map[string]any, error) {
-	_ = idCliente
+func GetGrupoVisualizacao(ctx context.Context, grupoID int, idFranqueado, idClienteFilter string) (map[string]any, error) {
 	if grupoID < 1 {
 		return nil, fmt.Errorf("grupo invalido")
 	}
+	idClienteFilter = strings.TrimSpace(idClienteFilter)
 	db, err := DB()
 	if err != nil {
 		return nil, err
 	}
-	row := db.QueryRowContext(ctx, `
+	camCountFilter := ""
+	args := []any{grupoID}
+	if idClienteFilter != "" {
+		camCountFilter = ` AND gc.id_cliente = $2`
+		args = append(args, idClienteFilter)
+	}
+	row := db.QueryRowContext(ctx, fmt.Sprintf(`
 SELECT g.id, g.created_at, g.updated_at, g.id_franqueado, g.nome, g.descricao, g.ativo, g.layout_mosaic,
-       (SELECT COUNT(*) FROM vis_grupo_visualizacao_camera gc WHERE gc.grupo_id = g.id AND gc.ativo IS TRUE) AS total_cameras
+       (SELECT COUNT(*) FROM vis_grupo_visualizacao_camera gc WHERE gc.grupo_id = g.id AND gc.ativo IS TRUE%s) AS total_cameras
 FROM vis_grupo_visualizacao g
-WHERE g.id = $1`, grupoID)
+WHERE g.id = $1`, camCountFilter), args...)
 	grupo, err := scanGrupoRow(row)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("grupo nao encontrado")
@@ -84,11 +90,19 @@ WHERE g.id = $1`, grupoID)
 	if idFranqueado != "" && idFraGrupo != idFranqueado {
 		return nil, fmt.Errorf("grupo nao autorizado")
 	}
+	if idClienteFilter != "" {
+		if err := ClienteTemAcessoGrupo(ctx, grupoID, idFranqueado, idClienteFilter); err != nil {
+			return nil, err
+		}
+	}
 	clientes, err := listGrupoClientes(ctx, db, grupoID)
 	if err != nil {
 		return nil, err
 	}
-	cameras, err := listGrupoCamerasInternal(ctx, db, grupoID, "")
+	if idClienteFilter != "" {
+		clientes = []string{idClienteFilter}
+	}
+	cameras, err := listGrupoCamerasInternal(ctx, db, grupoID, idClienteFilter)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +143,7 @@ RETURNING id`, idFra, nome, nullIfEmpty(descricao), ativo, string(layout)).Scan(
 	if err != nil {
 		return nil, err
 	}
-	return GetGrupoVisualizacao(ctx, id, idFra)
+	return GetGrupoVisualizacao(ctx, id, idFra, "")
 }
 
 func UpdateGrupoVisualizacao(ctx context.Context, grupoID int, payload map[string]any) (map[string]any, error) {
@@ -166,7 +180,7 @@ func UpdateGrupoVisualizacao(ctx context.Context, grupoID int, payload map[strin
 		}
 	}
 	if len(sets) == 1 {
-		return GetGrupoVisualizacao(ctx, grupoID, idFra)
+		return GetGrupoVisualizacao(ctx, grupoID, idFra, "")
 	}
 	args = append(args, grupoID)
 	db, err := DB()
@@ -177,7 +191,7 @@ func UpdateGrupoVisualizacao(ctx context.Context, grupoID int, payload map[strin
 	if _, err := db.ExecContext(ctx, q, args...); err != nil {
 		return nil, err
 	}
-	return GetGrupoVisualizacao(ctx, grupoID, idFra)
+	return GetGrupoVisualizacao(ctx, grupoID, idFra, "")
 }
 
 func DeleteGrupoVisualizacao(ctx context.Context, grupoID int, idFranqueado string) error {
@@ -211,18 +225,6 @@ func SaveGrupoComposicao(ctx context.Context, grupoID int, payload map[string]an
 	cameras := parseCameraComposicao(payload["cameras"])
 	if err := validateCamerasComposicao(ctx, idFra, cameras); err != nil {
 		return nil, err
-	}
-	for _, c := range cameras {
-		found := false
-		for _, cl := range clientes {
-			if cl == c.idCliente {
-				found = true
-				break
-			}
-		}
-		if !found {
-			clientes = append(clientes, c.idCliente)
-		}
 	}
 	db, err := DB()
 	if err != nil {
@@ -268,7 +270,7 @@ VALUES ($1, $2, $3, $4, $5)`,
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
-	return GetGrupoVisualizacao(ctx, grupoID, idFra)
+	return GetGrupoVisualizacao(ctx, grupoID, idFra, "")
 }
 
 func ReordenarGrupoCameras(ctx context.Context, grupoID int, payload map[string]any) error {
@@ -329,7 +331,7 @@ func ListGrupoCameras(ctx context.Context, grupoID int, idFranqueado, idClienteF
 		return nil, err
 	}
 	if idClienteFilter != "" {
-		if err := assertClienteNoGrupo(ctx, grupoID, idClienteFilter); err != nil {
+		if err := ClienteTemAcessoGrupo(ctx, grupoID, idFranqueado, idClienteFilter); err != nil {
 			return nil, err
 		}
 	}
@@ -379,17 +381,11 @@ SELECT COUNT(*) FROM vis_grupo_visualizacao_cliente WHERE grupo_id = $1 AND id_c
 }
 
 func ClienteTemAcessoGrupo(ctx context.Context, grupoID int, idFranqueado, idCliente string) error {
+	if _, err := assertGrupoFranqueado(ctx, grupoID, idFranqueado); err != nil {
+		return err
+	}
 	if err := assertClienteNoGrupo(ctx, grupoID, idCliente); err != nil {
 		return err
-	}
-	grupo, err := assertGrupoFranqueado(ctx, grupoID, idFranqueado)
-	if err != nil {
-		return err
-	}
-	if ativo, ok := grupo["ativo"]; ok {
-		if b, ok := ativo.(bool); ok && !b {
-			return fmt.Errorf("grupo inativo")
-		}
 	}
 	db, err := DB()
 	if err != nil {
@@ -397,6 +393,9 @@ func ClienteTemAcessoGrupo(ctx context.Context, grupoID int, idFranqueado, idCli
 	}
 	var ativo bool
 	err = db.QueryRowContext(ctx, `SELECT ativo FROM vis_grupo_visualizacao WHERE id = $1`, grupoID).Scan(&ativo)
+	if err == sql.ErrNoRows {
+		return fmt.Errorf("grupo nao encontrado")
+	}
 	if err != nil {
 		return err
 	}
@@ -629,4 +628,3 @@ func parseStringList(raw any) []string {
 		return nil
 	}
 }
-

@@ -163,30 +163,6 @@ var Rotas = []auxiliar.Rota{
 		Aberto: false,
 	},
 	{
-		URI:    "/relatorio-operacional",
-		Metodo: http.MethodGet,
-		Funcao: CarregarRelatorioOperacional,
-		Aberto: false,
-	},
-	{
-		URI:    "/api/relatorio-operacional/stream",
-		Metodo: http.MethodGet,
-		Funcao: ProxyRelatorioStream,
-		Aberto: false,
-	},
-	{
-		URI:    "/api/relatorio-operacional/health",
-		Metodo: http.MethodGet,
-		Funcao: ProxyRelatorioHealth,
-		Aberto: false,
-	},
-	{
-		URI:    "/api/relatorio-operacional/metric",
-		Metodo: http.MethodGet,
-		Funcao: ProxyRelatorioMetric,
-		Aberto: false,
-	},
-	{
 		URI:    "/api/cameras/resumo",
 		Metodo: http.MethodGet,
 		Funcao: ProxyCamerasResumo,

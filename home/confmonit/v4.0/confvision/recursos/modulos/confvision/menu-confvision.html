@@ -16,6 +16,61 @@
             <p id="cv-home-subtitulo">Câmeras inteligentes · Eventos · Transmissão ao vivo</p>
         </div>
 
+        <section class="cv-home-dashboard d-none" id="cv-home-dashboard">
+            <div class="cv-section-title cv-section-title-compact">
+                <h2>Visão geral das câmeras</h2>
+                <p>Clique em um card ou barra para filtrar a listagem abaixo</p>
+            </div>
+            <div class="cv-dashboard-split">
+                <div class="cv-dashboard-cards">
+                    <div class="cv-dashboard-row cv-dashboard-row-3">
+                        <button type="button" class="cv-armado-resumo-item cv-dashboard-kpi-btn cv-armado-resumo-on" data-kpi="ativas" title="Filtrar ativas">
+                            <span class="cv-kpi-visual"></span>
+                            <span class="cv-armado-resumo-label">Ativas</span>
+                        </button>
+                        <button type="button" class="cv-armado-resumo-item cv-dashboard-kpi-btn" data-kpi="inativas" title="Filtrar inativas">
+                            <span class="cv-kpi-visual"></span>
+                            <span class="cv-armado-resumo-label">Inativas</span>
+                        </button>
+                        <button type="button" class="cv-armado-resumo-item cv-dashboard-kpi-btn" data-kpi="desarmadas" title="Filtrar desarmadas">
+                            <span class="cv-kpi-visual"></span>
+                            <span class="cv-armado-resumo-label">Desarmadas</span>
+                        </button>
+                    </div>
+                    <div class="cv-dashboard-row cv-dashboard-row-3">
+                        <button type="button" class="cv-armado-resumo-item cv-dashboard-kpi-btn cv-armado-resumo-off" data-kpi="sem_comunicacao" title="Sem comunicação (15 min)">
+                            <span class="cv-kpi-visual"></span>
+                            <span class="cv-armado-resumo-label">Sem comunicação</span>
+                        </button>
+                        <button type="button" class="cv-armado-resumo-item cv-dashboard-kpi-btn" data-kpi="pausadas" title="Filtrar pausadas">
+                            <span class="cv-kpi-visual"></span>
+                            <span class="cv-armado-resumo-label">Pausadas</span>
+                        </button>
+                        <button type="button" class="cv-armado-resumo-item cv-dashboard-kpi-btn cv-armado-resumo-off" data-kpi="bloqueadas" title="Bloqueio administrativo">
+                            <span class="cv-kpi-visual"></span>
+                            <span class="cv-armado-resumo-label">Bloqueadas</span>
+                        </button>
+                    </div>
+                    <div class="cv-dashboard-row cv-dashboard-row-2">
+                        <button type="button" class="cv-armado-resumo-item cv-dashboard-kpi-btn" data-kpi="total" title="Mostrar todas">
+                            <span class="cv-kpi-visual cv-kpi-visual-donut"></span>
+                            <span class="cv-armado-resumo-label">Total</span>
+                        </button>
+                        <a href="/ips-banidos" id="cv-kpi-ips-banidos-card" class="cv-armado-resumo-item cv-ip-bans-link" title="Ver IPs banidos nos seus clientes">
+                            <span class="cv-armado-resumo-num" id="cv-kpi-ips-banidos">0</span>
+                            <span class="cv-armado-resumo-label">IPs banidos</span>
+                            <span class="cv-kpi-ver-hint d-none" id="cv-kpi-ips-banidos-ver">
+                                <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Ver
+                            </span>
+                        </a>
+                    </div>
+                </div>
+                <div class="cv-dashboard-chart" id="cv-dashboard-chart">
+                    <div class="cv-dashboard-chart-bars" id="cv-dashboard-chart-bars"></div>
+                </div>
+            </div>
+        </section>
+
         <div class="cv-home-split">
             <section class="cv-home-split-left">
                 <div class="cv-cards cv-cards-menu" id="cv-home-cards-fra">
@@ -92,6 +147,13 @@
                             <p>Assistir suas câmeras</p>
                         </div>
                     </a>
+                    <a href="/mosaicos" class="cv-card-link cv-home-quick">
+                        <div class="cv-card">
+                            <div class="cv-card-icon live"><i class="bi bi-grid-3x3-gap"></i></div>
+                            <h3>Mosaicos</h3>
+                            <p>Video wall dos seus grupos</p>
+                        </div>
+                    </a>
                     <a href="/gravacoes/timeline" class="cv-card-link cv-home-desktop-only">
                         <div class="cv-card">
                             <div class="cv-card-icon gravacoes"><i class="bi bi-collection-play"></i></div>
@@ -155,8 +217,9 @@
     </aside>
 
     {{ template "link-js" . }}
-    <script src="/recursos/modulos/confvision/urls.js?v=20260727mob4"></script>
-    <script src="/recursos/modulos/confvision/armado.js?v=20260730pausa7"></script>
-    <script src="/recursos/modulos/confvision/menu.js?v=20260731nav1"></script>
+    <script src="/recursos/modulos/confvision/urls.js?v=20260827dash1"></script>
+    <script src="/recursos/modulos/confvision/armado.js?v=20260827dash1"></script>
+    <script src="/recursos/modulos/confvision/dashboard.js?v=20260827dash7"></script>
+    <script src="/recursos/modulos/confvision/menu.js?v=20260827dash2"></script>
 </body>
 </html>

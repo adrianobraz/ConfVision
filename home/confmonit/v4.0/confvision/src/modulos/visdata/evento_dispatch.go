@@ -61,13 +61,6 @@ func scheduleTerminalDispatch(eventoID int) {
 	}()
 }
 
-func maybeScheduleTerminalDispatch(ctx context.Context, eventoID int, snapshotURL string) {
-	if strings.TrimSpace(snapshotURL) == "" {
-		return
-	}
-	scheduleTerminalDispatch(eventoID)
-}
-
 func dispatchTerminalEvento(ctx context.Context, eventoID int) error {
 	row, err := loadEventoDispatchRow(ctx, eventoID)
 	if err != nil {

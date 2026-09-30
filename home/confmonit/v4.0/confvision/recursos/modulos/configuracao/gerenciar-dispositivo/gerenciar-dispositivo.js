@@ -5,6 +5,31 @@ function GerenciarDispositivoEhFabricanteCamera() {
     return String($('#dispositivo-id-fabricante').val()) === CV_FABRICANTE_CAMERA
 }
 
+function GerenciarDispositivoPadParticaoCamera(valor) {
+    const digits = String(valor || '').replace(/\D/g, '')
+    if (!digits) return ''
+    return digits.length >= 2 ? digits.slice(-2) : digits.padStart(2, '0')
+}
+
+function GerenciarDispositivoToggleCampoParticao() {
+    const ehCamera = GerenciarDispositivoEhFabricanteCamera()
+    $('#dispositivo-particao-alarme').toggleClass('d-none', ehCamera)
+    $('#dispositivo-particao-camera').toggleClass('d-none', !ehCamera)
+}
+
+function GerenciarDispositivoValorParticao() {
+    if (GerenciarDispositivoEhFabricanteCamera()) {
+        return GerenciarDispositivoPadParticaoCamera($('#dispositivo-particao-camera').val())
+    }
+    return String($('#dispositivo-particao-alarme').val() || '').trim()
+}
+
+function GerenciarDispositivoCampoParticaoAtivo() {
+    return GerenciarDispositivoEhFabricanteCamera()
+        ? '#dispositivo-particao-camera'
+        : '#dispositivo-particao-alarme'
+}
+
 $(document).ready(function () {
     document.body.classList.add('cv-cadastro')
     ajustaTabela()
@@ -20,6 +45,10 @@ $(document).ready(function () {
 
     $("#conta-alarme").on('blur', function () {
         this.value = ("0000" + this.value).slice(-4)
+    })
+
+    $('#dispositivo-particao-camera').on('blur', function () {
+        this.value = GerenciarDispositivoPadParticaoCamera(this.value)
     })
 
     // Associa o eveto de selecionar do idCliente
@@ -156,6 +185,7 @@ function GerenciarDispositivoBloquearCadastro() {
     $('#dispositivo-modelo-central').attr('disabled', true)
     $('#dispositivo-nome').attr('disabled', true)
     $('#dispositivo-particao-alarme').attr('disabled', true)
+    $('#dispositivo-particao-camera').attr('disabled', true)
     $('#dispositivo-conta-alarme').attr('disabled', true)
     $('#dispositivo-mac-alarme').attr('disabled', true)
     $('#DispositivoImeiAlarme').attr('disabled', true)
@@ -174,6 +204,7 @@ function GerenciarDispositivoDesbloquearCadastro() {
     $('#dispositivo-modelo-central').attr('disabled', false)
     $('#dispositivo-nome').attr('disabled', false)
     $('#dispositivo-particao-alarme').attr('disabled', false)
+    $('#dispositivo-particao-camera').attr('disabled', false)
     $('#dispositivo-conta-alarme').attr('disabled', false)
     $('#dispositivo-mac-alarme').attr('disabled', false)
     $('#DispositivoImeiAlarme').attr('disabled', false)
@@ -441,9 +472,13 @@ function GerenciarDispositivoBuscar(id) {
 
         GerenciarDispositivoCarregarModelosCentrais(function () {
             $('#dispositivo-modelo-central').val(d.idModelo)
-            GerenciarDispositivoCarregarParicao(function () {
-                $('#dispositivo-particao-alarme').val(d.particao)
-            })
+            if (String(d.idFabricante) === CV_FABRICANTE_CAMERA) {
+                $('#dispositivo-particao-camera').val(GerenciarDispositivoPadParticaoCamera(d.particao))
+            } else {
+                GerenciarDispositivoCarregarParicao(function () {
+                    $('#dispositivo-particao-alarme').val(d.particao)
+                })
+            }
         })
 
         ////////////////////////////////////////////////////////////////////////////// 
@@ -488,13 +523,18 @@ function GerenciarDispositivoBuscar(id) {
 function GerenciarDispositivoConfiguraFrabricante() {
 
     if (GerenciarDispositivoEhFabricanteCamera()) {
-        $('#grupo-cv-campos-alarme').hide()
+        $('#grupo-cv-campos-alarme').show()
+        $('#grupo-particao').show()
+        $('#grupo-cv-campos-alarme > .col-lg-6').not('#grupo-particao').hide()
+        GerenciarDispositivoToggleCampoParticao()
         $('#grupo-imei').hide()
         $('#grupo-keep').hide()
         return
     }
 
     $('#grupo-cv-campos-alarme').show()
+    $('#grupo-cv-campos-alarme > .col-lg-6').show()
+    GerenciarDispositivoToggleCampoParticao()
 
     if ($('#dispositivo-id-fabricante').val() == '1') {
         $('#grupo-imei').show()
@@ -579,7 +619,7 @@ function GerenciarDispositivoLimparFormulario() {
     $('#grupo-imei').hide()
     $('#grupo-mac').show()
     $('#grupo-cv-campos-alarme').show()
-
+    GerenciarDispositivoToggleCampoParticao()
 
     $('#DispositivoTipo').empty().append(`<option value="MASTER">MASTER</option>`)
     $('#provedorVideo').val('confvision')
@@ -606,7 +646,7 @@ function GerenciarDispositivoLimpar() {
     $('#grupo-imei').hide()
     $('#grupo-mac').show()
     $('#grupo-cv-campos-alarme').show()
-
+    GerenciarDispositivoToggleCampoParticao()
 
     $('#DispositivoTipo').empty().append(`<option value="MASTER">MASTER</option>`)
     $('#provedorVideo').val('confvision')
@@ -940,6 +980,11 @@ function GerenciarDispositivoValidarCamposCamera(acao) {
         boxAdvertenciaCampoAuto("Selecione um modelo", '#dispositivo-modelo-central')
         return
     }
+    const particao = GerenciarDispositivoValorParticao()
+    if (!particao || !/^\d{1,2}$/.test(particao)) {
+        boxAdvertenciaCampoAuto("Informe a partição (1 a 99)", GerenciarDispositivoCampoParticaoAtivo())
+        return
+    }
     if ($.trim($('#dispositivo-nome').val()) == "") {
         boxAdvertenciaCampoAuto("Informe o nome do dispositivo", '#dispositivo-nome')
         return
@@ -957,6 +1002,7 @@ function GerenciarDispositivoInserirCamera() {
             IdFabricante: CV_FABRICANTE_CAMERA,
             idModelo: $('#dispositivo-modelo-central').val(),
             nome: $('#dispositivo-nome').val(),
+            particao: GerenciarDispositivoValorParticao(),
             idFranqueado: localStorage.getItem('idFranqueado'),
             provedorVideo: $('#provedorVideo').val() || 'confvision',
         })
@@ -983,6 +1029,7 @@ function GerenciarDispositivoAlterarCamera(id) {
             IdFabricante: CV_FABRICANTE_CAMERA,
             idModelo: $('#dispositivo-modelo-central').val(),
             nome: $('#dispositivo-nome').val().toUpperCase(),
+            particao: GerenciarDispositivoValorParticao(),
         })
     }).fail(function (e) {
         boxErro("Erro ao alterar dados do Dispositivo")

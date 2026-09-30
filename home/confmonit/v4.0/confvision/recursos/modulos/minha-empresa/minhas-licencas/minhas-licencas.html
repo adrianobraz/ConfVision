@@ -3,7 +3,7 @@
 <head>
     {{ template "head" . }}
     {{ template "confvision-head-extra" . }}
-    <link rel="stylesheet" href="/recursos/modulos/minha-empresa/minhas-licencas/minhas-licencas.css?v=20260730lic2">
+    <link rel="stylesheet" href="/recursos/modulos/minha-empresa/minhas-licencas/minhas-licencas.css?v=20260826cap1">
 </head>
 <body class="cv-app">
     {{ template "variaveis-controle" . }}
@@ -15,7 +15,7 @@
             <div class="cv-page-header-body">
                 <p class="cv-page-eyebrow" id="display-nome-franqueado" data-eyebrow-suffix="Licenciamento"></p>
                 <h2 class="cv-page-title">Minhas licenças</h2>
-                <p class="cv-page-subtitle cv-lic-muted">Compre licenças de câmera e gravação · Acompanhe faturas em aberto</p>
+                <p class="cv-page-subtitle cv-lic-muted">Capacidade de processamento · Licenças de câmera e gravação · Faturas</p>
             </div>
         </div>
 
@@ -23,7 +23,8 @@
 
         <ul class="nav nav-tabs cv-lic-tabs mb-3" id="cv-lic-tabs">
             <li class="nav-item"><button class="nav-link active" data-tab="resumo" type="button">Resumo</button></li>
-            <li class="nav-item"><button class="nav-link" data-tab="comprar" type="button">Comprar</button></li>
+            <li class="nav-item"><button class="nav-link" data-tab="processamento" type="button">Processamento</button></li>
+            <li class="nav-item"><button class="nav-link" data-tab="comprar" type="button">Comprar licenças</button></li>
             <li class="nav-item"><button class="nav-link" data-tab="faturas" type="button">Faturas</button></li>
         </ul>
 
@@ -32,6 +33,33 @@
                 <div class="cv-lic-loading">Carregando...</div>
             </div>
             <div class="cv-lic-card mt-3" id="cv-lic-lista"></div>
+        </div>
+
+        <div id="tab-processamento" class="d-none">
+            <div class="cv-lic-card cv-lic-cap-card mb-3" id="cv-lic-cap-resumo">
+                <div class="cv-lic-loading">Carregando capacidade...</div>
+            </div>
+            <div class="cv-lic-card cv-lic-cap-contratar" id="cv-lic-cap-contratar">
+                <h5 class="mb-2">Contratar capacidade</h5>
+                <p class="cv-lic-muted mb-3">
+                    Você contrata <strong>vagas de câmera</strong> (online, sensor ou analítico — cada câmera usa 1 vaga).
+                </p>
+                <div class="row g-3 align-items-end">
+                    <div class="col-sm-4">
+                        <label class="form-label" for="cv-cap-qty">Quantidade de câmeras</label>
+                        <input type="number" min="1" max="9999" class="form-control" id="cv-cap-qty" value="10">
+                        <div class="form-text" id="cv-cap-min-hint"></div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="cv-lic-cap-calc" id="cv-lic-cap-calc">
+                            <span class="cv-lic-muted">Total mensal: —</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <button type="button" class="cv-btn-primary w-100" id="cv-cap-contratar-btn">Contratar e gerar fatura</button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div id="tab-comprar" class="d-none">
@@ -76,6 +104,6 @@
     {{ template "link-js" . }}
     <script src="/recursos/modulos/confvision/urls.js?v=20260730wl1"></script>
     <script src="/recursos/modulos/confvision/cameras-form.js"></script>
-    <script src="/recursos/modulos/minha-empresa/minhas-licencas/minhas-licencas.js?v=20260730lic2"></script>
+    <script src="/recursos/modulos/minha-empresa/minhas-licencas/minhas-licencas.js?v=20260826cap3"></script>
 </body>
 </html>

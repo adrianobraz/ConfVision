@@ -72,6 +72,23 @@
                         </div>
 
                         <div class="col-lg-4 mb-1 text-start">
+                            <label for="codigo-interno" class="form-label">
+                                Código interno:
+                            </label>
+                            <input type="text" maxlength="10" class="form-control form-control-sm text-uppercase"
+                                id="codigo-interno" placeholder="0001" title="Código do cliente na central externa (ex.: Moni)">
+                        </div>
+
+                        <div class="col-lg-4 mb-1 text-start">
+                            <label for="codigo-empresa" class="form-label">
+                                Código empresa:
+                            </label>
+                            <input type="text" maxlength="20" class="form-control form-control-sm text-uppercase"
+                                id="codigo-empresa" placeholder="001"
+                                title="Se vazio, usa o código empresa da tela Integração">
+                        </div>
+
+                        <div class="col-lg-4 mb-1 text-start">
                             <label for="nick" class="form-label">
                                 *Nick/Nome Fantasia:
                             </label>
@@ -90,17 +107,6 @@
                                 <option value="14">PESSOA JURIDICA</option>
                             </select>
                         </div>
-                       
-                        <div class="col-lg-5 mb-1 text-start">
-                            <label for="pacote" class="form-label">
-                                Pacote:
-                            </label>
-
-                            <select id="pacote" class="form-control form-control-sm">
-                                <option value="0">SELECIONE</option>
-                                
-                            </select>
-                        </div>                        
 
                         <div class="col-lg-4 mb-1 text-start fisica">
                             <label for="cpf" class="form-label">
@@ -242,7 +248,7 @@
 
     {{ template "link-js" . }}
     <script src="/recursos/js/auxiliares/cv-scroll-paginacao.js?v=20260714cli1"></script>
-    <script src="/recursos/modulos/minha-empresa/gerenciar-cliente/gerenciar-cliente.js?v=20260714cli1"></script>
+    <script src="/recursos/modulos/minha-empresa/gerenciar-cliente/gerenciar-cliente.js?v=20260826cli1"></script>
     {{ template "modalEmail"}}
     {{ template "modalArmarAlarme"}}
     </div>

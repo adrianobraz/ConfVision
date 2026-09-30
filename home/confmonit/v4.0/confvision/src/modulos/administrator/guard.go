@@ -37,6 +37,12 @@ func RestringirEscopoPapel(next http.HandlerFunc) http.HandlerFunc {
 			responderProibido(w, r, "acesso restrito ao administrator")
 			return
 		}
+
+		if caminhoPermitidoFranqueado(cookie, r.Method, path) {
+			next(w, r)
+			return
+		}
+
 		if path == "/rtmp-falhas" || strings.HasPrefix(path, "/api/rtmp-") {
 			responderProibido(w, r, "relatorio Falhas RTMP restrito ao administrator")
 			return
@@ -60,6 +66,23 @@ func caminhoPermitidoAdministrator(method, path string) bool {
 		return method == http.MethodGet
 	}
 	if strings.HasPrefix(path, "/api/cameras/") && strings.HasSuffix(path, "/bloquear") {
+		return method == http.MethodPost
+	}
+	return false
+}
+
+func caminhoPermitidoFranqueado(cookie map[string]string, method, path string) bool {
+	if seguranca.EhCliente(cookie) || seguranca.EhAdministrator(cookie) {
+		return false
+	}
+	switch path {
+	case "/rtmp-falhas", "/ips-banidos":
+		return method == http.MethodGet
+	case "/api/cameras/resumo", "/api/cameras/franqueado":
+		return method == http.MethodGet
+	case "/api/rtmp-falhas", "/api/rtmp-online", "/api/rtmp-bans/franqueado", "/api/rtmp-publish-health":
+		return method == http.MethodGet
+	case "/api/rtmp-bans/unban":
 		return method == http.MethodPost
 	}
 	return false

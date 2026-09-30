@@ -39,6 +39,7 @@ func caminhoPermitidoCliente(method, path string) bool {
 	case "/carregar-menu-confvision",
 		"/eventos",
 		"/ao-vivo",
+		"/mosaicos",
 		"/gravacoes/timeline",
 		"/gravacoes/dvr",
 		"/relatorio-armado",
@@ -48,6 +49,9 @@ func caminhoPermitidoCliente(method, path string) bool {
 	}
 
 	if strings.HasPrefix(path, "/ao-vivo/") && method == http.MethodGet {
+		return true
+	}
+	if strings.HasPrefix(path, "/mosaicos/") && method == http.MethodGet {
 		return true
 	}
 
@@ -63,6 +67,12 @@ func caminhoPermitidoCliente(method, path string) bool {
 	case path == "/api/gravacao-segmentos" && method == http.MethodGet:
 		return true
 	case path == "/api/gravacao-segmento/video" && method == http.MethodGet:
+		return true
+	case path == "/api/grupos-visualizacao" && method == http.MethodGet:
+		return true
+	case path == "/api/grupos-visualizacao/disponiveis" && method == http.MethodGet:
+		return true
+	case strings.HasPrefix(path, "/api/grupos-visualizacao/") && method == http.MethodGet:
 		return true
 	case path == "/api/dispositivos" && method == http.MethodPost:
 		return true

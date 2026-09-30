@@ -7,7 +7,6 @@ import (
 
 	"confvision/src/auxiliar"
 	"confvision/src/config"
-	"confvision/src/modulos/visdata"
 	"confvision/src/roteador"
 	"confvision/src/seguranca"
 )
@@ -44,7 +43,6 @@ func main() {
 
 	if config.VisPostgresEnabled {
 		fmt.Printf("ConfVision API Postgres: habilitada (vis_health)\n")
-		visdata.StartColetaOperacionalBackground()
 	} else {
 		fmt.Println("ConfVision API Postgres: desabilitada — defina POSTGRES_URL no .env")
 	}

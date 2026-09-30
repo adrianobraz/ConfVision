@@ -4,13 +4,13 @@
     {{ template "head" . }}
     {{ template "confvision-head-extra" . }}
 </head>
-<body class="cv-app">
+<body class="cv-app cv-eventos-page">
     {{ template "variaveis-controle" . }}
     {{ template "confvision-config" . }}
     {{ template "confvision-nav" . }}
 
-    <main class="cv-main">
-        <div class="cv-panel">
+    <main class="cv-main cv-main-wide">
+        <div class="cv-panel cv-eventos-panel">
             <div class="cv-panel-toolbar">
                 <h1 class="cv-page-title mb-0">Eventos</h1>
                 <button type="button" id="btn-atualizar-eventos" class="cv-btn-ghost" title="Atualizar lista">
@@ -42,28 +42,27 @@
                 </div>
                 <p id="lbl-eventos-filtro" class="cv-cameras-filtro-total mb-0"></p>
             </div>
-            <div class="cv-panel-body table-responsive">
-                <table class="cv-table cv-table-cards">
-                    <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>Cliente</th>
-                            <th>Câmera</th>
-                            <th>Tipo</th>
-                            <th>Confiança</th>
-                            <th>Status</th>
-                            <th>Mídia</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tab-eventos"></tbody>
-                </table>
+            <div class="cv-eventos-body">
+                <div id="eventos-scroll" class="cv-eventos-scroll table-responsive">
+                    <table class="cv-table cv-table-cards cv-eventos-table">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Cliente</th>
+                                <th>Câmera</th>
+                                <th>Tipo</th>
+                                <th>Confiança</th>
+                                <th>Status</th>
+                                <th>Mídia</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tab-eventos"></tbody>
+                    </table>
+                </div>
                 <div id="eventos-load-more" class="cv-eventos-load-more d-none">
                     <i class="bi bi-hourglass-split cv-icon-spin"></i> Carregando mais eventos...
                 </div>
                 <div id="eventos-fim-lista" class="cv-eventos-fim-lista d-none">Fim da lista</div>
-                <div id="eventos-btn-mais-wrap" class="cv-eventos-load-more d-none">
-                    <button type="button" id="btn-carregar-mais-eventos" class="cv-btn-ghost">Carregar mais eventos</button>
-                </div>
             </div>
         </div>
     </main>
@@ -94,6 +93,6 @@
 
     {{ template "link-js" . }}
     <script src="/recursos/modulos/confvision/urls.js?v=20260727mob4"></script>
-    <script src="/recursos/modulos/confvision/eventos.js?v=20260730evt1"></script>
+    <script src="/recursos/modulos/confvision/eventos.js?v=20260910evtscroll"></script>
 </body>
 </html>

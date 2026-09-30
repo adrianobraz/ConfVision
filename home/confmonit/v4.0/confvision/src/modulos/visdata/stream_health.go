@@ -153,6 +153,11 @@ func notifyCameraStreamPaused(
 		titulo = fmt.Sprintf("Vídeo H.264 inválido — analítico desligado (câmera %s)", strings.TrimSpace(nome.String))
 		dica = "Stream corrompido (NAL). Ajuste codec/bitrate/RTMP na câmera ou DVR e clique em Reativar stream."
 	}
+	if reason == "sistema_stream_video_track_not_set_up" {
+		titulo = fmt.Sprintf("Vídeo RTMP inconsistente — analítico pausado (câmera %s)", strings.TrimSpace(nome.String))
+		dica = "O sistema detectou pacote de vídeo sem trilha configurada (video track not set up). " +
+			"Corrija encoder/H.264+AAC no DVR ou câmera e use Reativar stream no painel."
+	}
 
 	detail := map[string]any{
 		"stream_motivo_pausa": reason,

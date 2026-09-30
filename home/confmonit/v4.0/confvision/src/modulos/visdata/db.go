@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	ErrNotHandled = errors.New("visdata: rota nao tratada")
+	ErrNotHandled  = errors.New("visdata: rota nao tratada")
 	ErrPostgresOff = errors.New("visdata: postgres desabilitado")
 
 	dbMu   sync.Mutex
@@ -21,12 +21,23 @@ func DB() (*sql.DB, error) {
 	if !config.VisPostgresEnabled {
 		return nil, ErrPostgresOff
 	}
+
 	dbMu.Lock()
 	defer dbMu.Unlock()
-	if dbInst != nil || dbErr != nil {
+
+	if dbInst == nil {
+		dbInst, dbErr = conexao.ConectarPostgres()
 		return dbInst, dbErr
 	}
-	dbInst, dbErr = conexao.ConectarPostgres()
+	if dbErr != nil {
+		return nil, dbErr
+	}
+
+	if err := dbInst.Ping(); err != nil {
+		_ = dbInst.Close()
+		dbInst = nil
+		dbInst, dbErr = conexao.ConectarPostgres()
+	}
 	return dbInst, dbErr
 }
 
@@ -34,6 +45,6 @@ func Ready() bool {
 	if !config.VisPostgresEnabled {
 		return false
 	}
-	_, err := DB()
-	return err == nil
+	db, err := DB()
+	return err == nil && db != nil
 }

@@ -2,6 +2,8 @@
 
 Reprodutibilidade: registrar **hardware, env, duração, resultado**.
 
+**Plano 40 fases (status):** [docs/PLANO_TESTES_ESCALABILIDADE_STATUS.md](../../docs/PLANO_TESTES_ESCALABILIDADE_STATUS.md) · inventário [AUDITORIA_ARQUITETURA.md](../../docs/AUDITORIA_ARQUITETURA.md) · relatório [RELATORIO_ESCALABILIDADE_CONFVISION.md](../../docs/RELATORIO_ESCALABILIDADE_CONFVISION.md) · template Fase 2 [BENCHMARK_PROCESSOR.md](./BENCHMARK_PROCESSOR.md).
+
 ---
 
 ## Status Fase 6

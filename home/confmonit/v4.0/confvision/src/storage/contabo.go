@@ -89,6 +89,56 @@ func cadSnapshotKey(cameraID int) string {
 	return fmt.Sprintf("confvision/cad_snapshot/%d.jpg", cameraID)
 }
 
+func eventoSnapshotKey(idFranqueado string, eventoID int) string {
+	franq := strings.TrimSpace(idFranqueado)
+	if franq == "" {
+		franq = "sem-franqueado"
+	}
+	return fmt.Sprintf("confvision/eventos/%s/%d/snapshot.jpg", franq, eventoID)
+}
+
+// UploadEventoSnapshot envia JPEG de evento para Contabo (mesmo padrao do worker Python).
+func UploadEventoSnapshot(ctx context.Context, idFranqueado string, eventoID int, raw []byte) (string, error) {
+	if eventoID < 1 {
+		return "", fmt.Errorf("id do evento invalido")
+	}
+	if len(raw) == 0 {
+		return "", fmt.Errorf("arquivo vazio")
+	}
+	if !enabled() {
+		return "", fmt.Errorf("upload S3 nao configurado")
+	}
+
+	key := eventoSnapshotKey(idFranqueado, eventoID)
+	cli, base, err := client()
+	if err != nil {
+		return "", err
+	}
+
+	_ = deleteObject(ctx, key)
+
+	_, err = cli.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(config.ContaboS3Bucket),
+		Key:         aws.String(key),
+		Body:        bytes.NewReader(raw),
+		ContentType: aws.String("image/jpeg"),
+		ACL:         types.ObjectCannedACLPublicRead,
+	})
+	if err != nil {
+		_, err = cli.PutObject(ctx, &s3.PutObjectInput{
+			Bucket:      aws.String(config.ContaboS3Bucket),
+			Key:         aws.String(key),
+			Body:        bytes.NewReader(raw),
+			ContentType: aws.String("image/jpeg"),
+		})
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return buildPublicURL(base, key), nil
+}
+
 func PublicURL(key string) string {
 	_, base, err := client()
 	if err != nil {

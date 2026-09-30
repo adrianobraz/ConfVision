@@ -24,7 +24,7 @@ type WorkerPingInput struct {
 	VisMediamtxNodeID *int     `json:"vis_mediamtx_node_id"`
 	CPUPercent        *float64 `json:"cpu_percent"`
 	MemPercent        *float64 `json:"mem_percent"`
-	Load1m            *float64 `json:"load_1m"`
+	Load1m             *float64                  `json:"load_1m"`
 	CameraStreamHealth []CameraStreamHealthInput `json:"camera_stream_health"`
 }
 

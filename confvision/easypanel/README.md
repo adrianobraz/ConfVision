@@ -102,6 +102,8 @@ Terminal CV01 fica no **Go central** (`TERMINAL_NOTIFY_ENABLED=true` no Proxmox)
 | Variável | Valor |
 |----------|-------|
 | `RTMP_GUARD_ADMIN_KEY` | igual Go `.env` |
+| `CONFVISION_API_URL` | URL **interna** da API Go (ex.: `http://10.x:8080`) — pause automático video track |
+| `VIS_WORKER_API_KEY` | mesma chave do Go/Rust (`POST /vis_worker_ping`) |
 | `MEDIAMTX_API_USER` / `MEDIAMTX_API_PASS` | credenciais API MediaMTX |
 | `MEDIAMTX_API_BASE` | `http://127.0.0.1:9997` |
 

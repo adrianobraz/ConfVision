@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"confvision/src/apifunction"
 	"confvision/src/auxiliar"
 	"confvision/src/config"
 	"confvision/src/seguranca"
@@ -37,6 +38,12 @@ var Rotas = []auxiliar.Rota{
 		Metodo: http.MethodPost,
 		Funcao: whitelabelByFqdn,
 		Aberto: true,
+	},
+	{
+		URI:    "/centralMarcaPorCentral",
+		Metodo: http.MethodPost,
+		Funcao: marcaPorCentral,
+		Aberto: false,
 	},
 }
 
@@ -92,6 +99,13 @@ func whitelabelByFqdn(w http.ResponseWriter, r *http.Request) {
 	}
 	payload["fqdn"] = fqdn
 
+	if out, err := apifunction.MarcaResolve(fqdn, "", ""); err == nil {
+		if dados, _ := out["dados"].(map[string]any); dados != nil && len(dados) > 0 {
+			auxiliar.RespostaJSON(w, http.StatusOK, out)
+			return
+		}
+	}
+
 	raw, err := xanopro.Post("/fp_whitelabel_by_fqdn", payload)
 	if err != nil {
 		auxiliar.RespostaErro(w, http.StatusBadGateway, fmt.Errorf("erro xano: %w", err))
@@ -99,6 +113,31 @@ func whitelabelByFqdn(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(raw)
+}
+
+func marcaPorCentral(w http.ResponseWriter, r *http.Request) {
+	if _, err := seguranca.LerCookies(r); err != nil {
+		auxiliar.RespostaErro(w, http.StatusUnauthorized, err)
+		return
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		auxiliar.RespostaErro(w, http.StatusBadRequest, err)
+		return
+	}
+	var payload map[string]any
+	_ = json.Unmarshal(body, &payload)
+	idCen, _ := payload["id_central"].(string)
+	app, _ := payload["app"].(string)
+	if strings.TrimSpace(app) == "" {
+		app = "confvision"
+	}
+	out, err := apifunction.MarcaResolve("", strings.TrimSpace(idCen), app)
+	if err != nil {
+		auxiliar.RespostaErro(w, http.StatusBadGateway, err)
+		return
+	}
+	auxiliar.RespostaJSON(w, http.StatusOK, out)
 }
 
 func normalizarHost(host string) string {

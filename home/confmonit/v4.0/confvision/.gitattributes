@@ -1,0 +1,3 @@
+# .env no servidor Linux — sempre LF (evita POSTGRES_URL com host "10.2.2.120\r")
+.env text eol=lf
+.env.* text eol=lf

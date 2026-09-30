@@ -36,10 +36,7 @@ $(document).ready(function () {
             carregarEventos(true)
         }
     })
-    $('#btn-carregar-mais-eventos').on('click', function () {
-        carregarEventos(false)
-    })
-    $(window).on('scroll', onScrollEventos)
+    $('#eventos-scroll').on('scroll', onScrollEventos)
 })
 
 function normalizarRespostaEventos(resposta, paginaSolicitada) {
@@ -225,7 +222,7 @@ function carregarClientesCache() {
     }).then(function (r) {
         cacheClientes = r.dados || r || []
         return cacheClientes
-    }).fail(function () {
+    }, function () {
         cacheClientes = []
         return cacheClientes
     })
@@ -308,30 +305,22 @@ function setLoadMoreEventosLoading(loading) {
 function atualizarFimListaEventos() {
     const temLinhas = $('#tab-eventos tr').length > 0 && !$('#tab-eventos .cv-empty').length
     $('#eventos-fim-lista').toggleClass('d-none', temMaisEventos || !temLinhas)
-    atualizarBotaoCarregarMais()
-}
-
-function paginaTemScroll() {
-    return $(document).height() > $(window).height() + 40
-}
-
-function atualizarBotaoCarregarMais() {
-    const mostrar = temMaisEventos && !carregandoEventos && !paginaTemScroll()
-    $('#eventos-btn-mais-wrap').toggleClass('d-none', !mostrar)
 }
 
 function onScrollEventos() {
     if (carregandoEventos || !temMaisEventos) return
 
-    const scrollTop = $(window).scrollTop()
+    const el = document.getElementById('eventos-scroll')
+    if (!el) return
+
+    const scrollTop = el.scrollTop
     if (scrollTop <= ultimoScrollTop) {
         ultimoScrollTop = scrollTop
         return
     }
     ultimoScrollTop = scrollTop
 
-    const threshold = 240
-    if (scrollTop + $(window).height() >= $(document).height() - threshold) {
+    if (scrollTop + el.clientHeight >= el.scrollHeight - 48) {
         carregarEventos(false)
     }
 }
@@ -374,7 +363,9 @@ function carregarEventos(reset) {
         ultimoScrollTop = 0
         setRefreshEventosLoading(true)
         $('#eventos-fim-lista').addClass('d-none')
-        $('#eventos-btn-mais-wrap').addClass('d-none')
+        if (document.getElementById('eventos-scroll')) {
+            document.getElementById('eventos-scroll').scrollTop = 0
+        }
     } else {
         setLoadMoreEventosLoading(true)
     }
@@ -435,7 +426,6 @@ function carregarEventos(reset) {
             carregandoEventos = false
             setRefreshEventosLoading(false)
             setLoadMoreEventosLoading(false)
-            atualizarBotaoCarregarMais()
         })
 }
 

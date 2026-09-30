@@ -18,10 +18,6 @@ func RegistrarRotasWorkerAPI(r *mux.Router) {
 		{"/vis_camera_area_query_ativas", []string{http.MethodGet}},
 		{"/vis_camera_query_gravacao_ativas", []string{http.MethodGet}},
 		{"/vis_worker_ping", []string{http.MethodPost}},
-		{"/vis_rust_processor_capacity", []string{http.MethodGet}},
-		{"/vis_camera_assign_processor", []string{http.MethodPost}},
-		{"/ops/d5/auto_assign_analiticas", []string{http.MethodPost}},
-		{"/vis_camera_stream_reactivate", []string{http.MethodPost}},
 		{"/vis_camera/rtmp_auth/{vis_camera_id}", []string{http.MethodGet}},
 		{"/vis_camera_rtmp_auth_sync", []string{http.MethodGet}},
 		{"/vis_camera_by_franqueado", []string{http.MethodGet}},
@@ -82,10 +78,6 @@ func RegistrarRotasWorkerAPI(r *mux.Router) {
 		{"/ops/vis_capacidade/estornar_pagamento", []string{http.MethodPost}},
 		{"/ops/vis_capacidade/listar_pendentes_renovacao", []string{http.MethodPost}},
 		{"/ops/vis_capacidade/contrato/{contrato_id}", []string{http.MethodGet}},
-		{"/ops/coleta_operacional/run", []string{http.MethodPost}},
-		{"/vis_relatorio_operacional/stream", []string{http.MethodGet}},
-		{"/vis_relatorio_operacional/health", []string{http.MethodGet}},
-		{"/vis_relatorio_operacional/metric", []string{http.MethodGet}},
 	}
 
 	r.HandleFunc("/cvg_worker_tick", handleCvgWorkerTick).Methods(http.MethodPost)

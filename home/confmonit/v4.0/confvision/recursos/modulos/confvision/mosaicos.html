@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    {{ template "head" . }}
+    {{ template "confvision-head-extra" . }}
+</head>
+<body class="cv-app cv-mosaicos-page">
+    {{ template "variaveis-controle" . }}
+    {{ template "confvision-config" . }}
+    {{ template "confvision-nav" . }}
+
+    <main class="cv-main cv-main-wide">
+        <div class="cv-panel">
+            <div class="cv-panel-toolbar">
+                <div>
+                    <h1 class="cv-page-title mb-0">Mosaicos</h1>
+                    <p class="cv-page-subtitle mb-0">Abra um grupo para visualizar as câmeras em video wall</p>
+                </div>
+                <a href="/grupos-visualizacao" id="link-gerenciar-grupos" class="cv-btn-ghost d-none">
+                    <i class="bi bi-collection"></i> Gerenciar grupos
+                </a>
+            </div>
+            <div id="mosaicos-lista" class="cv-mosaicos-lista">
+                <div class="cv-empty">Carregando...</div>
+            </div>
+        </div>
+    </main>
+
+    {{ template "link-js" . }}
+    <script src="/recursos/modulos/confvision/urls.js?v=20260910mos1"></script>
+    <script src="/recursos/modulos/confvision/mosaicos.js?v=20260910mos1"></script>
+</body>
+</html>

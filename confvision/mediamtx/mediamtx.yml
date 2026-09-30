@@ -6,6 +6,8 @@ logLevel: info
 # stdout = EasyPanel | file = confvision-rtmp-guard (mesmo volume /recordings)
 logDestinations: [stdout, file]
 logFile: /recordings/mediamtx.log
+# Rotação (Guard tail): RTMP_LOG_MAX_BYTES (default 50MiB), RTMP_LOG_KEEP_ROTATED (default 3)
+# JSON de falhas: RTMP_WATCH_JSON — dedupe no store; não apaga diagnóstico recente
 
 api: yes
 apiAddress: :9997

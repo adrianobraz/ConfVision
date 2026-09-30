@@ -1,0 +1,19 @@
+SUBIR — listagem faturas Central
+=================================
+
+Pacote: deploy/apifunction/ (apifunction + .env)
+
+.env obrigatorio para faturas:
+  XANO_META_ACCESS_TOKEN
+  XANO_META_WORKSPACE_ID=1
+
+1) FileZilla -> VPS 185.130.61.4:/home/confmonit/v4.0/apifunction/
+
+2) SSH:
+   chmod +x apifunction
+   systemctl restart confmonit4apifunction
+   curl http://127.0.0.1:20001/health
+
+3) Subir admConfmonit/deploy/admconfmonit/ na hospedagem
+
+4) Login Central -> Financeiro -> Faturas (fonte=xano_meta)

@@ -15,7 +15,8 @@ const CV_HOME_MENUS = {
             { href: '/carregar-gerenciar-dispositivo', icon: 'bi-hdd-network', label: 'Dispositivos', hint: 'Centrais e alarmes' },
             { href: '/carregar-gerenciar-setores-alarme', icon: 'bi-bounding-box', label: 'Setores', hint: 'Zonas do alarme' },
             { href: '/cameras', icon: 'bi-camera-video', label: 'Câmera', hint: 'Cadastrar e gerenciar câmeras' },
-            { href: '/grade-horario', icon: 'bi-calendar-week', label: 'Grade horária', hint: 'Armar/desarmar e pausar por horário' }
+            { href: '/grade-horario', icon: 'bi-calendar-week', label: 'Grade horária', hint: 'Armar/desarmar e pausar por horário' },
+            { href: '/grupos-visualizacao', icon: 'bi-collection', label: 'Grupos de visualização', hint: 'Mosaicos multi-cliente' }
         ]
     },
     relatorios: {
@@ -24,13 +25,16 @@ const CV_HOME_MENUS = {
             { href: '/eventos', icon: 'bi-activity', label: 'Eventos', hint: 'Histórico de alertas' },
             { href: '/relatorio-armado', icon: 'bi-shield-lock', label: 'Armado', hint: 'Câmeras armadas e desarmadas' },
             { href: '/relatorio-licencas', icon: 'bi-key', label: 'Licenças', hint: 'Usadas e não usadas' },
-            { href: '/relatorio-faturas', icon: 'bi-receipt', label: 'Faturas', hint: 'Compra de licenças' }
+            { href: '/relatorio-faturas', icon: 'bi-receipt', label: 'Faturas', hint: 'Compra de licenças' },
+            { href: '/rtmp-falhas', icon: 'bi-broadcast-pin', label: 'RTMP', hint: 'Online, falhas e publish' },
+            { href: '/ips-banidos', icon: 'bi-slash-circle', label: 'IPs banidos', hint: 'Desbloquear IPs dos clientes' }
         ]
     },
     configuracoes: {
         titulo: 'Configurações',
         itens: [
             { href: '/cameras', icon: 'bi-camera-video', label: 'Câmera/Licença', hint: 'Cadastrar, editar, trocar licença' },
+            { href: '/integracao-eventos', icon: 'bi-diagram-3', label: 'Integração', hint: 'Moni, ConfMonit e fotos' },
             { href: '/carregar-whitelabel', icon: 'bi-palette', label: 'Minha marca', hint: 'Logo da empresa' },
             { href: '/carregar-dominio', icon: 'bi-globe2', label: 'Domínio personalizado', hint: 'Subdomínio da central' },
             { href: '/minhas-licencas?tab=comprar', icon: 'bi-cart-plus', label: 'Comprar licenças', hint: 'Fatura no financeiro · auditoria' },
@@ -41,6 +45,7 @@ const CV_HOME_MENUS = {
         titulo: 'Monitoramento',
         itens: [
             { href: '/ao-vivo', icon: 'bi-broadcast', label: 'Ao vivo', hint: 'Assistir em tempo real' },
+            { href: '/mosaicos', icon: 'bi-grid-3x3-gap', label: 'Mosaicos', hint: 'Video wall por grupo' },
             { href: '/gravacoes/dvr', icon: 'bi-play-btn', label: 'DVR', hint: 'Player e linha do tempo' },
             { href: '/gravacoes/timeline', icon: 'bi-collection-play', label: 'Timeline', hint: 'Buscar e assistir gravações' }
         ]
@@ -52,6 +57,8 @@ $(document).ready(function () {
     confVisionAuthGuard()
     confVisionCarregarCabecalho()
     aplicarHomeCliente()
+    initDashboardInteracao()
+    carregarDashboardResumo()
     carregarPainelArmadoHome()
     initHomeDrawer()
 
@@ -253,6 +260,9 @@ function renderHomeClientesCameras() {
             .map(function (disp) {
                 const cameras = (disp.cameras || [])
                     .filter(function (cam) {
+                        if (typeof cameraPassaFiltroKpi === 'function' && !cameraPassaFiltroKpi(cam)) {
+                            return false
+                        }
                         return ConfVisionArmado.cameraPassaFiltroHome(cam, homeFiltrosEstado)
                     })
                     .slice()

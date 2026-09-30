@@ -24,3 +24,33 @@ func TestIntegracaoSistemaPermiteDispatch(t *testing.T) {
 		}
 	}
 }
+
+func TestNormalizeDuplaComunicacao(t *testing.T) {
+	cases := []struct {
+		sistema string
+		dupla   bool
+		want    bool
+	}{
+		{"nenhum", true, false},
+		{"confmonit", true, false},
+		{"moni", false, false},
+		{"moni", true, true},
+		{"dguard", true, true},
+		{"segware", true, true},
+	}
+	for _, c := range cases {
+		got := normalizeDuplaComunicacao(c.sistema, c.dupla)
+		if got != c.want {
+			t.Fatalf("sistema=%q dupla=%v got=%v want=%v", c.sistema, c.dupla, got, c.want)
+		}
+	}
+}
+
+func TestIntegracaoDuplaComunicacaoHabilitada(t *testing.T) {
+	if !integracaoDuplaComunicacaoHabilitada("moni") {
+		t.Fatal("moni deveria habilitar dupla")
+	}
+	if integracaoDuplaComunicacaoHabilitada("confmonit") {
+		t.Fatal("confmonit nao deveria habilitar dupla")
+	}
+}

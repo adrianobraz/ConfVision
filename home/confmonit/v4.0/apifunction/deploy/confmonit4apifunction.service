@@ -1,0 +1,14 @@
+[Unit]
+Description=ConfMonit apifunction (transferencia vinculo)
+After=network.target mysql.service mariadb.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/confmonit/v4.0/apifunction
+EnvironmentFile=/home/confmonit/v4.0/apifunction/.env
+ExecStart=/home/confmonit/v4.0/apifunction/apifunction
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

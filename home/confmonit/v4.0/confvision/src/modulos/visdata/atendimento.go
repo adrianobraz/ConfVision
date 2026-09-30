@@ -30,11 +30,11 @@ type PoliticaAtendimento struct {
 	ParceiroModo            string   `json:"parceiro_modo"`
 	EmailAtivo              bool     `json:"email_ativo"`
 	EmailModo               string   `json:"email_modo"`
-	CoberturaHoraria          string   `json:"cobertura_horaria"`
-	IACoberturaHoraria        string   `json:"ia_cobertura_horaria"`
-	ParceiroCoberturaHoraria  string   `json:"parceiro_cobertura_horaria"`
-	IDParceiro                string   `json:"id_parceiro"`
-	GruposEventoParceiro      []string `json:"grupos_evento_parceiro"`
+	CoberturaHoraria        string   `json:"cobertura_horaria"`
+	IACoberturaHoraria      string   `json:"ia_cobertura_horaria"`
+	ParceiroCoberturaHoraria string  `json:"parceiro_cobertura_horaria"`
+	IDParceiro              string   `json:"id_parceiro"`
+	GruposEventoParceiro    []string `json:"grupos_evento_parceiro"`
 }
 
 type ClienteAtendimentoConfig struct {
@@ -96,6 +96,8 @@ func GetPoliticaAtendimento(ctx context.Context, idFranqueado string) (PoliticaA
 		ParceiroModo: ModoTodos,
 		EmailModo:    ModoTodos,
 		CoberturaHoraria: "24h",
+		IACoberturaHoraria: "24h",
+		ParceiroCoberturaHoraria: "24h",
 	}
 	if idFranqueado == "" {
 		return out, errors.New("id_franqueado obrigatorio")
@@ -105,20 +107,22 @@ func GetPoliticaAtendimento(ctx context.Context, idFranqueado string) (PoliticaA
 		return out, err
 	}
 	var idParceiro sql.NullString
-	var grupos []string
+	var gruposJSON sql.NullString
 	err = db.QueryRowContext(ctx, `
 SELECT inteligencia_artificial, ia_modo,
        finalizacao_automatica, autofim_modo,
        parceiro_monitoramento, parceiro_modo,
        email_ativo, email_modo,
-       cobertura_horaria, id_parceiro, grupos_evento_parceiro
+       cobertura_horaria, COALESCE(ia_cobertura_horaria, '24h'), COALESCE(parceiro_cobertura_horaria, '24h'),
+       id_parceiro,
+       COALESCE(array_to_json(grupos_evento_parceiro)::text, '[]')
 FROM ops_franqueado_atendimento_politica
 WHERE id_franqueado = $1`, idFranqueado).Scan(
 		&out.InteligenciaArtificial, &out.IAModo,
 		&out.FinalizacaoAutomatica, &out.AutofimModo,
 		&out.ParceiroMonitoramento, &out.ParceiroModo,
 		&out.EmailAtivo, &out.EmailModo,
-		&out.CoberturaHoraria, &idParceiro, &grupos,
+		&out.CoberturaHoraria, &out.IACoberturaHoraria, &out.ParceiroCoberturaHoraria, &idParceiro, &gruposJSON,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -129,8 +133,8 @@ WHERE id_franqueado = $1`, idFranqueado).Scan(
 	if idParceiro.Valid {
 		out.IDParceiro = idParceiro.String
 	}
-	out.GruposEventoParceiro = grupos
-	return out, nil
+	out.GruposEventoParceiro, err = decodeGruposJSON(gruposJSON)
+	return out, err
 }
 
 func SavePoliticaAtendimento(ctx context.Context, p PoliticaAtendimento) error {
@@ -154,10 +158,16 @@ func SavePoliticaAtendimento(ctx context.Context, p PoliticaAtendimento) error {
 	if p.CoberturaHoraria == "" {
 		p.CoberturaHoraria = "24h"
 	}
-	if p.GruposEventoParceiro == nil {
-		p.GruposEventoParceiro = []string{}
+	if p.IACoberturaHoraria == "" {
+		p.IACoberturaHoraria = p.CoberturaHoraria
 	}
-
+	if p.ParceiroCoberturaHoraria == "" {
+		p.ParceiroCoberturaHoraria = p.CoberturaHoraria
+	}
+	gruposJSON, err := encodeGruposJSON(p.GruposEventoParceiro)
+	if err != nil {
+		return err
+	}
 	db, err := DB()
 	if err != nil {
 		return err
@@ -168,8 +178,10 @@ INSERT INTO ops_franqueado_atendimento_politica (
     finalizacao_automatica, autofim_modo,
     parceiro_monitoramento, parceiro_modo,
     email_ativo, email_modo,
-    cobertura_horaria, id_parceiro, grupos_evento_parceiro, updated_at
-) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULLIF($11,''),$12,NOW())
+    cobertura_horaria, ia_cobertura_horaria, parceiro_cobertura_horaria,
+    id_parceiro, grupos_evento_parceiro, updated_at
+) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,
+    COALESCE(ARRAY(SELECT json_array_elements_text($14::json)), ARRAY[]::text[]), NOW())
 ON CONFLICT (id_franqueado) DO UPDATE SET
     inteligencia_artificial = EXCLUDED.inteligencia_artificial,
     ia_modo = EXCLUDED.ia_modo,
@@ -180,6 +192,8 @@ ON CONFLICT (id_franqueado) DO UPDATE SET
     email_ativo = EXCLUDED.email_ativo,
     email_modo = EXCLUDED.email_modo,
     cobertura_horaria = EXCLUDED.cobertura_horaria,
+    ia_cobertura_horaria = EXCLUDED.ia_cobertura_horaria,
+    parceiro_cobertura_horaria = EXCLUDED.parceiro_cobertura_horaria,
     id_parceiro = EXCLUDED.id_parceiro,
     grupos_evento_parceiro = EXCLUDED.grupos_evento_parceiro,
     updated_at = NOW()`,
@@ -187,7 +201,8 @@ ON CONFLICT (id_franqueado) DO UPDATE SET
 		p.FinalizacaoAutomatica, p.AutofimModo,
 		p.ParceiroMonitoramento, p.ParceiroModo,
 		p.EmailAtivo, p.EmailModo,
-		p.CoberturaHoraria, strings.TrimSpace(p.IDParceiro), p.GruposEventoParceiro,
+		p.CoberturaHoraria, p.IACoberturaHoraria, p.ParceiroCoberturaHoraria,
+		strings.TrimSpace(p.IDParceiro), gruposJSON,
 	)
 	return err
 }
@@ -328,35 +343,59 @@ WHERE id_franqueado = $1 AND id_cliente = $2`, idFranqueado, idCliente).Scan(&n)
 }
 
 func ListCreditoSaldos(ctx context.Context, idFranqueado string) ([]CreditoSaldo, error) {
-	idFranqueado = strings.TrimSpace(idFranqueado)
-	db, err := DB()
+	r, err := GetCreditoResumo(ctx, idFranqueado)
 	if err != nil {
 		return nil, err
 	}
-	canais := []string{"ligacao", "sms", "whatsapp", "email"}
-	var out []CreditoSaldo
-	for _, canal := range canais {
-		var saldo, saldoIni float64
-		err := db.QueryRowContext(ctx, `
+	return []CreditoSaldo{r}, nil
+}
+
+func GetCreditoResumo(ctx context.Context, idFranqueado string) (CreditoSaldo, error) {
+	idFranqueado = strings.TrimSpace(idFranqueado)
+	out := CreditoSaldo{IDFranqueado: idFranqueado, Canal: CanalCredito, PercentualRestante: 100}
+	if idFranqueado == "" {
+		return out, errors.New("id_franqueado obrigatorio")
+	}
+	saldo, ini, err := getSaldoWallet(ctx, idFranqueado)
+	if err != nil {
+		return out, err
+	}
+	out.Saldo = saldo
+	out.SaldoInicial = ini
+	out.PercentualRestante = percentualSaldo(saldo, ini)
+	return out, nil
+}
+
+func percentualSaldo(saldo, ini float64) float64 {
+	if ini <= 0 {
+		if saldo > 0 {
+			return 100
+		}
+		return 0
+	}
+	pct := (saldo / ini) * 100
+	if pct < 0 {
+		return 0
+	}
+	if pct > 100 {
+		return 100
+	}
+	return pct
+}
+
+func getSaldoWallet(ctx context.Context, idFranqueado string) (saldo, saldoIni float64, err error) {
+	db, err := DB()
+	if err != nil {
+		return 0, 0, err
+	}
+	err = db.QueryRowContext(ctx, `
 SELECT COALESCE(saldo,0), COALESCE(saldo_inicial,0)
 FROM ops_credito_saldo WHERE id_franqueado = $1 AND canal = $2`,
-			idFranqueado, canal).Scan(&saldo, &saldoIni)
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return nil, err
-		}
-		pct := float64(100)
-		if saldoIni > 0 {
-			pct = (saldo / saldoIni) * 100
-			if pct < 0 {
-				pct = 0
-			}
-		}
-		out = append(out, CreditoSaldo{
-			IDFranqueado: idFranqueado, Canal: canal,
-			Saldo: saldo, SaldoInicial: saldoIni, PercentualRestante: pct,
-		})
+		idFranqueado, CanalCredito).Scan(&saldo, &saldoIni)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, 0, nil
 	}
-	return out, nil
+	return saldo, saldoIni, err
 }
 
 func ListCreditoMovimentos(ctx context.Context, idFranqueado, canal, de, ate string, limit int) ([]CreditoMovimento, error) {
@@ -484,4 +523,340 @@ WHERE id_franqueado = $1 AND recurso = $2 AND id_cliente = $3`,
 	default:
 		return true, nil
 	}
+}
+
+func franqueadoTemPoliticaAtendimento(ctx context.Context, idFranqueado string) (bool, error) {
+	db, err := DB()
+	if err != nil {
+		return false, err
+	}
+	var ok bool
+	err = db.QueryRowContext(ctx, `
+SELECT EXISTS(SELECT 1 FROM ops_franqueado_atendimento_politica WHERE id_franqueado = $1)`,
+		idFranqueado).Scan(&ok)
+	return ok, err
+}
+
+func clienteTemConfigAtendimento(ctx context.Context, idFranqueado, idCliente string) (bool, error) {
+	db, err := DB()
+	if err != nil {
+		return false, err
+	}
+	var ok bool
+	err = db.QueryRowContext(ctx, `
+SELECT EXISTS(
+  SELECT 1 FROM ops_cliente_atendimento_config
+  WHERE id_franqueado = $1 AND id_cliente = $2 AND ativo = TRUE
+)`, idFranqueado, idCliente).Scan(&ok)
+	return ok, err
+}
+
+func resolveFromClienteConfig(ctx context.Context, idFranqueado, idCliente, recurso string) (bool, error) {
+	if bloqueado, err := IsIABloqueado(ctx, idFranqueado, idCliente); err != nil {
+		return false, err
+	} else if bloqueado && recurso == RecursoIA {
+		return false, nil
+	}
+	db, err := DB()
+	if err != nil {
+		return false, err
+	}
+	col := ""
+	switch recurso {
+	case RecursoIA:
+		col = "inteligencia_artificial"
+	case RecursoAutofim:
+		col = "finalizacao_automatica"
+	case RecursoParceiro:
+		col = "parceiro_monitoramento"
+	case RecursoEmail:
+		col = "email_ativo"
+	default:
+		return false, nil
+	}
+	var ativo bool
+	q := fmt.Sprintf(`
+SELECT %s FROM ops_cliente_atendimento_config
+WHERE id_franqueado = $1 AND id_cliente = $2 AND ativo = TRUE`, col)
+	err = db.QueryRowContext(ctx, q, idFranqueado, idCliente).Scan(&ativo)
+	if errors.Is(err, sql.ErrNoRows) {
+		return true, nil
+	}
+	return ativo, err
+}
+
+// ResolveRecursoAtivoCompat fail-open sem politica/config (compat legado #22 e sidecar).
+func ResolveRecursoAtivoCompat(ctx context.Context, idFranqueado, idCliente, recurso string) (ativo bool, failOpen bool, err error) {
+	idFranqueado = strings.TrimSpace(idFranqueado)
+	idCliente = strings.TrimSpace(idCliente)
+	recurso = strings.TrimSpace(recurso)
+	if idFranqueado == "" || idCliente == "" || recurso == "" {
+		return true, true, nil
+	}
+
+	hasPol, err := franqueadoTemPoliticaAtendimento(ctx, idFranqueado)
+	if err != nil {
+		return true, true, err
+	}
+	hasCli, err := clienteTemConfigAtendimento(ctx, idFranqueado, idCliente)
+	if err != nil {
+		return true, true, err
+	}
+	if !hasPol && !hasCli {
+		return true, true, nil
+	}
+	if !hasPol {
+		ok, err := resolveFromClienteConfig(ctx, idFranqueado, idCliente, recurso)
+		return ok, false, err
+	}
+	ok, err := ResolveRecursoAtivo(ctx, idFranqueado, idCliente, recurso, nil)
+	return ok, false, err
+}
+
+const (
+	TipoMovBonificacao = "bonificacao"
+	TipoMovRecarga     = "recarga"
+	TipoMovDebitoUso   = "debito_uso"
+
+	CanalCredito   = "credito"
+	CanalLigacao   = "ligacao"
+	CanalSMS       = "sms"
+	CanalWhatsApp  = "whatsapp"
+	CanalEmail     = "email"
+)
+
+type TarifaOperacional struct {
+	IDCentral      string  `json:"id_central"`
+	Canal          string  `json:"canal"`
+	ValorTentativa float64 `json:"valor_tentativa"`
+	ValorMinuto    float64 `json:"valor_minuto"`
+	ValorUnidade   float64 `json:"valor_unidade"`
+}
+
+func GetTarifaOperacional(ctx context.Context, idCentral, canal string) (TarifaOperacional, error) {
+	idCentral = strings.TrimSpace(idCentral)
+	if idCentral == "" {
+		idCentral = "CENTRAL"
+	}
+	canal = strings.TrimSpace(canal)
+	if canal == "" {
+		canal = CanalLigacao
+	}
+	out := TarifaOperacional{IDCentral: idCentral, Canal: canal}
+	db, err := DB()
+	if err != nil {
+		return out, err
+	}
+	err = db.QueryRowContext(ctx, `
+SELECT COALESCE(valor_tentativa,0), COALESCE(valor_minuto,0), COALESCE(valor_unidade,0)
+FROM ops_tarifa_operacional WHERE id_central = $1 AND canal = $2`,
+		idCentral, canal).Scan(&out.ValorTentativa, &out.ValorMinuto, &out.ValorUnidade)
+	if errors.Is(err, sql.ErrNoRows) {
+		return out, nil
+	}
+	return out, err
+}
+
+func SaveTarifaOperacional(ctx context.Context, t TarifaOperacional) error {
+	db, err := DB()
+	if err != nil {
+		return err
+	}
+	idCentral := strings.TrimSpace(t.IDCentral)
+	if idCentral == "" {
+		idCentral = "CENTRAL"
+	}
+	_, err = db.ExecContext(ctx, `
+INSERT INTO ops_tarifa_operacional (id_central, canal, valor_tentativa, valor_minuto, valor_unidade, updated_at)
+VALUES ($1,$2,$3,$4,$5,NOW())
+ON CONFLICT (id_central, canal) DO UPDATE SET
+  valor_tentativa = EXCLUDED.valor_tentativa,
+  valor_minuto = EXCLUDED.valor_minuto,
+  valor_unidade = EXCLUDED.valor_unidade,
+  updated_at = NOW()`, idCentral, t.Canal, t.ValorTentativa, t.ValorMinuto, t.ValorUnidade)
+	return err
+}
+
+func GetSaldoCanal(ctx context.Context, idFranqueado, _ string) (float64, error) {
+	saldo, _, err := getSaldoWallet(ctx, idFranqueado)
+	return saldo, err
+}
+
+func CustoMinimoCanal(ctx context.Context, idCentral, canal string) (float64, error) {
+	t, err := GetTarifaOperacional(ctx, idCentral, canal)
+	if err != nil {
+		return 0, err
+	}
+	min := t.ValorTentativa
+	if min <= 0 && t.ValorUnidade > 0 {
+		min = t.ValorUnidade
+	}
+	if min <= 0 {
+		min = 0.01
+	}
+	return min, nil
+}
+
+// PodeUsarCanal verifica saldo total >= custo minimo do servico.
+func PodeUsarCanal(ctx context.Context, idFranqueado, idCentral, canal string) (bool, float64, float64, error) {
+	saldo, _, err := getSaldoWallet(ctx, idFranqueado)
+	if err != nil {
+		return false, 0, 0, err
+	}
+	min, err := CustoMinimoCanal(ctx, idCentral, canal)
+	if err != nil {
+		return false, saldo, 0, err
+	}
+	return saldo >= min, saldo, min, nil
+}
+
+func movimentoCanal(servicoCanal, tipo string) string {
+	servicoCanal = strings.TrimSpace(servicoCanal)
+	tipo = strings.TrimSpace(tipo)
+	if tipo == TipoMovRecarga || tipo == TipoMovBonificacao {
+		return CanalCredito
+	}
+	if servicoCanal == "" || servicoCanal == CanalCredito {
+		return CanalCredito
+	}
+	return servicoCanal
+}
+
+func CreditarSaldo(ctx context.Context, idFranqueado, servicoCanal, tipo string, valor float64, idFatura *int64, obs, criadoPor string) error {
+	idFranqueado = strings.TrimSpace(idFranqueado)
+	tipo = strings.TrimSpace(tipo)
+	if idFranqueado == "" || tipo == "" {
+		return errors.New("id_franqueado e tipo obrigatorios")
+	}
+	if valor <= 0 {
+		return errors.New("valor deve ser positivo")
+	}
+	movCanal := movimentoCanal(servicoCanal, tipo)
+	db, err := DB()
+	if err != nil {
+		return err
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	_, err = tx.ExecContext(ctx, `
+INSERT INTO ops_credito_saldo (id_franqueado, canal, saldo, saldo_inicial, updated_at)
+VALUES ($1,$2,$3,$3,NOW())
+ON CONFLICT (id_franqueado, canal) DO UPDATE SET
+  saldo = ops_credito_saldo.saldo + EXCLUDED.saldo,
+  updated_at = NOW()`, idFranqueado, CanalCredito, valor)
+	if err != nil {
+		return err
+	}
+
+	if tipo == TipoMovRecarga || tipo == TipoMovBonificacao {
+		_, err = tx.ExecContext(ctx, `
+UPDATE ops_credito_saldo SET saldo_inicial = saldo, updated_at = NOW()
+WHERE id_franqueado = $1 AND canal = $2`, idFranqueado, CanalCredito)
+		if err != nil {
+			return err
+		}
+	}
+
+	var idFat any
+	if idFatura != nil && *idFatura > 0 {
+		idFat = *idFatura
+	}
+	_, err = tx.ExecContext(ctx, `
+INSERT INTO ops_credito_movimento
+  (id_franqueado, canal, tipo, quantidade, valor_total, id_fatura, observacao, criado_por)
+VALUES ($1,$2,$3,$4,$4,$5,$6,$7)`,
+		idFranqueado, movCanal, tipo, valor, idFat, obs, criadoPor)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func DebitarSaldo(ctx context.Context, idFranqueado, servicoCanal string, valor float64, idProcesso, obs string) (jaDebitado bool, err error) {
+	idFranqueado = strings.TrimSpace(idFranqueado)
+	servicoCanal = strings.TrimSpace(servicoCanal)
+	idProcesso = strings.TrimSpace(idProcesso)
+	if idFranqueado == "" {
+		return false, errors.New("id_franqueado obrigatorio")
+	}
+	if servicoCanal == "" {
+		servicoCanal = CanalLigacao
+	}
+	if valor <= 0 {
+		return false, errors.New("valor deve ser positivo")
+	}
+	db, err := DB()
+	if err != nil {
+		return false, err
+	}
+	if idProcesso != "" {
+		var n int
+		err = db.QueryRowContext(ctx, `
+SELECT COUNT(*) FROM ops_credito_movimento
+WHERE id_processo = $1 AND tipo = $2`, idProcesso, TipoMovDebitoUso).Scan(&n)
+		if err != nil {
+			return false, err
+		}
+		if n > 0 {
+			return true, nil
+		}
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+
+	var saldo float64
+	err = tx.QueryRowContext(ctx, `
+SELECT COALESCE(saldo,0) FROM ops_credito_saldo
+WHERE id_franqueado = $1 AND canal = $2 FOR UPDATE`, idFranqueado, CanalCredito).Scan(&saldo)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, fmt.Errorf("sem saldo de credito")
+	}
+	if err != nil {
+		return false, err
+	}
+	if saldo < valor {
+		return false, fmt.Errorf("saldo insuficiente: %.4f < %.4f", saldo, valor)
+	}
+	_, err = tx.ExecContext(ctx, `
+UPDATE ops_credito_saldo SET saldo = saldo - $3, updated_at = NOW()
+WHERE id_franqueado = $1 AND canal = $2`, idFranqueado, CanalCredito, valor)
+	if err != nil {
+		return false, err
+	}
+	var idProc any
+	if idProcesso != "" {
+		idProc = idProcesso
+	}
+	_, err = tx.ExecContext(ctx, `
+INSERT INTO ops_credito_movimento
+  (id_franqueado, canal, tipo, quantidade, valor_total, id_processo, observacao, criado_por)
+VALUES ($1,$2,$3,$4,$4,$5,$6,'sistema')`,
+		idFranqueado, servicoCanal, TipoMovDebitoUso, valor, idProc, obs)
+	if err != nil {
+		return false, err
+	}
+	return false, tx.Commit()
+}
+
+func InicializarSaldoZero(ctx context.Context, idFranqueado string) error {
+	idFranqueado = strings.TrimSpace(idFranqueado)
+	if idFranqueado == "" {
+		return nil
+	}
+	db, err := DB()
+	if err != nil {
+		return err
+	}
+	_, err = db.ExecContext(ctx, `
+INSERT INTO ops_credito_saldo (id_franqueado, canal, saldo, saldo_inicial, updated_at)
+VALUES ($1,$2,0,0,NOW())
+ON CONFLICT (id_franqueado, canal) DO NOTHING`, idFranqueado, CanalCredito)
+	return err
 }

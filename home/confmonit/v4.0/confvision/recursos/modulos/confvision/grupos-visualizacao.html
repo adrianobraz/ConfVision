@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    {{ template "head" . }}
+    {{ template "confvision-head-extra" . }}
+</head>
+<body class="cv-app cv-grupos-vis-page">
+    {{ template "variaveis-controle" . }}
+    {{ template "confvision-config" . }}
+    {{ template "confvision-nav" . }}
+
+    <main class="cv-main cv-main-wide">
+        <div class="cv-panel">
+            <div class="cv-panel-toolbar">
+                <div>
+                    <h1 class="cv-page-title mb-0">Grupos de visualização</h1>
+                    <p class="cv-page-subtitle mb-0">Agrupe câmeras de vários clientes para mosaicos</p>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="/mosaicos" class="cv-btn-ghost"><i class="bi bi-grid-3x3-gap"></i> Mosaicos</a>
+                    <button type="button" id="btn-novo-grupo" class="cv-btn-primary">
+                        <i class="bi bi-plus-lg"></i> Novo grupo
+                    </button>
+                </div>
+            </div>
+
+            <div id="grupos-lista" class="cv-grupos-lista">
+                <div class="cv-empty">Carregando...</div>
+            </div>
+        </div>
+    </main>
+
+    <div id="grupo-editor" class="cv-grupo-editor d-none" aria-hidden="true">
+        <header class="cv-grupo-editor-header">
+            <div class="cv-grupo-editor-header-start">
+                <button type="button" id="btn-grupo-voltar" class="cv-btn-ghost cv-grupo-editor-back" title="Voltar">
+                    <i class="bi bi-arrow-left"></i>
+                    <span class="d-none d-sm-inline">Grupos</span>
+                </button>
+                <h2 class="cv-grupo-editor-title mb-0" id="modal-grupo-titulo">Novo grupo</h2>
+            </div>
+            <div class="cv-grupo-editor-header-actions d-none d-md-flex">
+                <button type="button" class="cv-btn-ghost" id="btn-cancelar-grupo">Cancelar</button>
+                <button type="button" id="btn-salvar-grupo" class="cv-btn-primary">Salvar</button>
+            </div>
+        </header>
+
+        <div class="cv-grupo-editor-geral">
+            <input type="hidden" id="grupo-id" value="">
+            <div class="row g-3 align-items-end">
+                <div class="col-lg-5 col-xl-4">
+                    <label class="cv-label" for="grupo-nome">Nome</label>
+                    <input type="text" id="grupo-nome" class="form-control" maxlength="255" placeholder="Ex.: Condomínios Zona Sul">
+                </div>
+                <div class="col-lg-4 col-xl-5">
+                    <label class="cv-label" for="grupo-descricao">Descrição</label>
+                    <input type="text" id="grupo-descricao" class="form-control" maxlength="500" placeholder="Opcional">
+                </div>
+                <div class="col-lg-3 col-xl-3">
+                    <div class="form-check form-switch cv-grupo-ativo-switch">
+                        <input class="form-check-input" type="checkbox" id="grupo-ativo" checked>
+                        <label class="form-check-label" for="grupo-ativo">Grupo ativo</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <ul class="nav nav-tabs cv-form-tabs cv-grupo-editor-tabs" id="grupo-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" type="button" data-grupo-tab="clientes" id="grupo-tab-btn-clientes">
+                    <i class="bi bi-people"></i>
+                    Clientes autorizados
+                    <span class="cv-grupo-tab-badge" id="grupo-badge-clientes">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" type="button" data-grupo-tab="cameras" id="grupo-tab-btn-cameras">
+                    <i class="bi bi-camera-video"></i>
+                    Câmeras do mosaico
+                    <span class="cv-grupo-tab-badge" id="grupo-badge-cameras">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" type="button" data-grupo-tab="ordem" id="grupo-tab-btn-ordem">
+                    <i class="bi bi-sort-numeric-down"></i>
+                    Ordem do mosaico
+                    <span class="cv-grupo-tab-badge" id="grupo-badge-ordem">0</span>
+                </button>
+            </li>
+        </ul>
+
+        <div class="cv-grupo-editor-body">
+            <div class="cv-grupo-tab-panel cv-form-tab-panel" data-grupo-panel="clientes">
+                <p class="cv-form-tab-hint">Autoriza estes clientes a acessar o grupo no portal. Use a busca para ir selecionando.</p>
+                <div id="grupo-clientes-selecionados" class="cv-grupo-chips mb-2"></div>
+                <div class="cv-grupo-panel-scroll">
+                    <div class="cv-grupo-busca-sticky mb-2">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="search" id="grupo-busca-clientes" class="form-control"
+                                placeholder="Buscar cliente por nome ou código (mín. 2 caracteres)..." autocomplete="off">
+                        </div>
+                    </div>
+                    <div id="grupo-clientes-status" class="cv-grupo-status mb-1"></div>
+                    <div id="grupo-clientes-resultados" class="cv-grupo-lista-scroll"></div>
+                    <button type="button" id="grupo-clientes-mais" class="cv-btn-ghost cv-btn-sm mt-2 d-none">Carregar mais</button>
+                </div>
+            </div>
+
+            <div class="cv-grupo-tab-panel cv-form-tab-panel d-none" data-grupo-panel="cameras">
+                <p class="cv-form-tab-hint">Todas as câmeras cadastradas na central. Independe dos clientes autorizados.</p>
+                <div class="cv-grupo-panel-scroll">
+                    <div class="cv-grupo-busca-sticky mb-2">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="search" id="grupo-busca-cameras" class="form-control"
+                                placeholder="Buscar câmera ou cliente..." autocomplete="off">
+                        </div>
+                    </div>
+                    <div id="grupo-cameras-status" class="cv-grupo-status mb-1"></div>
+                    <div id="grupo-cameras" class="cv-grupo-cameras-scroll"></div>
+                </div>
+                <div class="cv-grupo-contador cv-grupo-contador-bar">
+                    <strong id="grupo-contador-cameras">0</strong> câmeras selecionadas
+                </div>
+            </div>
+
+            <div class="cv-grupo-tab-panel cv-form-tab-panel d-none" data-grupo-panel="ordem">
+                <p class="cv-form-tab-hint">Defina a sequência das câmeras no mosaico. Use as setas para reordenar.</p>
+                <div class="cv-grupo-panel-scroll">
+                    <div id="grupo-ordem" class="cv-grupo-ordem-scroll"></div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="cv-grupo-editor-footer d-md-none">
+            <button type="button" class="cv-btn-ghost flex-fill" id="btn-cancelar-grupo-mobile">Cancelar</button>
+            <button type="button" id="btn-salvar-grupo-mobile" class="cv-btn-primary flex-fill">Salvar</button>
+        </footer>
+    </div>
+
+    {{ template "link-js" . }}
+    <script src="/recursos/modulos/confvision/urls.js?v=20260910mos2"></script>
+    <script src="/recursos/modulos/confvision/grupos-visualizacao.js?v=20260910gv4"></script>
+</body>
+</html>

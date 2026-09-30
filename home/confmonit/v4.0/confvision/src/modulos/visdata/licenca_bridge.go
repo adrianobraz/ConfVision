@@ -9,8 +9,81 @@ import (
 	"time"
 )
 
+// CreateLicencaLote cria licencas pendentes no Postgres (fonte unica — compra Postgres-first).
+func CreateLicencaLote(ctx context.Context, records []map[string]any) ([]map[string]any, error) {
+	if len(records) == 0 {
+		return nil, fmt.Errorf("licencas obrigatorio")
+	}
+	out := make([]map[string]any, 0, len(records))
+	for _, rec := range records {
+		lic, err := createLicencaPendente(ctx, rec)
+		if err != nil {
+			return out, err
+		}
+		out = append(out, lic)
+	}
+	return out, nil
+}
+
+func createLicencaPendente(ctx context.Context, input map[string]any) (map[string]any, error) {
+	plano := strVal(input, "plano")
+	if plano == "" {
+		return nil, fmt.Errorf("plano obrigatorio")
+	}
+	idFranqueado := strVal(input, "id_franqueado")
+	if idFranqueado == "" {
+		return nil, fmt.Errorf("id_franqueado obrigatorio")
+	}
+
+	flags := PlanoFlagsFrom(plano)
+	unidade := strVal(input, "unidade")
+	if unidade == "" {
+		unidade = flags.Unidade
+	}
+	valor := floatVal(input, "valor")
+	if valor <= 0 {
+		valor = flags.Valor
+	}
+	status := strVal(input, "status")
+	if status == "" {
+		status = "pendente"
+	}
+	obs := strVal(input, "observacao")
+	descFatura := strVal(input, "desc_fatura")
+
+	db, err := DB()
+	if err != nil {
+		return nil, err
+	}
+
+	var id int
+	var created time.Time
+	err = db.QueryRowContext(ctx, `
+INSERT INTO vis_licenca (id_franqueado, plano, unidade, valor, status, observacao)
+VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, created_at`,
+		idFranqueado, plano, unidade, valor, status, nullStrOrNil(obs),
+	).Scan(&id, &created)
+	if err != nil {
+		return nil, err
+	}
+
+	item := map[string]any{
+		"id":             id,
+		"created_at":     created.UTC().Format(time.RFC3339),
+		"id_franqueado":  idFranqueado,
+		"plano":          plano,
+		"unidade":        unidade,
+		"valor":          valor,
+		"status":         status,
+		"observacao":     obs,
+	}
+	if descFatura != "" {
+		item["desc_fatura"] = descFatura
+	}
+	return item, nil
+}
+
 // SyncLicencasFromXanoRecords espelha licencas do Xano (financeiro) no Postgres operacional.
-// Preserva o ID do Xano para manter ref_id das faturas alinhado.
 func SyncLicencasFromXanoRecords(ctx context.Context, records []map[string]any) (int, error) {
 	if len(records) == 0 {
 		return 0, nil
@@ -163,8 +236,6 @@ WHERE id = $1`,
 		return nil, err
 	}
 
-	out, err := ListLicencasByFranqueado(ctx, "", "", "")
-	_ = out
 	var idFra string
 	_ = db.QueryRowContext(ctx, `SELECT id_franqueado FROM vis_licenca WHERE id = $1`, licID).Scan(&idFra)
 
@@ -177,6 +248,54 @@ WHERE id = $1`,
 		"id_pagamento":   idPag,
 		"id_franqueado":  idFra,
 		"plano":          plano,
+	}, nil
+}
+
+// EstornarLicencaFatura expira licenca no Postgres (espelho estorno/cancelamento Xano).
+func EstornarLicencaFatura(ctx context.Context, licID int, observacao string) (map[string]any, error) {
+	if licID <= 0 {
+		return nil, fmt.Errorf("vis_licenca_id obrigatorio")
+	}
+	observacao = strings.TrimSpace(observacao)
+
+	db, err := DB()
+	if err != nil {
+		return nil, err
+	}
+
+	var plano, idFra string
+	err = db.QueryRowContext(ctx, `SELECT plano, id_franqueado FROM vis_licenca WHERE id = $1`, licID).Scan(&plano, &idFra)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("licenca nao encontrada")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now().UTC()
+	var obsArg any
+	if observacao != "" {
+		obsArg = observacao
+	}
+
+	_, err = db.ExecContext(ctx, `
+UPDATE vis_licenca SET
+    status = 'expirada',
+    valido_ate = $2,
+    id_fatura = NULL,
+    id_pagamento = NULL,
+    observacao = COALESCE($3, observacao)
+WHERE id = $1`, licID, now, obsArg)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]any{
+		"id":            licID,
+		"status":        "expirada",
+		"valido_ate":    now.Format(time.RFC3339),
+		"id_franqueado": idFra,
+		"plano":         plano,
 	}, nil
 }
 
@@ -202,16 +321,20 @@ VALUES ($1, 'ativo', NOW(), 'Provisionado automaticamente na ativacao da licenca
 	return err
 }
 
-func CreateLicencaLote(ctx context.Context, licencas []map[string]any) ([]map[string]any, error) {
-	out := make([]map[string]any, 0, len(licencas))
-	for _, item := range licencas {
-		created, err := CreateLicenca(ctx, item)
-		if err != nil {
-			return out, err
-		}
-		out = append(out, created)
+func intFromAny(v any) int {
+	switch t := v.(type) {
+	case float64:
+		return int(t)
+	case int:
+		return t
+	case int64:
+		return int(t)
+	case string:
+		n, _ := strconv.Atoi(strings.TrimSpace(t))
+		return n
+	default:
+		return 0
 	}
-	return out, nil
 }
 
 func floatFromAny(v any) float64 {

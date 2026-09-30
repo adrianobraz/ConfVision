@@ -181,6 +181,7 @@ INSERT INTO vis_evento (
 }
 
 func FindCameraSensor(ctx context.Context, idDispositivo, particao, zonauser string) (map[string]any, error) {
+	particao, zonauser = prepareSetorQueryParams(particao, zonauser)
 	db, err := DB()
 	if err != nil {
 		return nil, err
@@ -189,9 +190,7 @@ func FindCameraSensor(ctx context.Context, idDispositivo, particao, zonauser str
 SELECT `+cameraSelectCols+`
 FROM vis_camera c
 LEFT JOIN vis_mediamtx_node n ON n.id = c.vis_mediamtx_node_id
-WHERE c.id_dispositivo = $1
-  AND c.particao = $2
-  AND c.zonauser = $3
+`+cameraSetorWhereSQL+`
   AND c.captura_sensor = TRUE
 ORDER BY c.id DESC
 LIMIT 1`, idDispositivo, particao, zonauser)
@@ -202,10 +201,12 @@ LIMIT 1`, idDispositivo, particao, zonauser)
 	if err != nil || len(list) == 0 {
 		return nil, err
 	}
+	EnrichCameraStreamURLs(ctx, list[0])
 	return list[0], nil
 }
 
 func GetCameraBySetor(ctx context.Context, idDispositivo, particao, zonauser, idFranqueado string) (map[string]any, error) {
+	particao, zonauser = prepareSetorQueryParams(particao, zonauser)
 	db, err := DB()
 	if err != nil {
 		return nil, err
@@ -214,9 +215,7 @@ func GetCameraBySetor(ctx context.Context, idDispositivo, particao, zonauser, id
 SELECT ` + cameraSelectCols + `
 FROM vis_camera c
 LEFT JOIN vis_mediamtx_node n ON n.id = c.vis_mediamtx_node_id
-WHERE c.id_dispositivo = $1
-  AND c.particao = $2
-  AND c.zonauser = $3`
+` + cameraSetorWhereSQL
 	args := []any{idDispositivo, particao, zonauser}
 	if idFranqueado != "" {
 		query += " AND c.id_franqueado = $4"
@@ -232,6 +231,7 @@ WHERE c.id_dispositivo = $1
 	if err != nil || len(list) == 0 {
 		return nil, err
 	}
+	EnrichCameraStreamURLs(ctx, list[0])
 	return list[0], nil
 }
 
@@ -336,6 +336,7 @@ LIMIT 1`, idProcesso, cameraID, particao)
 			cam, err := GetCameraByID(ctx, camID)
 			if err == nil {
 				camera = cam
+				EnrichCameraStreamURLs(ctx, camera)
 			}
 		}
 	}

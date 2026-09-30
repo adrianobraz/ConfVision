@@ -13,7 +13,8 @@ func handleDispatch(w http.ResponseWriter, r *http.Request) {
 	if r.URL.RawQuery != "" {
 		path += "?" + r.URL.RawQuery
 	}
-	status, raw, err := visdata.Dispatch(r.Context(), r.Method, path, bytes.NewReader(bodyBytes))
+	ctx := visdata.ContextWithHTTPRequest(r.Context(), r)
+	status, raw, err := visdata.Dispatch(ctx, r.Method, path, bytes.NewReader(bodyBytes))
 	if err != nil {
 		if err == visdata.ErrNotHandled {
 			http.Error(w, `{"erro":"rota nao implementada"}`, http.StatusNotFound)

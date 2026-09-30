@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Optional
 from urllib.parse import parse_qs, urlparse
@@ -20,7 +21,9 @@ from rtmp_guard import RtmpGuard
 from rtmp_online import listar_online
 from rtmp_publish_health import PublishHealthStore
 from rtmp_token import publish_secret
+from rtmp_token import parse_chave_rtmp
 from rtmp_watch import RtmpLogParser, RtmpWatchStore, follow_file
+from stream_health_client import pause_camera_video_track
 
 
 def _env(name: str, default: str = "") -> str:
@@ -49,6 +52,26 @@ STORE = RtmpWatchStore(
 )
 HEALTH = PublishHealthStore(_env("RTMP_PUBLISH_HEALTH_JSON", "/recordings/rtmp_publish_health.json"))
 ADMIN_KEY = _env("RTMP_GUARD_ADMIN_KEY")
+_BAN_DENY_LOG_LAST: dict[str, float] = {}
+
+
+def _ban_deny_log_interval_sec() -> float:
+    try:
+        return max(5.0, float(_env("RTMP_BAN_DENY_LOG_INTERVAL_SEC", "60") or "60"))
+    except ValueError:
+        return 60.0
+
+
+def _should_log_ban_deny(ip: str, motivo: str) -> bool:
+    if motivo != "ip_banido" or not ip or ip == "-":
+        return True
+    now = time.time()
+    key = ip
+    last = _BAN_DENY_LOG_LAST.get(key, 0.0)
+    if now - last >= _ban_deny_log_interval_sec():
+        _BAN_DENY_LOG_LAST[key] = now
+        return True
+    return False
 
 
 def _online_paths() -> set[str]:
@@ -64,6 +87,24 @@ def _online_paths() -> set[str]:
 
 class _WatchWithBan(RtmpLogParser):
     """Falhas → auto-ban (limiar por motivo); publish OK → health + desban."""
+
+    def _handle_stream_diag(self, line: str, codigo: str):
+        falha = super()._handle_stream_diag(line, codigo)
+        if (
+            falha
+            and falha.motivo_codigo == "rtmp_video_track_nao_configurado"
+            and falha.vezes == 1
+        ):
+            path = (falha.path or "").strip().rstrip("/")
+            camera_id = parse_chave_rtmp(path) if path else None
+            if camera_id:
+                if pause_camera_video_track(
+                    camera_id,
+                    last_error=falha.motivo_raw or line.strip()[:500],
+                    path=path,
+                ):
+                    GUARD.cache.invalidate(camera_id)
+        return falha
 
     def _handle_rtmp_conn(self, ts: str, sub: str, msg: str):
         from rtmp_watch import RE_CONN, RE_PUBLISH
@@ -247,11 +288,21 @@ class Handler(BaseHTTPRequestHandler):
             cam_v = meta.get("camera_id") if meta.get("camera_id") != "" else "-"
             plano_v = meta.get("plano") or "-"
             if code >= 400:
-                print(
-                    f"[RTMP-GUARD] NEGADO action={action} ip={ip} path={path_v} "
-                    f"hash={hash_v} camera_id={cam_v} plano={plano_v} motivo={motivo}",
-                    flush=True,
-                )
+                if _should_log_ban_deny(ip, motivo):
+                    if motivo == "ip_banido":
+                        print(
+                            "[RTMP-GUARD] IP BANIDO\n"
+                            f"IP: {ip}\n"
+                            "MOTIVO: ip_banido\n"
+                            "AÇÃO: conexão rejeitada",
+                            flush=True,
+                        )
+                    else:
+                        print(
+                            f"[RTMP-GUARD] NEGADO action={action} ip={ip} path={path_v} "
+                            f"hash={hash_v} camera_id={cam_v} plano={plano_v} motivo={motivo}",
+                            flush=True,
+                        )
             elif action in ("publish", "read", "playback"):
                 print(
                     f"[RTMP-GUARD] OK {action} ip={ip} path={path_v} "

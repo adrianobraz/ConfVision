@@ -20,6 +20,7 @@ type payloadCameraInserir struct {
 	IDFabricante  string `json:"IdFabricante"`
 	IDModelo      string `json:"idModelo"`
 	Nome          string `json:"nome"`
+	Particao      string `json:"particao"`
 	IDFranqueado  string `json:"idFranqueado"`
 	ProvedorVideo string `json:"provedorVideo"`
 }
@@ -29,6 +30,7 @@ type payloadCameraAlterar struct {
 	IDFabricante  string `json:"IdFabricante"`
 	IDModelo      string `json:"idModelo"`
 	Nome          string `json:"nome"`
+	Particao      string `json:"particao"`
 }
 
 type respostaAPIDadosString struct {
@@ -75,6 +77,7 @@ func GerenciarDispositivoInserirCamera(w http.ResponseWriter, r *http.Request) {
 	req.IDCliente = strings.TrimSpace(req.IDCliente)
 	req.IDModelo = strings.TrimSpace(req.IDModelo)
 	req.Nome = strings.TrimSpace(req.Nome)
+	req.Particao = strings.TrimSpace(req.Particao)
 	req.IDFranqueado = strings.TrimSpace(req.IDFranqueado)
 	req.IDFabricante = strings.TrimSpace(req.IDFabricante)
 	if req.IDFabricante == "" {
@@ -93,6 +96,11 @@ func GerenciarDispositivoInserirCamera(w http.ResponseWriter, r *http.Request) {
 		auxiliar.RespostaErro(w, http.StatusBadRequest, errors.New("fabricante deve ser CAMERA (7)"))
 		return
 	}
+	particao, erro := validarParticao(req.Particao)
+	if erro != nil {
+		auxiliar.RespostaErro(w, http.StatusBadRequest, erro)
+		return
+	}
 
 	conta, erro := gerarContaCamera(r, req.IDFranqueado)
 	if erro != nil {
@@ -105,7 +113,7 @@ func GerenciarDispositivoInserirCamera(w http.ResponseWriter, r *http.Request) {
 		"idFabricante":      req.IDFabricante,
 		"idModelo":          req.IDModelo,
 		"nome":              strings.ToUpper(req.Nome),
-		"particao":          "1",
+		"particao":          particao,
 		"conta":             conta,
 		"idFisico1":         "N/A",
 		"idFisico2":         "N/A",
@@ -173,6 +181,7 @@ func GerenciarDispositivoAlterarCamera(w http.ResponseWriter, r *http.Request) {
 	req.IDDispositivo = strings.TrimSpace(req.IDDispositivo)
 	req.IDModelo = strings.TrimSpace(req.IDModelo)
 	req.Nome = strings.TrimSpace(req.Nome)
+	req.Particao = strings.TrimSpace(req.Particao)
 	req.IDFabricante = strings.TrimSpace(req.IDFabricante)
 	if req.IDFabricante == "" {
 		req.IDFabricante = fabricanteCameraID
@@ -184,6 +193,11 @@ func GerenciarDispositivoAlterarCamera(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.IDFabricante != fabricanteCameraID {
 		auxiliar.RespostaErro(w, http.StatusBadRequest, errors.New("fabricante deve ser CAMERA (7)"))
+		return
+	}
+	particao, erro := validarParticao(req.Particao)
+	if erro != nil {
+		auxiliar.RespostaErro(w, http.StatusBadRequest, erro)
 		return
 	}
 
@@ -198,7 +212,7 @@ func GerenciarDispositivoAlterarCamera(w http.ResponseWriter, r *http.Request) {
 		"idFabricante":      req.IDFabricante,
 		"idModelo":          req.IDModelo,
 		"nome":              strings.ToUpper(req.Nome),
-		"particao":          valorOuPadrao(atual.Particao, "1"),
+		"particao":          particao,
 		"conta":             valorOuPadrao(atual.Conta, "0000"),
 		"idFisico1":         valorOuPadrao(atual.IDFisico1, "N/A"),
 		"idFisico2":         valorOuPadrao(atual.IDFisico2, "N/A"),
@@ -310,4 +324,12 @@ func valorOuPadrao(valor, padrao string) string {
 		return padrao
 	}
 	return valor
+}
+
+func validarParticao(particao string) (string, error) {
+	particao = strings.TrimSpace(particao)
+	if particao == "" || particao == "0" {
+		return "", errors.New("particao e obrigatoria")
+	}
+	return particao, nil
 }
