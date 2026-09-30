@@ -106,6 +106,52 @@ func Dispatch(ctx context.Context, method, pathWithQuery string, body io.Reader)
 		}
 		return okJSON(out)
 
+	case method == http.MethodGet && path == "/vis_rust_processor_capacity":
+		rows, err := FetchAllProcessorCapacity(ctx)
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(map[string]any{
+			"processors":             rows,
+			"urls":                   RustProcessorBaseURLs(),
+			"d5_auto_assign_enabled": D5AutoAssignEnabled(),
+		})
+
+	case method == http.MethodPost && path == "/vis_camera_assign_processor":
+		cameraID := intVal(payload, "camera_id")
+		if cameraID <= 0 {
+			cameraID = intVal(payload, "vis_camera_id")
+		}
+		if cameraID <= 0 {
+			cameraID = parseIntQuery(q.Get("camera_id"))
+		}
+		if cameraID <= 0 {
+			return http.StatusBadRequest, []byte(`{"erro":"camera_id obrigatorio"}`), nil
+		}
+		forceWorker := strings.TrimSpace(strVal(payload, "worker_id"))
+		if forceWorker != "" {
+			out, err := AssignCameraWorkerID(ctx, cameraID, forceWorker)
+			if err != nil {
+				return bizErrJSON(err)
+			}
+			return okJSON(map[string]any{"ok": true, "camera": out, "worker_id": forceWorker, "reason": "manual"})
+		}
+		wid, meta, err := AutoAssignCameraWorker(ctx, cameraID)
+		if err != nil {
+			return bizErrJSON(err)
+		}
+		cam, _ := GetCameraByID(ctx, cameraID)
+		return okJSON(map[string]any{"ok": true, "worker_id": wid, "meta": meta, "camera": cam})
+
+	case method == http.MethodPost && path == "/ops/d5/auto_assign_analiticas":
+		dryRun := boolDefault(payload, "dry_run", false)
+		limit := intVal(payload, "limit")
+		out, err := AutoAssignUnassignedAnaliticas(ctx, dryRun, limit)
+		if err != nil {
+			return errJSON(err)
+		}
+		return okJSON(out)
+
 	case method == http.MethodPost && path == "/vis_camera_stream_reactivate":
 		cameraID := parseIntQuery(q.Get("camera_id"))
 		if cameraID <= 0 {
