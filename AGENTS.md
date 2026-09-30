@@ -51,8 +51,9 @@ Documentação completa: [docs/ESTRUTURA_ECOSISTEMA.md](./docs/ESTRUTURA_ECOSIST
 | Vários sistemas ConfMonit | `core4\home\confmonit\v4.0\` |
 | **ConfVision aplicação (Go, API, portal)** | `core4\home\confmonit\v4.0\confvision\` |
 | **ConfVision vídeo (Python workers)** | `core4\confvision\` (no branch `main`; no clone `rust-pilot` Python fica na **raiz** do repo) |
-| **Rust processor (fonte)** | `C:\sistemaconfmonit\core4-rust-pilot\confvision-rust-processor\` |
-| Clone alternativo ConfVision | `C:\sistemaconfmonit\ConfVision\` (mesmo GitHub, branch `rust-pilot`, layout diferente do workspace `core4`) |
+| **Rust processor (fonte canônica pós-Fase 7)** | `core4\confvision-rust-processor\` (branch `consolidate/confvision-phase7` ou `main` após merge) |
+| Worktree piloto (histórico / espelho dev) | `C:\sistemaconfmonit\core4-rust-pilot\` — **não** editar como canônico; preservar |
+| Clone legado (referência antiga) | `C:\sistemaconfmonit\ConfVision\` @ `7282bc7` — layout raiz; **não** canônico |
 | XanoScript (não é ConfVision vídeo) | `core4\apis\`, `tables\`, `functions\` |
 
 Antes de alterar código: identificar `git rev-parse --show-toplevel` e não confundir as duas pastas chamadas `confvision` (Go vs Python).
@@ -64,7 +65,7 @@ Antes de alterar código: identificar `git rev-parse --show-toplevel` e não con
 | Path | Git | Branch típica | Use para |
 |------|-----|---------------|----------|
 | `C:\sistemaconfmonit\core4` | Repositório **principal** (`.git` real) | `main` | XanoScript, ecossistema, Go app, Python em `confvision\` |
-| `C:\sistemaconfmonit\core4-rust-pilot` | Worktree → `core4\.git` | `rust-pilot` | `confvision-rust-processor\`, docs Fases 1–6 (WIP) |
+| `C:\sistemaconfmonit\core4-rust-pilot` | Worktree → `core4\.git` | `rust-pilot` | Espelho dev; consolidado em `core4\confvision-rust-processor\` |
 | `C:\sistemaconfmonit\core4-fase0-push` | Worktree | `chore/fase0-apply-ops` | Branch Fase 0 apply-ops — não assumir layout `home/` |
 | `C:\sistemaconfmonit\core4-push-wt` | Worktree | `confvision/fase0-scripts` | Scripts Fase 0 — checkout mínimo |
 | `C:\sistemaconfmonit\ConfVision` | **Clone separado** (`.git` próprio) | `rust-pilot` (desatualizado vs piloto) | Evitar edição salvo decisão explícita |

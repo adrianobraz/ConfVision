@@ -1,6 +1,8 @@
 # ConfVision — Arquitetura final (consolidada, estado real)
 
-Data: 2026-09-30. Reflete **implementação atual**, não o spec completo das 6 fases.
+Data: 2026-09-30 (Fase 7). Reflete **implementação consolidada em `core4`**, não spec futuro.
+
+**Fase 7:** [FASE-7-CONSOLIDACAO.md](./FASE-7-CONSOLIDACAO.md) · [RELATORIO_FASE_7.md](./RELATORIO_FASE_7.md)
 
 ---
 

@@ -103,7 +103,7 @@ No **disco local** podem existir pastas adicionais (ex.: `apifunction/`, `webTec
 | **Caminho Python** | `C:\sistemaconfmonit\core4\confvision\` (**subpasta**, não a mesma que o Go) |
 | **Git** | Parte do repo `core4`; paths `confvision/*.py` |
 | **Conteúdo** | Workers: `main.py` (analítico legado), `dvr_main.py`, `motion_main.py`, `timelapse_main.py`, `sensor_main.py`, `distributed_main.py`, deploy Docker/EasyPanel, `mediamtx/`, docs migração Rust |
-| **Rust no core4** | `confvision-rust-processor/` — **sem `Cargo.toml` no workspace**; apenas `target/` local → **não é fonte de desenvolvimento Rust aqui** |
+| **Rust no core4** | `confvision-rust-processor/` — **fonte canônica** (Fases 1–6) desde a consolidação (`consolidate/confvision-*`) |
 
 ### No clone `core4-rust-pilot` (branch `rust-pilot`)
 
@@ -125,7 +125,7 @@ No **disco local** podem existir pastas adicionais (ex.: `apifunction/`, `webTec
 | confvision-timelapse | `timelapse_main.py` | Timelapse |
 | confvision-sensor | `sensor_main.py` | Poll + capture sensor |
 | confvision-dvr | `dvr_main.py` | Gravação contínua MTX → S3 |
-| confvision-sync-agent | `sync_agent_main.py` (+ `config_cache.py`) | Cache Redis config (**piloto**; ausente em `core4/confvision/`) |
+| confvision-sync-agent | `sync_agent_main.py` (+ `config_cache.py`) | Cache Redis config — em `core4/confvision/` |
 | MediaMTX | `mediamtx/`, Dockerfiles | RTSP/RTMP/record |
 
 ---
@@ -232,6 +232,13 @@ Auditoria detalhada: [docs/AUDITORIA_ARVORES_GIT.md](./AUDITORIA_ARVORES_GIT.md)
 | `ConfVision` | CLONE | Cópia local antiga layout `rust-pilot` | `.git` próprio | ConfVision.git | `rust-pilot` | `7282bc7` | WIP (~61 status) | Clone ~2026-08-03 | **REVISÃO MANUAL NECESSÁRIA** |
 
 **Contagens (2026-09-30):** 2 object stores Git (`core4\.git`, `ConfVision\.git`); **4 worktrees** no repo `core4`; **1 clone** independente auditado (`ConfVision`).
+
+---
+
+## 12. Fase 7 (consolidação publicada)
+
+- Canônico Rust/Python/Go: **`core4`** — branch **`consolidate/confvision-phase7`**
+- Detalhe: [confvision/docs/FASE-7-CONSOLIDACAO.md](../confvision/docs/FASE-7-CONSOLIDACAO.md)
 
 ---
 
