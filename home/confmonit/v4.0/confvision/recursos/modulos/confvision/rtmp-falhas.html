@@ -4,24 +4,24 @@
     {{ template "head" . }}
     {{ template "confvision-head-extra" . }}
 </head>
-<body class="cv-app">
+<body class="cv-app cv-rtmp-page">
     {{ template "variaveis-controle" . }}
     {{ template "confvision-config" . }}
     {{ template "confvision-nav" . }}
 
-    <main class="cv-main">
+    <main class="cv-main cv-main-wide">
         <div class="cv-panel">
             <div class="cv-panel-toolbar">
                 <div>
-                    <h1 class="cv-page-title mb-0">Falhas RTMP</h1>
-                    <p class="cv-page-desc mb-0">Câmeras online, falhas, auto-ban e desban</p>
+                    <h1 class="cv-page-title mb-0">RTMP</h1>
+                    <p class="cv-page-desc mb-0">Falhas, câmeras online, publish e IPs banidos</p>
                 </div>
                 <button type="button" id="btn-atualizar-rtmp-falhas" class="cv-btn-ghost" title="Atualizar">
                     <i class="bi bi-arrow-clockwise"></i> Atualizar
                 </button>
             </div>
 
-            <div class="cv-armado-resumo" id="box-rtmp-resumo">
+            <div class="cv-armado-resumo cv-rtmp-resumo-top" id="box-rtmp-resumo">
                 <div class="cv-armado-resumo-item">
                     <span class="cv-armado-resumo-num" id="lbl-rtmp-online">0</span>
                     <span class="cv-armado-resumo-label">Online</span>
@@ -34,105 +34,136 @@
                     <span class="cv-armado-resumo-num" id="lbl-rtmp-ips">0</span>
                     <span class="cv-armado-resumo-label">IPs falha</span>
                 </div>
-                <div class="cv-armado-resumo-item">
+                <a href="#" id="cv-rtmp-bans-card" class="cv-armado-resumo-item cv-ip-bans-link" title="Ver IPs banidos">
                     <span class="cv-armado-resumo-num" id="lbl-rtmp-bans">0</span>
-                    <span class="cv-armado-resumo-label">Banidos</span>
-                </div>
+                    <span class="cv-armado-resumo-label">IPs banidos</span>
+                    <span class="cv-kpi-ver-hint d-none" id="cv-rtmp-bans-ver">
+                        <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Ver
+                    </span>
+                </a>
             </div>
 
-            <div id="box-rtmp-aviso" class="cv-form-tab-aviso mb-3 d-none"></div>
+            <ul class="nav nav-tabs cv-form-tabs cv-rtmp-tabs mb-2" id="rtmp-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" type="button" data-rtmp-tab="falhas" role="tab">
+                        <i class="bi bi-exclamation-triangle"></i> Falhas RTMP
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" type="button" data-rtmp-tab="online" role="tab">
+                        <i class="bi bi-broadcast"></i> Câmeras online
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" type="button" data-rtmp-tab="publish" role="tab">
+                        <i class="bi bi-clock-history"></i> Histórico de publish
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" type="button" data-rtmp-tab="bans" role="tab">
+                        <i class="bi bi-shield-x"></i> IPs banidos
+                    </button>
+                </li>
+            </ul>
 
-            <h2 class="cv-page-title h5 mt-2 mb-2">Câmeras online</h2>
-            <p class="cv-page-desc mb-2">Streams publicando agora (path → câmera + franqueado). Ignora flood EOF sem path.</p>
-            <div class="table-responsive mb-4">
-                <table class="table cv-table mb-0">
-                    <thead>
-                        <tr>
-                            <th>Câmera</th>
-                            <th>Franqueado</th>
-                            <th>Path</th>
-                            <th>IP</th>
-                            <th>Tracks</th>
-                            <th>Leitores</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tab-rtmp-online">
-                        <tr><td colspan="6"><div class="cv-empty">Carregando…</div></td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <h2 class="cv-page-title h5 mt-2 mb-2">Histórico de publish</h2>
-            <p class="cv-page-desc mb-2">Último publish OK por path — útil para saber quem reconectou sem reiniciar o servidor.</p>
-            <div class="table-responsive mb-4">
-                <table class="table cv-table mb-0">
-                    <thead>
-                        <tr>
-                            <th>Câmera</th>
-                            <th>Path</th>
-                            <th>IP</th>
-                            <th>Status</th>
-                            <th>Último publish</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tab-rtmp-health">
-                        <tr><td colspan="5"><div class="cv-empty">Carregando…</div></td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <h2 class="cv-page-title h5 mt-2 mb-2">IPs banidos</h2>
-            <p class="cv-page-desc mb-2">Auto-ban agressivo só para path/chave inválidos. EOF de DVR mal configurado <strong>não bane</strong> por padrão (<code>RTMP_BAN_SOFT_MAX_FAILS=0</code>).</p>
-            <div class="table-responsive mb-4">
-                <table class="table cv-table mb-0">
-                    <thead>
-                        <tr>
-                            <th>IP</th>
-                            <th>Motivo</th>
-                            <th>Restante</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody id="tab-rtmp-bans">
-                        <tr><td colspan="4"><div class="cv-empty">Carregando…</div></td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="cv-cameras-filtros mb-3">
-                <div class="cv-cameras-filtro-busca">
-                    <label class="cv-label" for="busca-rtmp-falhas">Filtrar falhas</label>
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text"><i class="bi bi-search"></i></span>
-                        <input type="search" id="busca-rtmp-falhas" class="form-control"
-                            placeholder="IP, path ou mensagem..." autocomplete="off">
+            <div class="cv-form-tab-panels cv-rtmp-tab-panels">
+                <div class="cv-form-tab-panel cv-rtmp-tab-panel" data-rtmp-panel="falhas" role="tabpanel">
+                    <div id="box-rtmp-aviso" class="cv-form-tab-aviso mb-2 d-none"></div>
+                    <div class="cv-cameras-filtros mb-2">
+                        <div class="cv-cameras-filtro-busca">
+                            <label class="cv-label" for="busca-rtmp-falhas">Filtrar falhas</label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                <input type="search" id="busca-rtmp-falhas" class="form-control"
+                                    placeholder="IP, path ou mensagem..." autocomplete="off">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="cv-rtmp-scroll-panel table-responsive">
+                        <table class="table cv-table mb-0 cv-rtmp-table">
+                            <thead>
+                                <tr>
+                                    <th>Quando</th>
+                                    <th>IP</th>
+                                    <th>Path</th>
+                                    <th>Problema</th>
+                                    <th>Vezes</th>
+                                    <th>Dica</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tab-rtmp-falhas">
+                                <tr><td colspan="7"><div class="cv-empty">Carregando…</div></td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-            </div>
 
-            <div class="table-responsive">
-                <table class="table cv-table mb-0">
-                    <thead>
-                        <tr>
-                            <th>Quando</th>
-                            <th>IP</th>
-                            <th>Path</th>
-                            <th>Problema</th>
-                            <th>Vezes</th>
-                            <th>Dica</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody id="tab-rtmp-falhas">
-                        <tr><td colspan="7"><div class="cv-empty">Carregando…</div></td></tr>
-                    </tbody>
-                </table>
+                <div class="cv-form-tab-panel cv-rtmp-tab-panel d-none" data-rtmp-panel="online" role="tabpanel">
+                    <p class="cv-page-desc mb-2">Streams publicando agora (path → câmera). Ignora flood EOF sem path.</p>
+                    <div class="cv-rtmp-scroll-panel table-responsive">
+                        <table class="table cv-table mb-0 cv-rtmp-table">
+                            <thead>
+                                <tr>
+                                    <th>Câmera</th>
+                                    <th>Cliente</th>
+                                    <th>Path</th>
+                                    <th>IP</th>
+                                    <th>Tracks</th>
+                                    <th>Leitores</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tab-rtmp-online">
+                                <tr><td colspan="6"><div class="cv-empty">Carregando…</div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="cv-form-tab-panel cv-rtmp-tab-panel d-none" data-rtmp-panel="publish" role="tabpanel">
+                    <p class="cv-page-desc mb-2">Último publish OK por path — útil para saber quem reconectou sem reiniciar o servidor.</p>
+                    <div class="cv-rtmp-scroll-panel table-responsive">
+                        <table class="table cv-table mb-0 cv-rtmp-table">
+                            <thead>
+                                <tr>
+                                    <th>Câmera</th>
+                                    <th>Path</th>
+                                    <th>IP</th>
+                                    <th>Status</th>
+                                    <th>Último publish</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tab-rtmp-health">
+                                <tr><td colspan="5"><div class="cv-empty">Carregando…</div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="cv-form-tab-panel cv-rtmp-tab-panel d-none" data-rtmp-panel="bans" role="tabpanel">
+                    <p class="cv-page-desc mb-2">IPs banidos nos seus clientes. Desbloqueie após corrigir a câmera.</p>
+                    <div class="cv-rtmp-scroll-panel table-responsive">
+                        <table class="table cv-table mb-0 cv-rtmp-table">
+                            <thead>
+                                <tr>
+                                    <th>IP</th>
+                                    <th>Motivo</th>
+                                    <th>Restante</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tab-rtmp-bans">
+                                <tr><td colspan="4"><div class="cv-empty">Carregando…</div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </main>
 
     {{ template "link-js" . }}
-    <script src="/recursos/modulos/confvision/urls.js?v=20260727rtmp1"></script>
-    <script src="/recursos/modulos/confvision/rtmp-falhas.js?v=20260729rtmp1"></script>
+    <script src="/recursos/modulos/confvision/urls.js?v=20260827rtmp1"></script>
+    <script src="/recursos/modulos/confvision/rtmp-falhas.js?v=20260910rtmptabs"></script>
 </body>
 </html>

@@ -3,6 +3,7 @@ package confvision
 import (
 	"confvision/src/conexao"
 	"confvision/src/config"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -11,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"confvision/src/modulos/visdata"
 )
 
 type cameraContexto struct {
@@ -172,6 +175,13 @@ func buscarContextoCamera(cameraID int) cameraContexto {
 }
 
 func fetchVisCamera(cameraID int) (map[string]any, bool) {
+	if config.VisPostgresEnabled {
+		cam, err := visdata.GetCameraByID(context.Background(), cameraID)
+		if err != nil {
+			return nil, false
+		}
+		return cam, true
+	}
 	if config.XanoBaseUrl == "" {
 		return nil, false
 	}

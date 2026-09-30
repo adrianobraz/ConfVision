@@ -4,12 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 )
 
 const rtmpAuthSelectSQL = `
 SELECT c.id, c.id_franqueado, c.ativo, c.bloqueado, c.protocolo, c.plano,
-       c.vis_licenca_id, l.status, l.valido_ate
+       c.vis_licenca_id, l.status, l.valido_ate,
+       c.analitico_pausado, c.stream_motivo_pausa
 FROM vis_camera c
 LEFT JOIN vis_licenca l ON l.id = c.vis_licenca_id
 `
@@ -21,6 +23,8 @@ type rtmpAuthRow struct {
 	licID                           sql.NullInt64
 	licStatus                       sql.NullString
 	licValido                       sql.NullTime
+	analiticoPausado                sql.NullBool
+	streamMotivoPausa               sql.NullString
 }
 
 func scanRTMPAuth(scanner interface {
@@ -30,6 +34,7 @@ func scanRTMPAuth(scanner interface {
 	err := scanner.Scan(
 		&row.id, &row.idFranqueado, &row.ativo, &row.bloqueado, &row.protocolo, &row.plano,
 		&row.licID, &row.licStatus, &row.licValido,
+		&row.analiticoPausado, &row.streamMotivoPausa,
 	)
 	return row, err
 }
@@ -53,6 +58,12 @@ func mapRTMPAuth(row rtmpAuthRow) map[string]any {
 	}
 	if row.licValido.Valid {
 		out["licenca_valido_ate"] = row.licValido.Time.UTC().Format(time.RFC3339)
+	}
+	out["analitico_pausado"] = nullBool(row.analiticoPausado)
+	if row.streamMotivoPausa.Valid && strings.TrimSpace(row.streamMotivoPausa.String) != "" {
+		out["stream_motivo_pausa"] = strings.TrimSpace(row.streamMotivoPausa.String)
+	} else {
+		out["stream_motivo_pausa"] = nil
 	}
 	return out
 }

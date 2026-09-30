@@ -3,11 +3,27 @@ let cacheBans = []
 let cacheOnline = []
 let cacheHealth = []
 
+const RTMP_TABS = ['falhas', 'online', 'publish', 'bans']
+
 $(document).ready(function () {
     confVisionAuthGuard()
     confVisionCarregarCabecalho()
+
+    let tabSalva = 'falhas'
+    try {
+        tabSalva = localStorage.getItem('rtmp_tab') || 'falhas'
+    } catch (e) { /* ignore */ }
+    ativarRtmpTab(tabSalva, false)
+
     carregarTudo()
     $('#btn-atualizar-rtmp-falhas').on('click', carregarTudo)
+    $('#rtmp-tabs').on('click', '[data-rtmp-tab]', function () {
+        ativarRtmpTab($(this).attr('data-rtmp-tab'), true)
+    })
+    $('#cv-rtmp-bans-card').on('click', function (e) {
+        e.preventDefault()
+        ativarRtmpTab('bans', true)
+    })
     $('#busca-rtmp-falhas').on('input', function () {
         renderFalhas()
     })
@@ -23,6 +39,21 @@ $(document).ready(function () {
     })
     setInterval(carregarTudo, 15000)
 })
+
+function ativarRtmpTab(tab, persistir) {
+    let t = String(tab || 'falhas')
+    if (RTMP_TABS.indexOf(t) < 0) t = 'falhas'
+
+    $('#rtmp-tabs .nav-link').removeClass('active')
+    $('#rtmp-tabs [data-rtmp-tab="' + t + '"]').addClass('active')
+
+    $('.cv-rtmp-tab-panel').addClass('d-none')
+    $('.cv-rtmp-tab-panel[data-rtmp-panel="' + t + '"]').removeClass('d-none')
+
+    if (persistir) {
+        try { localStorage.setItem('rtmp_tab', t) } catch (e) { /* ignore */ }
+    }
+}
 
 function esc(v) {
     return $('<div>').text(v == null ? '' : String(v)).html()
@@ -62,16 +93,14 @@ function renderOnline(aviso) {
         return
     }
     cacheOnline.forEach(function (o) {
-        const cam = o.camera_id != null ? String(o.camera_id) : '—'
-        const fra = o.id_franqueado_sufixo
-            ? '…' + o.id_franqueado_sufixo
-            : (o.legado ? 'legado (sem franq na URL)' : '—')
+        const cam = o.nome_camera || (o.camera_id != null ? ('Câmera #' + o.camera_id) : '—')
+        const cliente = o.nome_cliente || '—'
         const tracks = Array.isArray(o.tracks) ? o.tracks.join(', ') : ''
         $tb.append(
             '<tr>' +
             '<td data-label="Câmera"><strong>' + esc(cam) + '</strong>' +
-            (o.legado ? ' <span class="cv-badge">legado</span>' : '') + '</td>' +
-            '<td data-label="Franqueado"><code>' + esc(fra) + '</code></td>' +
+            (o.camera_id != null ? ' <span class="text-muted small">#' + esc(o.camera_id) + '</span>' : '') + '</td>' +
+            '<td data-label="Cliente">' + esc(cliente) + '</td>' +
             '<td data-label="Path"><code>' + esc(o.path_label || o.path || '—') + '</code></td>' +
             '<td data-label="IP"><code>' + esc(o.ip || '—') + '</code></td>' +
             '<td data-label="Tracks">' + esc(tracks || '—') + '</td>' +
@@ -129,17 +158,32 @@ function renderHealth() {
     })
 }
 
+function atualizarRtmpBansCard(total) {
+    const n = total || 0
+    const $card = $('#cv-rtmp-bans-card')
+    $card.toggleClass('cv-ip-bans-link-alert', n > 0)
+    $('#cv-rtmp-bans-ver').toggleClass('d-none', n <= 0)
+    if (n > 0) {
+        $card.attr('title', 'Ver ' + n + ' IP(s) banido(s) — clique para abrir')
+    } else {
+        $card.attr('title', 'Nenhum IP banido no momento')
+    }
+}
+
 function carregarBans() {
-    $.get('/api/rtmp-bans')
+    $.get('/api/rtmp-bans/franqueado')
         .fail(function () {
             $('#tab-rtmp-bans').html(
                 '<tr><td colspan="4"><div class="cv-empty">Não foi possível carregar bans (RTMP_GUARD_URL?).</div></td></tr>'
             )
             $('#lbl-rtmp-bans').text('0')
+            atualizarRtmpBansCard(0)
         })
         .done(function (r) {
             cacheBans = (r && r.dados) || []
-            $('#lbl-rtmp-bans').text(cacheBans.length)
+            const total = r && r.total != null ? r.total : cacheBans.length
+            $('#lbl-rtmp-bans').text(total)
+            atualizarRtmpBansCard(total)
             renderBans()
         })
 }
@@ -147,14 +191,16 @@ function carregarBans() {
 function renderBans() {
     const $tb = $('#tab-rtmp-bans').empty()
     if (!cacheBans.length) {
-        $tb.append('<tr><td colspan="4"><div class="cv-empty">Nenhum IP banido no momento.</div></td></tr>')
+        $tb.append('<tr><td colspan="4"><div class="cv-empty">Nenhum IP banido nos seus clientes.</div></td></tr>')
         return
     }
     cacheBans.forEach(function (b) {
         const min = Math.ceil((b.restante_sec || 0) / 60)
+        const extra = b.nome_camera ? (' — ' + b.nome_camera) : ''
         $tb.append(
             '<tr>' +
-            '<td data-label="IP"><code>' + esc(b.ip) + '</code></td>' +
+            '<td data-label="IP"><code>' + esc(b.ip) + '</code>' +
+            (extra ? '<div class="small text-muted">' + esc(b.nome_cliente || '') + extra + '</div>' : '') + '</td>' +
             '<td data-label="Motivo">' + esc(b.motivo || '') + (b.manual ? ' <span class="cv-badge">manual</span>' : '') + '</td>' +
             '<td data-label="Restante">' + esc(min) + ' min</td>' +
             '<td data-label="">' +
@@ -166,19 +212,22 @@ function renderBans() {
 }
 
 function desbanir(ip) {
-    $.ajax({
-        url: '/api/rtmp-bans/unban',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({ ip: ip })
+    CvMsg.confirmar('Desbloquear IP?', 'Deseja desbloquear o IP ' + ip + '?').then(function (r) {
+        if (!r.isConfirmed) return
+        $.ajax({
+            url: '/api/rtmp-bans/unban',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ ip: ip })
+        })
+            .done(function () {
+                carregarBans()
+            })
+            .fail(function (xhr) {
+                const msg = (xhr.responseJSON && xhr.responseJSON.status) || 'Falha ao desbanir'
+                boxMesagemAtencaoPersonalizada(msg)
+            })
     })
-        .done(function () {
-            carregarBans()
-        })
-        .fail(function (xhr) {
-            const msg = (xhr.responseJSON && xhr.responseJSON.status) || 'Falha ao desbanir'
-            boxMesagemAtencaoPersonalizada(msg)
-        })
 }
 
 function banir(ip) {
@@ -268,12 +317,7 @@ function renderFalhas() {
             '<div class="small text-muted mt-1">' + esc(f.motivo_raw || '') + '</div></td>' +
             '<td data-label="Vezes">' + esc(f.vezes || 1) + '</td>' +
             '<td data-label="Dica">' + esc(f.dica || '') + '</td>' +
-            '<td data-label="">' +
-            (f.ip
-                ? '<button type="button" class="cv-btn-ghost btn-rtmp-ban btn-sm" data-ip="' + esc(f.ip) + '" title="Banir IP">' +
-                  '<i class="bi bi-slash-circle"></i></button>'
-                : '') +
-            '</td>' +
+            '<td data-label=""></td>' +
             '</tr>'
         )
     })

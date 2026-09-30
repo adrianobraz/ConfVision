@@ -2,6 +2,8 @@ package confvision
 
 import (
 	"confvision/src/auxiliar"
+	"confvision/src/config"
+	"confvision/src/modulos/visdata"
 	"confvision/src/seguranca"
 	"encoding/json"
 	"fmt"
@@ -384,8 +386,8 @@ func ProxyCamerasFranqueado(w http.ResponseWriter, r *http.Request) {
 }
 
 func fetchCamerasFranqueado(r *http.Request, idFranqueado string) ([]map[string]any, error) {
-	if configVisPostgres() {
-		return visdataListCamerasByFranqueado(r, idFranqueado)
+	if config.VisPostgresEnabled {
+		return visdata.ListCamerasByFranqueado(r.Context(), idFranqueado)
 	}
 	path := fmt.Sprintf("/vis_camera_by_franqueado?id_franqueado=%s", idFranqueado)
 	status, raw, ok := fetchXano(http.MethodGet, path)
@@ -393,19 +395,6 @@ func fetchCamerasFranqueado(r *http.Request, idFranqueado string) ([]map[string]
 		return nil, fmt.Errorf("falha ao listar cameras")
 	}
 	return parseListaCamerasJSON(raw)
-}
-
-func configVisPostgres() bool {
-	return configEnabledPostgres()
-}
-
-// evita import cycle — wrappers mínimos
-func configEnabledPostgres() bool {
-	return configVisEnabled()
-}
-
-func visdataListCamerasByFranqueado(r *http.Request, idFranqueado string) ([]map[string]any, error) {
-	return listCamerasByFranqueadoCtx(r.Context(), idFranqueado)
 }
 
 func coletarClientesIDs(lista []map[string]any) []string {

@@ -103,25 +103,56 @@ ORDER BY vis_camera_id, id`)
 
 func (r *Repository) GetCameraRTMPAuth(cameraID int) (map[string]any, error) {
 	row := r.db.QueryRow(`
-SELECT id, id_franqueado, ativo, bloqueado, protocolo, plano
-FROM vis_camera WHERE id = $1`, cameraID)
+SELECT c.id, c.id_franqueado, c.ativo, c.bloqueado, c.protocolo, c.plano,
+       c.vis_licenca_id, l.status, l.valido_ate,
+       c.analitico_pausado, c.stream_motivo_pausa
+FROM vis_camera c
+LEFT JOIN vis_licenca l ON l.id = c.vis_licenca_id
+WHERE c.id = $1`, cameraID)
 
 	var id int
 	var idFranqueado, protocolo, plano sql.NullString
 	var ativo, bloqueado sql.NullBool
+	var licID sql.NullInt64
+	var licStatus sql.NullString
+	var licValido sql.NullTime
+	var analiticoPausado sql.NullBool
+	var streamMotivoPausa sql.NullString
 
-	if err := row.Scan(&id, &idFranqueado, &ativo, &bloqueado, &protocolo, &plano); err != nil {
+	if err := row.Scan(
+		&id, &idFranqueado, &ativo, &bloqueado, &protocolo, &plano,
+		&licID, &licStatus, &licValido,
+		&analiticoPausado, &streamMotivoPausa,
+	); err != nil {
 		return nil, err
 	}
 
-	return map[string]any{
+	out := map[string]any{
 		"id":            id,
 		"id_franqueado": nullStr(idFranqueado),
 		"ativo":         nullBool(ativo),
 		"bloqueado":     nullBool(bloqueado),
 		"protocolo":     nullStr(protocolo),
 		"plano":         nullStr(plano),
-	}, nil
+	}
+	if licID.Valid {
+		out["vis_licenca_id"] = licID.Int64
+	} else {
+		out["vis_licenca_id"] = nil
+	}
+	if licStatus.Valid {
+		out["licenca_status"] = licStatus.String
+	}
+	if licValido.Valid {
+		out["licenca_valido_ate"] = licValido.Time.UTC().Format(time.RFC3339)
+	}
+	out["analitico_pausado"] = nullBool(analiticoPausado)
+	if streamMotivoPausa.Valid && strings.TrimSpace(streamMotivoPausa.String) != "" {
+		out["stream_motivo_pausa"] = strings.TrimSpace(streamMotivoPausa.String)
+	} else {
+		out["stream_motivo_pausa"] = nil
+	}
+	return out, nil
 }
 
 type WorkerPingInput struct {

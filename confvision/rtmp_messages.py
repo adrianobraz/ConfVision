@@ -31,6 +31,22 @@ MOTIVOS = {
         "Use o path cam/{hash12} exatamente como no cadastro ConfVision.",
         "error",
     ),
+    "stream_pausado_sistema": (
+        "Publicação RTMP pausada pelo sistema",
+        "O analítico foi pausado por falha de stream (404/NAL/retry). Corrija o encode ou o path RTMP "
+        "e use Reativar stream no painel ConfVision antes de publicar de novo.",
+        "warn",
+    ),
+    "camera_inativa": (
+        "Câmera inativa no cadastro",
+        "Ative a câmera no painel ou use plano online se for sob demanda.",
+        "info",
+    ),
+    "camera_bloqueada": (
+        "Câmera bloqueada (RTMP)",
+        "Desbloqueie em Câmeras ou contate o suporte.",
+        "warn",
+    ),
     "terminated": (
         "Conexão encerrada pelo servidor",
         "Reinício do MediaMTX ou encerramento administrativo. Normal após deploy.",

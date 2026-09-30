@@ -242,3 +242,10 @@ func truncateStreamText(s string, max int) string {
 	}
 	return s[:max]
 }
+
+func nullStrVal(v sql.NullString) any {
+	if v.Valid && strings.TrimSpace(v.String) != "" {
+		return v.String
+	}
+	return nil
+}

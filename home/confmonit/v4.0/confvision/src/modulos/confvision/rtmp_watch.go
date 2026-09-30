@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"confvision/src/auxiliar"
 	"confvision/src/config"
+	"confvision/src/modulos/visdata"
 	"confvision/src/seguranca"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -126,7 +126,7 @@ func ProxyRtmpFalhas(w http.ResponseWriter, r *http.Request) {
 	if q != "" {
 		path += "?" + q
 	}
-	proxyGuardJSONEnriched(w, http.MethodGet, path, nil)
+	proxyGuardJSONEnrichedFiltrado(w, r, http.MethodGet, path, nil)
 }
 
 func ProxyRtmpFalhasResumo(w http.ResponseWriter, r *http.Request) {
@@ -150,7 +150,7 @@ func ProxyRtmpOnline(w http.ResponseWriter, r *http.Request) {
 		auxiliar.RespostaAPP(w, []byte(`{"status":"rtmp guard nao configurado","dados":[],"aviso":"Defina RTMP_GUARD_URL no .env"}`))
 		return
 	}
-	proxyGuardJSONEnriched(w, http.MethodGet, "/online", nil)
+	proxyGuardJSONEnrichedFiltrado(w, r, http.MethodGet, "/online", nil)
 }
 
 func ProxyRtmpPublishHealth(w http.ResponseWriter, r *http.Request) {
@@ -163,12 +163,11 @@ func ProxyRtmpPublishHealth(w http.ResponseWriter, r *http.Request) {
 	if q != "" {
 		path += "?" + q
 	}
-	proxyGuardJSONEnriched(w, http.MethodGet, path, nil)
+	proxyGuardJSONEnrichedFiltrado(w, r, http.MethodGet, path, nil)
 }
 
 func ProxyRtmpUnban(w http.ResponseWriter, r *http.Request) {
-	body, _ := io.ReadAll(r.Body)
-	proxyGuardJSON(w, http.MethodPost, "/unban", body)
+	ProxyRtmpUnbanSeguro(w, r)
 }
 
 func ProxyRtmpBan(w http.ResponseWriter, r *http.Request) {
@@ -193,13 +192,9 @@ func ProxyRtmpPublishURL(w http.ResponseWriter, r *http.Request) {
 	idFraSessao := seguranca.IdFranqueadoDoCookie(cookie)
 
 	ctx := r.Context()
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	cam, err := getCameraOperacional(ctx, cameraID)
 	if err != nil {
-		msg := err.Error()
-		if strings.Contains(msg, "nao encontrada") {
+		if strings.Contains(err.Error(), "nao encontrada") {
 			auxiliar.RespostaErro(w, http.StatusNotFound, err)
 			return
 		}
@@ -276,35 +271,55 @@ func ProxyRtmpPublishURL(w http.ResponseWriter, r *http.Request) {
 	auxiliar.RespostaAPP(w, out)
 }
 
-// ProxyBloquearCamera marca bloqueado no Xano e invalida cache do guard.
+// ProxyBloquearCamera marca bloqueado no Postgres (ou Xano legado) e invalida cache do guard.
 func ProxyBloquearCamera(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	body, _ := io.ReadAll(r.Body)
 	var payload map[string]any
 	_ = json.Unmarshal(body, &payload)
-	if _, ok := payload["bloqueado"]; !ok {
-		payload["bloqueado"] = true
+	bloq := true
+	if v, ok := payload["bloqueado"]; ok {
+		bloq = truthyCameraBool(v)
 	}
-	raw, _ := json.Marshal(payload)
 
-	u := fmt.Sprintf("%s/vis_camera/bloquear/%s?vis_camera_id=%s",
-		strings.TrimRight(config.XanoBaseUrl, "/"), id, id)
-	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(raw))
-	if err != nil {
-		auxiliar.RespostaErro(w, http.StatusInternalServerError, err)
+	cameraID, err := strconv.Atoi(strings.TrimSpace(id))
+	if err != nil || cameraID < 1 {
+		auxiliar.RespostaErro(w, http.StatusBadRequest, fmt.Errorf("id de camera invalido"))
 		return
 	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		auxiliar.RespostaErro(w, http.StatusBadGateway, err)
-		return
-	}
-	defer resp.Body.Close()
-	corpo, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode >= 400 {
-		auxiliar.RespostaErro(w, http.StatusBadGateway, fmt.Errorf("xano HTTP %d: %s", resp.StatusCode, string(corpo)))
-		return
+
+	var corpo []byte
+	if config.VisPostgresEnabled {
+		out, err := visdata.SetCameraBloqueado(r.Context(), cameraID, bloq)
+		if err != nil {
+			auxiliar.RespostaErro(w, http.StatusBadGateway, err)
+			return
+		}
+		corpo, _ = json.Marshal(out)
+	} else {
+		if _, ok := payload["bloqueado"]; !ok {
+			payload["bloqueado"] = true
+		}
+		raw, _ := json.Marshal(payload)
+		u := fmt.Sprintf("%s/vis_camera/bloquear/%s?vis_camera_id=%s",
+			strings.TrimRight(config.XanoBaseUrl, "/"), id, id)
+		req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(raw))
+		if err != nil {
+			auxiliar.RespostaErro(w, http.StatusInternalServerError, err)
+			return
+		}
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			auxiliar.RespostaErro(w, http.StatusBadGateway, err)
+			return
+		}
+		defer resp.Body.Close()
+		corpo, _ = io.ReadAll(resp.Body)
+		if resp.StatusCode >= 400 {
+			auxiliar.RespostaErro(w, http.StatusBadGateway, fmt.Errorf("xano HTTP %d: %s", resp.StatusCode, string(corpo)))
+			return
+		}
 	}
 
 	// invalida cache do guard (best-effort)

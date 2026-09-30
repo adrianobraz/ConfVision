@@ -14,6 +14,16 @@ MOTIVOS_SOFT = frozenset(
     {"eof_sem_publish", "path_barra_final", "closed_outro", "auth_guard_indisponivel"}
 )
 
+# Estado esperado do cadastro — negar publish sem contar falha / auto-ban de IP.
+MOTIVOS_NO_BAN = frozenset(
+    {
+        "camera_inativa",
+        "camera_bloqueada",
+        "stream_pausado_sistema",
+        "analitico_pausado",
+    }
+)
+
 
 @dataclass
 class BanEntry:
@@ -71,7 +81,7 @@ class BanStore:
 
     def _limites(self, motivo: str) -> _Limites:
         m = (motivo or "").strip()
-        if m == "auth_guard_indisponivel":
+        if m == "auth_guard_indisponivel" or m in MOTIVOS_NO_BAN:
             return _Limites(max_fails=0, window_sec=60, ban_ttl_sec=60)
         if m in MOTIVOS_SOFT:
             return self.soft

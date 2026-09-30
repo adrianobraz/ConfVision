@@ -7,7 +7,7 @@ Documenta o fluxo **comercial** (ConfVision) versus a **política automática de
 | Conceito | Onde | Efeito |
 |----------|------|--------|
 | **`ativo`** | Postgres + painel | Se `false`, a câmera **não entra** no sync de câmeras ativas do worker → task da câmera **para** (sem loop RTSP). |
-| **`analitico_pausado`** | Postgres + painel | Pode ser manual ou **`sistema_stream_*`** (automático). Analítico/YOLO pausado; RTSP pode continuar conforme config local. |
+| **`analitico_pausado`** | Postgres + painel | Pode ser manual ou **`sistema_stream_*`** (automático). Analítico/YOLO pausado; RTSP no Rust para após pausa sistema; **RTMP publish negado** no Guard quando `stream_motivo_pausa` começa com `sistema_stream`. |
 | **`stream_policy_generation`** | Postgres | Contador lógico; quando **sobe**, o Rust **zera** contadores locais de retry e recomeça política. |
 | **Stream policy (Rust)** | Processor | Backoff, pausa analítica automática, ping `camera_stream_health`. |
 

@@ -67,33 +67,3 @@ func EnrichCameraStreamURLs(ctx context.Context, cam map[string]any) {
 		cam["hls_url"] = hlsBase + "/" + path + "/index.m3u8"
 	}
 }
-
-func RtspBaseForMediamtxNode(node *MediamtxNode) string {
-	if node != nil {
-		if s := sqlString(node.RtspInternal); s != "" {
-			return strings.TrimRight(s, "/")
-		}
-	}
-	return strings.TrimRight(strings.TrimSpace(config.MediamtxRtspBase), "/")
-}
-
-func DefaultMediamtxRtspURLSec(cameraID int, rtspBase string) string {
-	path := CameraStreamPath(cameraID)
-	base := strings.TrimRight(strings.TrimSpace(rtspBase), "/")
-	if path == "" || base == "" {
-		return ""
-	}
-	return base + "/" + path
-}
-
-func DefaultMediamtxRtspURLSecForNode(cameraID int, node *MediamtxNode) string {
-	return DefaultMediamtxRtspURLSec(cameraID, RtspBaseForMediamtxNode(node))
-}
-
-func shouldAutoFillRtspURLSec(current string) bool {
-	s := strings.TrimSpace(current)
-	if s == "" {
-		return true
-	}
-	return strings.Contains(strings.ToLower(s), "/live/")
-}

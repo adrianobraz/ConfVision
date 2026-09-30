@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 )
 
 type MediamtxNode struct {
@@ -25,11 +26,12 @@ func PickMediamtxNode(ctx context.Context) (*MediamtxNode, error) {
 	}
 
 	rows, err := db.QueryContext(ctx, `
-SELECT id, nome, rtmp_public, hls_public, rtsp_internal,
-       COALESCE(max_cameras, 200), COALESCE(ordem, 1), COALESCE(status, 'ativo')
-FROM vis_mediamtx_node
-WHERE status = 'ativo'
-ORDER BY ordem ASC, id ASC`)
+SELECT n.id, n.nome, n.rtmp_public, n.hls_public, n.rtsp_internal,
+       COALESCE(n.max_cameras, 200), COALESCE(n.ordem, 1), COALESCE(n.status, 'ativo'),
+       (SELECT COUNT(*) FROM vis_camera c WHERE c.vis_mediamtx_node_id = n.id) AS cameras_atribuidas
+FROM vis_mediamtx_node n
+WHERE n.status = 'ativo'
+ORDER BY n.ordem ASC, n.id ASC`)
 	if err != nil {
 		return nil, err
 	}
@@ -40,13 +42,9 @@ ORDER BY ordem ASC, id ASC`)
 
 	for rows.Next() {
 		var n MediamtxNode
-		if err := rows.Scan(&n.ID, &n.Nome, &n.RtmpPublic, &n.HlsPublic, &n.RtspInternal,
-			&n.MaxCameras, &n.Ordem, &n.Status); err != nil {
-			return nil, err
-		}
 		var total int
-		if err := db.QueryRowContext(ctx, `
-SELECT COUNT(*) FROM vis_camera WHERE vis_mediamtx_node_id = $1`, n.ID).Scan(&total); err != nil {
+		if err := rows.Scan(&n.ID, &n.Nome, &n.RtmpPublic, &n.HlsPublic, &n.RtspInternal,
+			&n.MaxCameras, &n.Ordem, &n.Status, &total); err != nil {
 			return nil, err
 		}
 		n.CamerasAtribuidas = total
@@ -55,6 +53,9 @@ SELECT COUNT(*) FROM vis_camera WHERE vis_mediamtx_node_id = $1`, n.ID).Scan(&to
 			best = &c
 			bestCount = total
 		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	if best == nil {
 		return nil, fmt.Errorf("Todos os nos MediaMTX estao cheios — cadastre um novo servidor ou aumente max_cameras")
@@ -72,6 +73,89 @@ func SyncMediamtxNode(ctx context.Context, nodeID int) error {
 	}
 	_, err = db.ExecContext(ctx, `SELECT vis_mediamtx_node_recalc_pontos($1)`, nodeID)
 	return err
+}
+
+func getMediamtxNodeByID(ctx context.Context, nodeID int) (*MediamtxNode, int, error) {
+	db, err := DB()
+	if err != nil {
+		return nil, 0, err
+	}
+	var n MediamtxNode
+	var total int
+	err = db.QueryRowContext(ctx, `
+SELECT n.id, n.nome, n.rtmp_public, n.hls_public, n.rtsp_internal,
+       COALESCE(n.max_cameras, 200), COALESCE(n.ordem, 1), COALESCE(n.status, 'ativo'),
+       (SELECT COUNT(*) FROM vis_camera c WHERE c.vis_mediamtx_node_id = n.id) AS cameras_atribuidas
+FROM vis_mediamtx_node n
+WHERE n.id = $1`, nodeID).Scan(
+		&n.ID, &n.Nome, &n.RtmpPublic, &n.HlsPublic, &n.RtspInternal,
+		&n.MaxCameras, &n.Ordem, &n.Status, &total,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, 0, fmt.Errorf("No MediaMTX da camera nao encontrado")
+		}
+		return nil, 0, err
+	}
+	n.CamerasAtribuidas = total
+	return &n, total, nil
+}
+
+func assignMediamtxNodeToCamera(ctx context.Context, cameraID, nodeID int) error {
+	db, err := DB()
+	if err != nil {
+		return err
+	}
+	_, err = db.ExecContext(ctx, `UPDATE vis_camera SET vis_mediamtx_node_id = $2 WHERE id = $1`, cameraID, nodeID)
+	return err
+}
+
+// ResolveMediamtxForCamera retorna URLs RTMP/HLS/RTSP do no da camera (atribui no se ausente).
+func ResolveMediamtxForCamera(ctx context.Context, cameraID int, atribuirSeAusente bool) (map[string]any, error) {
+	cam, err := GetCameraByID(ctx, cameraID)
+	if err != nil {
+		return nil, err
+	}
+
+	nodeID := intVal(cam, "vis_mediamtx_node_id")
+	if nodeID <= 0 && atribuirSeAusente {
+		picked, err := PickMediamtxNode(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if err := assignMediamtxNodeToCamera(ctx, cameraID, picked.ID); err != nil {
+			return nil, err
+		}
+		_ = SyncMediamtxNode(ctx, picked.ID)
+		nodeID = picked.ID
+	}
+	if nodeID <= 0 {
+		return nil, fmt.Errorf("Camera sem no MediaMTX — nenhum servidor disponivel")
+	}
+
+	node, total, err := getMediamtxNodeByID(ctx, nodeID)
+	if err != nil {
+		return nil, err
+	}
+
+	rtmpPublic := sqlStr(node.RtmpPublic)
+	hlsPublic := sqlStr(node.HlsPublic)
+	rtspInternal := sqlStr(node.RtspInternal)
+	if rtspInternal == "" {
+		rtspInternal = "rtsp://127.0.0.1:8554"
+	}
+
+	return map[string]any{
+		"vis_camera_id":        cameraID,
+		"vis_mediamtx_node_id": node.ID,
+		"nome":                 node.Nome,
+		"rtmp_public":          rtmpPublic,
+		"hls_public":           hlsPublic,
+		"rtsp_internal":        rtspInternal,
+		"max_cameras":          node.MaxCameras,
+		"cameras_atribuidas":   total,
+		"status":               node.Status,
+	}, nil
 }
 
 func ListMediamtxNodes(ctx context.Context) ([]map[string]any, error) {
@@ -117,78 +201,9 @@ ORDER BY n.ordem ASC, n.id ASC`)
 	return out, rows.Err()
 }
 
-func loadMediamtxNodeByID(ctx context.Context, nodeID int) (map[string]any, error) {
-	db, err := DB()
-	if err != nil {
-		return nil, err
+func sqlStr(v sql.NullString) string {
+	if !v.Valid {
+		return ""
 	}
-	var id, maxCam, ordem, atrib int
-	var created sql.NullTime
-	var nome, rtmp, hls, rtsp, status, obs sql.NullString
-	err = db.QueryRowContext(ctx, `
-SELECT n.id, n.created_at, n.nome, n.rtmp_public, n.hls_public, n.rtsp_internal,
-       COALESCE(n.max_cameras, 200), COALESCE(n.ordem, 1), COALESCE(n.status, 'ativo'), n.observacao,
-       (SELECT COUNT(*) FROM vis_camera c WHERE c.vis_mediamtx_node_id = n.id) AS cameras_atribuidas
-FROM vis_mediamtx_node n
-WHERE n.id = $1`, nodeID).Scan(&id, &created, &nome, &rtmp, &hls, &rtsp, &maxCam, &ordem, &status, &obs, &atrib)
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("no MediaMTX nao encontrado")
-	}
-	if err != nil {
-		return nil, err
-	}
-	return map[string]any{
-		"id":                    id,
-		"vis_mediamtx_node_id":  id,
-		"created_at":            nullTime(created),
-		"nome":                  nullStr(nome),
-		"rtmp_public":           nullStr(rtmp),
-		"hls_public":            nullStr(hls),
-		"rtsp_internal":         nullStr(rtsp),
-		"max_cameras":           maxCam,
-		"ordem":                 ordem,
-		"status":                nullStr(status),
-		"observacao":            nullStr(obs),
-		"cameras_atribuidas":    atrib,
-		"vagas_restantes":       maxCam - atrib,
-	}, nil
-}
-
-// ResolveMediamtxForCamera retorna URLs do no MediaMTX da camera; opcionalmente atribui no se ausente.
-func ResolveMediamtxForCamera(ctx context.Context, cameraID int, atribuirSeAusente bool) (map[string]any, error) {
-	if cameraID <= 0 {
-		return nil, fmt.Errorf("camera_id invalido")
-	}
-	db, err := DB()
-	if err != nil {
-		return nil, err
-	}
-	var nodeID sql.NullInt64
-	if err := db.QueryRowContext(ctx, `SELECT vis_mediamtx_node_id FROM vis_camera WHERE id = $1`, cameraID).Scan(&nodeID); err == sql.ErrNoRows {
-		return nil, fmt.Errorf("camera nao encontrada")
-	} else if err != nil {
-		return nil, err
-	}
-
-	if !nodeID.Valid || nodeID.Int64 <= 0 {
-		if !atribuirSeAusente {
-			return nil, fmt.Errorf("camera sem no MediaMTX atribuido")
-		}
-		node, err := PickMediamtxNode(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if _, err := db.ExecContext(ctx, `UPDATE vis_camera SET vis_mediamtx_node_id = $2 WHERE id = $1`, cameraID, node.ID); err != nil {
-			return nil, err
-		}
-		_ = SyncMediamtxNode(ctx, node.ID)
-		return loadMediamtxNodeByID(ctx, node.ID)
-	}
-
-	out, err := loadMediamtxNodeByID(ctx, int(nodeID.Int64))
-	if err != nil {
-		return nil, err
-	}
-	out["vis_camera_id"] = cameraID
-	return out, nil
+	return strings.TrimSpace(v.String)
 }

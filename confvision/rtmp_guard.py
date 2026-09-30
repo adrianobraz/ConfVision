@@ -19,9 +19,14 @@ def _env(name: str, default: str = "") -> str:
 def _truthy(v: Any) -> bool:
     if v is True or v == 1:
         return True
-    if isinstance(v, str) and v.strip().lower() in ("1", "true", "yes", "sim"):
+    if isinstance(v, str) and v.strip().lower() in ("1", "true", "yes", "sim", "s"):
         return True
     return False
+
+
+def _stream_pausado_pelo_sistema(cam: dict[str, Any]) -> bool:
+    motivo = str(cam.get("stream_motivo_pausa") or "").strip()
+    return motivo.startswith("sistema_stream")
 
 
 def _meta(path: str = "", hash_: str = "", camera_id: Any = None, plano: str = "") -> dict[str, Any]:
@@ -62,7 +67,7 @@ class RtmpGuard:
         self.secret = publish_secret()
         self.dvr_user = _env("MEDIAMTX_API_USER", "dvr")
         self.dvr_pass = _env("MEDIAMTX_API_PASS")
-        self.cache = CameraCache(ttl_sec=int(_env("RTMP_AUTH_CACHE_SEC", "45") or "45"))
+        self.cache = CameraCache(ttl_sec=int(_env("RTMP_AUTH_CACHE_SEC", "10") or "10"))
         # 0 = read/playback passam pela mesma regra de publish (bloqueado/ativo/plano)
         self.allow_read_open = _env("RTMP_ALLOW_READ_OPEN", "0") in ("1", "true", "yes")
 
@@ -127,15 +132,17 @@ class RtmpGuard:
         meta["plano"] = plano
 
         if _truthy(cam.get("bloqueado")):
-            self._fail(ip, "camera_bloqueada")
             return 403, "camera_bloqueada", meta
+
+        if _stream_pausado_pelo_sistema(cam):
+            meta["stream_motivo_pausa"] = str(cam.get("stream_motivo_pausa") or "").strip()
+            return 403, "stream_pausado_sistema", meta
 
         # Plano online grava ativo=false de propósito (sob demanda).
         # OK se: bloqueado=false E (ativo=true OU plano=online).
         if plano == "online" or _truthy(cam.get("ativo")):
             return 200, ok_motivo, meta
 
-        self._fail(ip, "camera_inativa")
         return 403, "camera_inativa", meta
 
     def _fail(self, ip: str, motivo: str) -> None:
