@@ -334,6 +334,13 @@ def main():
         flush=True,
     )
 
+    server = ThreadingHTTPServer(("0.0.0.0", port), Handler)
+    print(
+        f"[RTMP-GUARD] HTTP 0.0.0.0:{port}  POST /auth /ban /unban  "
+        f"GET /falhas /bans /online /health/publishers /health",
+        flush=True,
+    )
+
     t = threading.Thread(
         target=follow_file,
         args=(log_file, PARSER, STORE, json_out),
@@ -342,12 +349,6 @@ def main():
     )
     t.start()
 
-    server = ThreadingHTTPServer(("0.0.0.0", port), Handler)
-    print(
-        f"[RTMP-GUARD] HTTP 0.0.0.0:{port}  POST /auth /ban /unban  "
-        f"GET /falhas /bans /online /health/publishers /health",
-        flush=True,
-    )
     server.serve_forever()
 
 

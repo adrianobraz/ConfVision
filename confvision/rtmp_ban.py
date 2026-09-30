@@ -10,7 +10,9 @@ from pathlib import Path
 from typing import Optional
 
 # Falhas de config/rede do cliente — ban mais tolerante (ou desligado).
-MOTIVOS_SOFT = frozenset({"eof_sem_publish", "path_barra_final", "closed_outro"})
+MOTIVOS_SOFT = frozenset(
+    {"eof_sem_publish", "path_barra_final", "closed_outro", "auth_guard_indisponivel"}
+)
 
 
 @dataclass
@@ -68,7 +70,10 @@ class BanStore:
         self._load()
 
     def _limites(self, motivo: str) -> _Limites:
-        if (motivo or "").strip() in MOTIVOS_SOFT:
+        m = (motivo or "").strip()
+        if m == "auth_guard_indisponivel":
+            return _Limites(max_fails=0, window_sec=60, ban_ttl_sec=60)
+        if m in MOTIVOS_SOFT:
             return self.soft
         return self.hard
 

@@ -20,6 +20,12 @@ MOTIVOS = {
         "Chave RTMP inválida. Use a URL cam/{hash} gerada no ConfVision (sem ?pass=).",
         "error",
     ),
+    "auth_guard_indisponivel": (
+        "Guard RTMP indisponível no boot",
+        "MediaMTX tentou autenticar antes do Guard na :8100. Reinicie confvision ou aguarde; "
+        "não é falha de chave da câmera.",
+        "info",
+    ),
     "path_invalido": (
         "Nome de path inválido",
         "Use o path cam/{hash12} exatamente como no cadastro ConfVision.",
@@ -50,6 +56,8 @@ MOTIVOS = {
 
 def classificar_motivo(raw: str) -> str:
     texto = (raw or "").strip().lower()
+    if "connection refused" in texto and ":8100" in texto:
+        return "auth_guard_indisponivel"
     if "can't end with a slash" in texto or "cant end with a slash" in texto:
         return "path_barra_final"
     if "authentication failed" in texto or "invalid credentials" in texto:
