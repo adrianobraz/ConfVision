@@ -43,13 +43,21 @@ func Dispatch(ctx context.Context, method, pathWithQuery string, body io.Reader)
 		return okJSON(map[string]any{"status": "ok", "enabled": true, "postgres": "ok"})
 
 	case method == http.MethodGet && path == "/vis_rust_processor_capacity":
-		rows, err := FetchAllProcessorCapacity(ctx)
+		servidorID := strings.TrimSpace(q.Get("servidor_id"))
+		var rows []ProcessorCapacityRow
+		var err error
+		if servidorID != "" {
+			rows, err = FetchProcessorCapacityScoped(ctx, servidorID)
+		} else {
+			rows, err = FetchAllProcessorCapacity(ctx)
+		}
 		if err != nil {
 			return errJSON(err)
 		}
 		return okJSON(map[string]any{
-			"processors": rows,
-			"urls":       RustProcessorBaseURLs(),
+			"processors":             rows,
+			"servidor_id_filter":     servidorID,
+			"urls":                   RustProcessorBaseURLs(),
 			"d5_auto_assign_enabled": D5AutoAssignEnabled(),
 		})
 
@@ -69,7 +77,11 @@ func Dispatch(ctx context.Context, method, pathWithQuery string, body io.Reader)
 			}
 			return okJSON(map[string]any{"ok": true, "camera": out, "worker_id": forceWorker, "reason": "manual"})
 		}
-		wid, meta, err := AutoAssignCameraWorker(ctx, cameraID)
+		servidorScope := strings.TrimSpace(strVal(payload, "servidor_id"))
+		if servidorScope == "" {
+			servidorScope = strings.TrimSpace(q.Get("servidor_id"))
+		}
+		wid, meta, err := AutoAssignCameraWorkerScoped(ctx, cameraID, servidorScope)
 		if err != nil {
 			return bizErrJSON(err)
 		}

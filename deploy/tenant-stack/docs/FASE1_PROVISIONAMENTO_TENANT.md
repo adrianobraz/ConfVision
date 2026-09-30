@@ -6,7 +6,7 @@ Exemplos de nome:
 
 - `ct_cli_rva` (200 câmeras)
 - `ct_cli_powerseg` (200 câmeras)
-- `ct_cli_softpark-shard-042` (fatia de 200–400 em escala Softpark)
+- `ct_cli_shard-042` (fatia de 200–400 em escala ConfVision)
 
 Sem alteração no Xano.
 
@@ -22,7 +22,7 @@ Servidor Proxmox (GPU, ~400 detecções)
 
 Cada **tenant** = stack mínima (3 serviços) + câmeras no Postgres com `worker_id` daquele tenant (processamento Rust).
 
-**MediaMTX:** pode ser **por tenant** (Compose abaixo) ou **compartilhado no host** (EasyPanel `confvision` único + vários Rust). Compose exemplo = MTX **por tenant** (isolamento simples).
+**MediaMTX:** padrão ConfVision (U1) = **compartilhado no host** — ver [`docker-compose.host.example.yml`](../docker-compose.host.example.yml) + [`PLANO_ATUALIZACAO_CONFVISION_ESCALA.md`](./PLANO_ATUALIZACAO_CONFVISION_ESCALA.md). Compose tenant isolado = MTX **por tenant** (lab).
 
 ---
 
@@ -127,7 +127,7 @@ UPDATE vis_camera SET worker_id = '<worker_python_anterior>' WHERE id = <id>;
 
 ---
 
-## 8. Escala Softpark (referência)
+## 8. Escala ConfVision (referência)
 
 200.000 câmeras ÷ 400 câmeras/GPU ≈ **500 servidores**.  
 Cada servidor repete este playbook com `TENANT_ID` diferente por fatia (`ct_cli_softpark-001` …).
