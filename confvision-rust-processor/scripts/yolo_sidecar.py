@@ -28,6 +28,18 @@ _active_lock = threading.Lock()
 model = YOLO(MODEL)
 
 
+def _write_json_response(handler: BaseHTTPRequestHandler, status: int, body: bytes) -> None:
+    """Evita BrokenPipeError ruidoso quando o cliente Rust cancela por timeout."""
+    try:
+        handler.send_response(status)
+        handler.send_header("Content-Type", "application/json")
+        handler.send_header("Content-Length", str(len(body)))
+        handler.end_headers()
+        handler.wfile.write(body)
+    except (BrokenPipeError, ConnectionResetError):
+        print("[sidecar] cliente fechou conexao antes da resposta (timeout?)", file=sys.stderr)
+
+
 def _cpu_count() -> int:
     try:
         return len(os.sched_getaffinity(0))
@@ -53,7 +65,8 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.rstrip("/") or "/"
         if path == "/health":
             with _active_lock:
-                busy = _active >= MAX_QUEUE
+                # Uma vaga de reserva: evita enfileirar threads bloqueadas em infer lento.
+                busy = _active >= max(1, MAX_QUEUE - 1)
                 act = _active
             body = json.dumps(
                 {
@@ -64,11 +77,7 @@ class Handler(BaseHTTPRequestHandler):
                     "infer_slots": INFER_SLOTS,
                 }
             ).encode("utf-8")
-            self.send_response(200 if not busy else 503)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            _write_json_response(self, 200 if not busy else 503, body)
             return
         self.send_error(501, "use POST /v1/detect or GET /health")
 
@@ -79,47 +88,40 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         with _active_lock:
-            if _active >= MAX_QUEUE:
+            if _active >= max(1, MAX_QUEUE - 1):
                 err = json.dumps({"error": "sidecar busy"}).encode("utf-8")
-                self.send_response(503)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(err)))
-                self.end_headers()
-                self.wfile.write(err)
+                _write_json_response(self, 503, err)
                 return
             _active += 1
 
         try:
             length = int(self.headers.get("Content-Length", "0"))
+            if length <= 0:
+                raise ValueError("body vazio")
             body = self.rfile.read(length)
+            if len(body) != length:
+                raise ValueError("Content-Length incompleto")
             with _infer_lock:
                 payload = self._infer(body)
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(payload)))
-            self.end_headers()
-            self.wfile.write(payload)
+            _write_json_response(self, 200, payload)
         except ValueError as exc:
             err = json.dumps({"error": str(exc)}).encode("utf-8")
-            self.send_response(400)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(err)))
-            self.end_headers()
-            self.wfile.write(err)
+            _write_json_response(self, 400, err)
         except Exception as exc:
             err = json.dumps({"error": str(exc)}).encode("utf-8")
-            self.send_response(500)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(err)))
-            self.end_headers()
-            self.wfile.write(err)
+            _write_json_response(self, 500, err)
         finally:
             with _active_lock:
                 _active -= 1
 
     def _infer(self, body: bytes) -> bytes:
         data = json.loads(body.decode("utf-8"))
-        raw = base64.b64decode(data["jpeg_base64"])
+        b64 = data.get("jpeg_base64")
+        if not b64 or not str(b64).strip():
+            raise ValueError("jpeg_base64 ausente")
+        raw = base64.b64decode(b64, validate=True)
+        if not raw:
+            raise ValueError("jpeg vazio apos base64")
         arr = np.frombuffer(raw, dtype=np.uint8)
         frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
         if frame is None:

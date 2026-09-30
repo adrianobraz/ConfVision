@@ -1,0 +1,40 @@
+# Build Rust local
+target/
+
+# Não entram no contexto de build de produção
+Dockerfile.profiling
+docs/
+profile-output/
+*.md
+DEPLOY_EASYPANEL.md
+easypanel.env.example
+.env.example
+
+# Git (se contexto incluir metadados)
+.git/
+.gitignore
+
+# Segredos e ambiente local
+.env
+.env.*
+!.env.example
+
+# Logs e temporários
+*.log
+tmp/
+*.tmp
+*.swp
+*~
+
+# Binários locais (Windows/Linux/macOS)
+*.exe
+*.dll
+*.so
+*.dylib
+**/*.exe
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

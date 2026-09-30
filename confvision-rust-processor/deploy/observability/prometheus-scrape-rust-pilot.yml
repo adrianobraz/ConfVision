@@ -1,0 +1,30 @@
+# Prometheus scrape — rust-pilot (Fase C2)
+# Montar em prometheus.yml under scrape_configs: ou file_sd
+# Ajuste targets se usar IP interno EasyPanel
+
+scrape_configs:
+  - job_name: confvision_rust_pilot
+    scrape_interval: 30s
+    scrape_timeout: 15s
+    metrics_path: /metrics
+    scheme: https
+    static_configs:
+      - targets:
+          - foxpro-rust-pilot.rkr351.easypanel.host:443
+        labels:
+          processor_id: rust-processor-pilot-01
+          env: foxpro
+
+  - job_name: confvision_rust_pilot_health
+    scrape_interval: 30s
+    metrics_path: /health
+    scheme: https
+    static_configs:
+      - targets:
+          - foxpro-rust-pilot.rkr351.easypanel.host:443
+        labels:
+          processor_id: rust-processor-pilot-01
+
+# Nota: /metrics é JSON, não Prometheus text format.
+# Use blackbox ou script phase-c-verify + pushgateway, OU json_exporter.
+# Alternativa simples na VPS: cron scripts/phase-c-verify.sh + log.

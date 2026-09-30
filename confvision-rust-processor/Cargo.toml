@@ -1,0 +1,55 @@
+[package]
+name = "confvision-rust-processor"
+version = "0.1.0"
+edition = "2021"
+description = "ConfVision processing plane — Phase 1 RTSP capture"
+license = "Proprietary"
+rust-version = "1.75"
+
+[dependencies]
+anyhow = "1.0"
+dotenvy = "0.15"
+axum = "0.8"
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
+# Crate `hashids` no crates.io só publica 1.0.0 (incompatível com Rust atual); hash-ids implementa a mesma API Hashids.
+hashids = { package = "hash-ids", version = "0.3" }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+futures = "0.3"
+retina = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+tokio = { version = "1.43", features = ["macros", "rt-multi-thread", "signal", "sync", "time", "process", "fs"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+url = "2.5"
+redis = { version = "0.27", features = ["tokio-comp"] }
+base64 = "0.22"
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
+# 6.1.x + ffmpeg-sys-next 6.1 — linka contra FFmpeg 5.x (libavcodec59 no Debian Bookworm).
+ffmpeg-next = { version = "=6.1.1", optional = true, default-features = false, features = ["codec", "format"] }
+ort = { version = "2.0.0-rc.13", optional = true, default-features = true, features = ["tls-rustls"] }
+tikv-jemallocator = { version = "0.6", optional = true }
+
+[features]
+ffmpeg-decode = ["dep:ffmpeg-next"]
+# NVDEC/CUDA via FFmpeg (requer libav com h264_cuvid + runtime NVIDIA). Compila sem GPU física.
+ffmpeg-nvdec = []
+jemalloc = ["dep:tikv-jemallocator"]
+yolo-onnx = ["dep:ort"]
+
+[dev-dependencies]
+wiremock = "0.6"
+tokio = { version = "1.43", features = ["macros", "rt-multi-thread", "test-util"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+
+# Binário otimizado (LTO/release) com DWARF para `perf` no Linux (Fase 6.9+).
+# Não altera `cargo build --release` (continua strip=true).
+[profile.profiling]
+inherits = "release"
+strip = false
+debug = 2

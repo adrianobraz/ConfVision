@@ -1,0 +1,250 @@
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
+
+use serde_json::Value;
+use tokio::sync::{Mutex, Semaphore};
+use tracing::{debug, warn};
+
+use crate::capture::write_detection_snapshot;
+use crate::config::Config;
+use crate::decode::DecodedFrame;
+use crate::events::{
+    publish_analytic_detection, EmitCooldownGate, EventJob, EventQueueHandle, PublishOutcome,
+};
+use crate::motion::MotionGatedSession;
+use crate::yolo::YoloRuntime;
+
+use super::areas::areas_from_camera;
+use super::rules::{
+    camera_conf_min, camera_cooldown_sec, camera_deteccao_humano, camera_modo, evaluate_detections,
+};
+
+#[derive(Default)]
+pub struct DetectionStats {
+    pub yolo_inferences: AtomicU64,
+    pub yolo_skipped_busy: AtomicU64,
+    pub matches: AtomicU64,
+    pub events_published: AtomicU64,
+    pub events_queue_full: AtomicU64,
+    pub events_suppressed_cooldown: AtomicU64,
+}
+
+pub struct DetectionContext {
+    camera_id: i64,
+    camera: Value,
+    cfg: Arc<Config>,
+    yolo: Arc<YoloRuntime>,
+    queue: Arc<EventQueueHandle>,
+    stats: Arc<DetectionStats>,
+    motion_gate: Option<Arc<MotionGatedSession>>,
+    frame_index: AtomicU64,
+    emit_gate: Mutex<EmitCooldownGate>,
+    yolo_miss_streak: Mutex<u32>,
+    /// Após pessoa confirmada: só captura, sem YOLO até movimento acabar.
+    incident_active: AtomicBool,
+    yolo_inflight: Arc<Semaphore>,
+}
+
+impl DetectionContext {
+    pub fn new(
+        camera_id: i64,
+        camera: Value,
+        cfg: Arc<Config>,
+        yolo: Arc<YoloRuntime>,
+        queue: Arc<EventQueueHandle>,
+        stats: Arc<DetectionStats>,
+        motion_gate: Option<Arc<MotionGatedSession>>,
+    ) -> Arc<Self> {
+        let max = cfg.yolo_max_inflight.max(1);
+        Arc::new(Self {
+            camera_id,
+            camera,
+            cfg,
+            yolo,
+            queue,
+            stats,
+            motion_gate,
+            frame_index: AtomicU64::new(0),
+            emit_gate: Mutex::new(EmitCooldownGate::new()),
+            yolo_miss_streak: Mutex::new(0),
+            incident_active: AtomicBool::new(false),
+            yolo_inflight: Arc::new(Semaphore::new(max)),
+        })
+    }
+
+    fn clear_incident_if_idle(&self) {
+        if let Some(gate) = self.motion_gate.as_ref() {
+            if !gate.is_armed() {
+                self.incident_active.store(false, Ordering::Relaxed);
+            }
+        }
+    }
+
+    pub async fn on_decoded_frame(self: &Arc<Self>, decoded: &DecodedFrame, motion_detected: bool) {
+        if !self.cfg.yolo_enabled || !self.yolo.is_active() {
+            return;
+        }
+        if !camera_deteccao_humano(&self.camera) {
+            return;
+        }
+
+        self.clear_incident_if_idle();
+
+        if self.incident_active.load(Ordering::Relaxed) {
+            if motion_detected {
+                let _ = write_detection_snapshot(
+                    self.camera_id,
+                    &decoded.luma,
+                    &self.cfg.capture_dir,
+                    self.cfg.snapshot_jpeg_quality,
+                );
+            }
+            return;
+        }
+
+        let idx = self.frame_index.fetch_add(1, Ordering::Relaxed);
+        if self.cfg.yolo_frame_stride > 1 && idx % self.cfg.yolo_frame_stride as u64 != 0 {
+            return;
+        }
+
+        if self.cfg.analysis_only_on_motion {
+            let armed = self
+                .motion_gate
+                .as_ref()
+                .map(|g| g.is_armed())
+                .unwrap_or(true);
+            if !armed && !motion_detected {
+                return;
+            }
+        }
+
+        let need_jpeg = self.yolo.uses_jpeg_for_infer();
+        let jpeg = if need_jpeg {
+            match crate::capture::snapshot::luma_to_jpeg_bytes(
+                &decoded.luma,
+                decoded.luma_width,
+                decoded.luma_height,
+                self.cfg.snapshot_jpeg_quality,
+            ) {
+                Ok(b) => b,
+                Err(e) => {
+                    warn!(camera_id = self.camera_id, error = %e, "jpeg encode");
+                    return;
+                }
+            }
+        } else {
+            Vec::new()
+        };
+
+        if self.cfg.yolo_infer_async {
+            let permit = match self.yolo_inflight.clone().try_acquire_owned() {
+                Ok(p) => p,
+                Err(_) => {
+                    self.stats
+                        .yolo_skipped_busy
+                        .fetch_add(1, Ordering::Relaxed);
+                    return;
+                }
+            };
+            let ctx = Arc::clone(self);
+            let frame = decoded.clone();
+            tokio::spawn(async move {
+                let _permit = permit;
+                let timeout = Duration::from_secs(ctx.cfg.yolo_http_timeout_sec.max(5));
+                match tokio::time::timeout(timeout, ctx.run_yolo_pipeline(&jpeg, &frame)).await {
+                    Ok(()) => {}
+                    Err(_) => {
+                        warn!(camera_id = ctx.camera_id, "yolo infer timeout (async)");
+                    }
+                }
+            });
+        } else {
+            self.run_yolo_pipeline(&jpeg, decoded).await;
+        }
+    }
+
+    async fn run_yolo_pipeline(self: &Arc<Self>, jpeg: &[u8], decoded: &DecodedFrame) {
+        self.stats.yolo_inferences.fetch_add(1, Ordering::Relaxed);
+        let detections = match self.yolo.infer_frame(decoded, jpeg).await {
+            Ok(d) => d,
+            Err(e) => {
+                if e.is_yolo_busy() {
+                    self.stats
+                        .yolo_skipped_busy
+                        .fetch_add(1, Ordering::Relaxed);
+                    debug!(camera_id = self.camera_id, error = %e, "yolo infer adiado (backpressure)");
+                } else {
+                    warn!(camera_id = self.camera_id, error = %e, "yolo infer");
+                }
+                return;
+            }
+        };
+
+        let areas = areas_from_camera(&self.camera);
+        let modo = camera_modo(&self.camera);
+        let conf_min = camera_conf_min(&self.camera, self.cfg.yolo_conf_default);
+        let (result, _area) = evaluate_detections(
+            &detections,
+            conf_min,
+            &areas,
+            modo,
+            decoded.luma_width as f64,
+            decoded.luma_height as f64,
+        );
+
+        if result.pessoas_match == 0 || result.best_conf <= 0.0 {
+            let mut miss = self.yolo_miss_streak.lock().await;
+            *miss += 1;
+            return;
+        }
+        {
+            let mut miss = self.yolo_miss_streak.lock().await;
+            *miss = 0;
+        }
+
+        self.stats.matches.fetch_add(1, Ordering::Relaxed);
+        self.incident_active.store(true, Ordering::Relaxed);
+
+        let now = chrono::Utc::now().timestamp_millis() as f64 / 1000.0;
+        let cooldown = camera_cooldown_sec(&self.camera);
+        {
+            let mut gate = self.emit_gate.lock().await;
+            if !gate.try_emit(now, cooldown) {
+                self.stats
+                    .events_suppressed_cooldown
+                    .fetch_add(1, Ordering::Relaxed);
+                debug!(camera_id = self.camera_id, cooldown_sec = cooldown, "cooldown ativo");
+                return;
+            }
+        }
+
+        let snapshot_path = write_detection_snapshot(
+            self.camera_id,
+            &decoded.luma,
+            &self.cfg.capture_dir,
+            self.cfg.snapshot_jpeg_quality,
+        )
+        .ok()
+        .map(|p| p.to_string_lossy().into_owned());
+
+        let job = EventJob::from_camera(&self.camera, result.best_conf, snapshot_path.clone());
+        let published =
+            publish_analytic_detection(&self.queue, self.camera_id, job, result.best_conf).await;
+        match published.outcome {
+            PublishOutcome::Ok => {
+                self.stats.events_published.fetch_add(1, Ordering::Relaxed);
+            }
+            PublishOutcome::QueueFull => {
+                self.stats.events_queue_full.fetch_add(1, Ordering::Relaxed);
+                warn!(camera_id = self.camera_id, "fila cheia");
+                if let Some(p) = snapshot_path {
+                    let _ = std::fs::remove_file(p);
+                }
+            }
+            other => {
+                warn!(camera_id = self.camera_id, ?other, "fila publish falhou");
+            }
+        }
+    }
+}

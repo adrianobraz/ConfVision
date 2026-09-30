@@ -1,0 +1,6 @@
+/target/
+.env
+*.log
+/profile-output/
+sql/opcao_a*.local.csv
+sql/*_local.csv

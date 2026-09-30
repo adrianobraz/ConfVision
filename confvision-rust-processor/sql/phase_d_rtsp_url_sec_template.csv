@@ -1,0 +1,7 @@
+id,rtsp_url_sec,despausar_analitico
+5,rtsp://USUARIO:SENHA@IP_DVR:554/caminho/canal_5,true
+18,rtsp://USUARIO:SENHA@IP_DVR:554/caminho/canal_18,true
+19,rtsp://USUARIO:SENHA@IP_DVR:554/caminho/canal_19,true
+22,rtsp://USUARIO:SENHA@IP_DVR:554/caminho/canal_22,true
+26,rtsp://USUARIO:SENHA@IP_DVR:554/caminho/canal_26,true
+27,rtsp://USUARIO:SENHA@IP_DVR:554/caminho/canal_27,true

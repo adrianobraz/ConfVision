@@ -1,0 +1,63 @@
+# Stack por HOST físico (Proxmox) — 1× MediaMTX + 1× YOLO + N tenants Rust.
+#
+# Cada tenant Rust usa compose separado ou serviços rust-<TENANT_ID> duplicados manualmente.
+# Uso lab:
+#   cp env/host.env.example .env.host
+#   # editar segredos + IMAGE_TAG
+#   docker compose -f docker-compose.host.example.yml --env-file .env.host up -d --build
+#
+# Build context: raiz do repositório (../../).
+
+name: ${HOST_ID:-srv_confvision_lab}
+
+services:
+  mtx:
+    container_name: ${HOST_ID:-srv_confvision_lab}-mtx
+    build:
+      context: ../..
+      dockerfile: Dockerfile-mediamtx
+    restart: unless-stopped
+    env_file:
+      - ${MTX_ENV_FILE:-./.env.mtx}
+    ports:
+      - "${MTX_RTMP_PORT:-1935}:1935"
+      - "${MTX_RTSP_PORT:-8554}:8554"
+    networks:
+      - host_stack
+
+  yolo:
+    container_name: ${HOST_ID:-srv_confvision_lab}-yolo
+    build:
+      context: ../..
+      dockerfile: Dockerfile.yolo-sidecar
+    restart: unless-stopped
+    env_file:
+      - ${YOLO_ENV_FILE:-./.env.yolo}
+    ports:
+      - "${YOLO_HTTP_PORT:-8091}:8091"
+    networks:
+      - host_stack
+
+  # Exemplo: um tenant; duplique rust-processor com TENANT_ID / portas distintas.
+  rust-processor:
+    container_name: ${TENANT_ID:-ct_cli_example}-rust
+    build:
+      context: ../../confvision-rust-processor
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ${RUST_ENV_FILE:-./.env.rust}
+    environment:
+      MEDIAMTX_RTSP_BASE: rtsp://mtx:8554
+      YOLO_HTTP_URL: http://yolo:${YOLO_HTTP_PORT:-8091}
+    depends_on:
+      - mtx
+      - yolo
+    ports:
+      - "${RUST_HTTP_PORT:-8090}:8090"
+    networks:
+      - host_stack
+
+networks:
+  host_stack:
+    name: ${HOST_ID:-srv_confvision_lab}-net
