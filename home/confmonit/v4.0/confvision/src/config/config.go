@@ -72,6 +72,7 @@ var (
 	VisPostgresEnabled bool
 	VisWorkerAPIKey    string
 	VisReceptorBearer  string
+	ApiFunctionURL     string
 )
 
 func ConfigurarApp() {
@@ -88,6 +89,7 @@ func ConfigurarApp() {
 		XanoCvgBaseUrl = XanoBaseUrl
 	}
 	XanoApiPro = os.Getenv("XANO_API_FRANQUEADO_PRO")
+	ApiFunctionURL = strings.TrimSpace(os.Getenv("APIFUNCTION_URL"))
 	ProvisionerURL = strings.TrimSpace(os.Getenv("PROVISIONER_URL"))
 	ProvisionerKey = strings.TrimSpace(os.Getenv("PROVISIONER_KEY"))
 	MediamtxHlsBase = os.Getenv("MEDIAMTX_HLS_BASE")
