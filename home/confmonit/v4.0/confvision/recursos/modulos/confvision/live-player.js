@@ -8,12 +8,16 @@ const ConfVisionLivePlayer = (function () {
     let retryTimer = null
     let currentCameraId = null
     let retryCount = 0
+    let burstExhausted = false
+    let stallTimer = null
     let videoEl = null
     let statusEl = null
 
     const RETRY_MS = 2500
-    const MAX_RETRIES = 40
+    const MAX_BURST_RETRIES = 40
     const LIVE_RECHECK_MS = 60000
+    const RECOVERY_AFTER_EXHAUST_MS = 30000
+    const STALL_WATCH_MS = 12000
 
     const HLS_LOW_LATENCY = {
         lowLatencyMode: true,
@@ -54,6 +58,11 @@ const ConfVisionLivePlayer = (function () {
             clearTimeout(retryTimer)
             retryTimer = null
         }
+        if (stallTimer) {
+            clearTimeout(stallTimer)
+            stallTimer = null
+        }
+        burstExhausted = false
         if (liveSyncTimer) {
             clearInterval(liveSyncTimer)
             liveSyncTimer = null
@@ -70,10 +79,31 @@ const ConfVisionLivePlayer = (function () {
         }
     }
 
+    function destruirHls() {
+        if (hlsInstance) {
+            hlsInstance.destroy()
+            hlsInstance = null
+        }
+    }
+
+    function agendarRecuperacaoLenta(cameraId) {
+        if (currentCameraId !== cameraId) return
+        burstExhausted = true
+        setStatus('Stream indisponível. Nova tentativa em breve…')
+        clearTimeout(retryTimer)
+        retryTimer = setTimeout(function () {
+            retryTimer = null
+            if (currentCameraId !== cameraId) return
+            retryCount = 0
+            burstExhausted = false
+            iniciar(cameraId, { isRetry: true, forceReset: true })
+        }, RECOVERY_AFTER_EXHAUST_MS)
+    }
+
     function agendarRetry(cameraId) {
         if (currentCameraId !== cameraId) return
-        if (retryCount >= MAX_RETRIES) {
-            setStatus('Stream indisponível. Verifique se a câmera está transmitindo.')
+        if (retryCount >= MAX_BURST_RETRIES) {
+            agendarRecuperacaoLenta(cameraId)
             return
         }
         retryCount++
@@ -81,7 +111,7 @@ const ConfVisionLivePlayer = (function () {
         clearTimeout(retryTimer)
         retryTimer = setTimeout(function () {
             if (currentCameraId === cameraId) {
-                iniciar(cameraId, { isRetry: true })
+                iniciar(cameraId, { isRetry: true, forceReset: true })
             }
         }, RETRY_MS)
     }
@@ -99,7 +129,22 @@ const ConfVisionLivePlayer = (function () {
 
     function onStreamOk() {
         retryCount = 0
+        burstExhausted = false
         setStatus('')
+        if (stallTimer) {
+            clearTimeout(stallTimer)
+            stallTimer = null
+        }
+    }
+
+    function agendarStallWatch(cameraId) {
+        if (stallTimer) clearTimeout(stallTimer)
+        stallTimer = setTimeout(function () {
+            stallTimer = null
+            if (currentCameraId !== cameraId || !videoEl) return
+            if (videoEl.readyState >= 3 && !videoEl.paused && !videoEl.seeking) return
+            agendarRetry(cameraId)
+        }, STALL_WATCH_MS)
     }
 
     function verificarElegibilidade(cameraId, r) {
@@ -125,27 +170,45 @@ const ConfVisionLivePlayer = (function () {
             ConfVisionUrls.carregarRtmpPublish(cameraId)
                 .done(function (r) {
                     if (currentCameraId !== cameraId) return
-                    verificarElegibilidade(cameraId, r)
+                    if (!verificarElegibilidade(cameraId, r)) return
+                    const video = videoEl
+                    const precisaReconectar = burstExhausted ||
+                        (video && (video.error || (video.readyState < 2 && retryCount > 0)))
+                    if (precisaReconectar) {
+                        retryCount = 0
+                        burstExhausted = false
+                        iniciar(cameraId, { isRetry: true, forceReset: true })
+                    }
                 })
         }, LIVE_RECHECK_MS)
     }
 
-    function iniciarPlayerComUrl(cameraId, url, isRetry) {
+    function iniciarPlayerComUrl(cameraId, url, isRetry, forceReset) {
         const video = videoEl
         if (!video) return
+
+        const bust = '?t=' + Date.now()
+        const srcUrl = url + bust
 
         video.muted = true
         video.playsInline = true
         video.onplaying = onStreamOk
+        video.onwaiting = function () {
+            agendarStallWatch(cameraId)
+        }
         video.onerror = function () {
             agendarRetry(cameraId)
         }
 
         if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            video.src = url + (isRetry ? '?t=' + Date.now() : '')
+            destruirHls()
+            video.removeAttribute('src')
+            video.load()
+            video.src = srcUrl
             video.play().catch(function () {
                 agendarRetry(cameraId)
             })
+            agendarStallWatch(cameraId)
             return
         }
 
@@ -154,42 +217,54 @@ const ConfVisionLivePlayer = (function () {
             return
         }
 
-        if (!hlsInstance) {
-            hlsInstance = new Hls(HLS_LOW_LATENCY)
-            hlsInstance.attachMedia(video)
-
-            hlsInstance.on(Hls.Events.MANIFEST_PARSED, function () {
-                video.play().catch(function () {
-                    agendarRetry(cameraId)
-                })
-                iniciarSyncAoVivo(video)
-            })
-
-            hlsInstance.on(Hls.Events.ERROR, function (_, data) {
-                const manifest404 = data.response && data.response.code === 404
-                const semStream = data.details === 'manifestLoadError' ||
-                    data.details === 'levelLoadError' ||
-                    data.details === 'fragLoadError' ||
-                    manifest404
-
-                if (semStream) {
-                    agendarRetry(cameraId)
-                    return
-                }
-
-                if (data.fatal) {
-                    if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-                        agendarRetry(cameraId)
-                    } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-                        hlsInstance.recoverMediaError()
-                    } else {
-                        agendarRetry(cameraId)
-                    }
-                }
-            })
+        if (forceReset || isRetry || hlsInstance) {
+            destruirHls()
         }
 
-        hlsInstance.loadSource(url + '?t=' + Date.now())
+        hlsInstance = new Hls(HLS_LOW_LATENCY)
+        hlsInstance.attachMedia(video)
+
+        hlsInstance.on(Hls.Events.MANIFEST_PARSED, function () {
+            video.play().catch(function () {
+                agendarRetry(cameraId)
+            })
+            iniciarSyncAoVivo(video)
+            agendarStallWatch(cameraId)
+        })
+
+        hlsInstance.on(Hls.Events.ERROR, function (_, data) {
+            const manifest404 = data.response && data.response.code === 404
+            const semStream = data.details === 'manifestLoadError' ||
+                data.details === 'levelLoadError' ||
+                data.details === 'fragLoadError' ||
+                manifest404
+
+            if (semStream) {
+                destruirHls()
+                agendarRetry(cameraId)
+                return
+            }
+
+            if (data.fatal) {
+                if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                    destruirHls()
+                    agendarRetry(cameraId)
+                } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                    try {
+                        hlsInstance.recoverMediaError()
+                    } catch (e) {
+                        destruirHls()
+                        agendarRetry(cameraId)
+                    }
+                } else {
+                    destruirHls()
+                    agendarRetry(cameraId)
+                }
+            }
+        })
+
+        hlsInstance.loadSource(srcUrl)
+        agendarStallWatch(cameraId)
     }
 
     function iniciar(cameraId, opts) {
@@ -197,14 +272,14 @@ const ConfVisionLivePlayer = (function () {
         const isRetry = !!opts.isRetry
         if (!cameraId || !videoEl) return
 
+        const forceReset = !!opts.forceReset
+
         if (!isRetry) {
             currentCameraId = cameraId
             retryCount = 0
+            burstExhausted = false
             setStatus('Conectando…')
-            if (hlsInstance) {
-                hlsInstance.destroy()
-                hlsInstance = null
-            }
+            destruirHls()
         }
 
         ConfVisionUrls.carregarRtmpPublish(cameraId)
@@ -217,7 +292,7 @@ const ConfVisionLivePlayer = (function () {
                     return
                 }
                 if (!isRetry) iniciarRecheck(cameraId)
-                iniciarPlayerComUrl(cameraId, url, isRetry)
+                iniciarPlayerComUrl(cameraId, url, isRetry, forceReset)
             })
             .fail(function () {
                 if (currentCameraId !== cameraId) return
