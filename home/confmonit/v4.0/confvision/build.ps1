@@ -67,11 +67,23 @@ if ($LASTEXITCODE -ne 0) {
 $bin = Get-Item $OutputName
 $sizeMB = [math]::Round($bin.Length / 1MB, 2)
 
+# Smoke: rotas worker API (D5) no binario; senao Dispatch retorna 404 em producao.
+$binText = [System.IO.File]::ReadAllBytes($bin.FullName)
+$ascii = [System.Text.Encoding]::ASCII.GetString($binText)
+$d5Ok = $ascii.Contains("/vis_rust_processor_capacity")
+$pingOk = $ascii.Contains("/vis_worker_ping")
+
 Write-Host ""
 Write-Host "OK: $($bin.FullName) ($sizeMB MB)" -ForegroundColor Green
+Write-Host "Rotas no binario: vis_worker_ping=$pingOk vis_rust_processor_capacity=$d5Ok" -ForegroundColor $(if ($d5Ok -and $pingOk) { "Green" } else { "Yellow" })
+if (-not $d5Ok) {
+    Write-Host "AVISO: binario sem D5 - confira src/modulos/visdata/router.go antes do deploy." -ForegroundColor Yellow
+}
+
 Write-Host ""
-Write-Host "Deploy:" -ForegroundColor Cyan
-Write-Host "  1. FileZilla -> /home/confmonit/v4.0/confvision/confvision"
+Write-Host "Deploy API central vision.confmonit2.com.br via Proxmox (nao foxpro EasyPanel):" -ForegroundColor Cyan
+Write-Host "  1. FileZilla: /home/confmonit/v4.0/confvision/confvision"
 if (-not $Local) {
-    Write-Host "  2. SSH: chmod +x confvision && sudo systemctl restart confmonit4confvision"
+    Write-Host '  2. SSH: chmod +x confvision; sudo systemctl restart confmonit4confvision'
+    Write-Host '  3. Teste D5: curl com Authorization Bearer em /vis_rust_processor_capacity (vision.confmonit2.com.br)'
 }

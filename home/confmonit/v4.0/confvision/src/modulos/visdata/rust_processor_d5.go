@@ -18,6 +18,7 @@ import (
 const d5DefaultProcessorURLs = "https://foxpro-rust-pilot.rkr351.easypanel.host,https://foxpro-rust-pilot-b.rkr351.easypanel.host"
 
 type ProcessorCapacityRow struct {
+	ServidorID           string  `json:"servidor_id,omitempty"`
 	BaseURL              string  `json:"base_url"`
 	Reachable            bool    `json:"reachable"`
 	Error                string  `json:"error,omitempty"`
@@ -43,30 +44,80 @@ func D5AutoAssignEnabled() bool {
 	return true
 }
 
-func RustProcessorBaseURLs() []string {
+type rustProcessorRegistryEntry struct {
+	ServidorID string
+	BaseURL    string
+}
+
+// Formato RUST_PROCESSOR_BASE_URLS (vírgula):
+//   https://rust-a.example
+//   srv-confvision-042|https://rust-a.example
+func parseRustProcessorRegistry() []rustProcessorRegistryEntry {
 	raw := strings.TrimSpace(os.Getenv("RUST_PROCESSOR_BASE_URLS"))
 	if raw == "" {
 		raw = d5DefaultProcessorURLs
 	}
 	parts := strings.Split(raw, ",")
-	out := make([]string, 0, len(parts))
+	out := make([]rustProcessorRegistryEntry, 0, len(parts))
 	for _, p := range parts {
-		p = strings.TrimRight(strings.TrimSpace(p), "/")
-		if p != "" {
-			out = append(out, p)
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		servidorID := ""
+		base := p
+		if i := strings.Index(p, "|"); i >= 0 {
+			servidorID = strings.TrimSpace(p[:i])
+			base = strings.TrimSpace(p[i+1:])
+		}
+		base = strings.TrimRight(base, "/")
+		if base == "" {
+			continue
+		}
+		out = append(out, rustProcessorRegistryEntry{ServidorID: servidorID, BaseURL: base})
+	}
+	return out
+}
+
+func RustProcessorBaseURLs() []string {
+	reg := parseRustProcessorRegistry()
+	out := make([]string, 0, len(reg))
+	for _, e := range reg {
+		out = append(out, e.BaseURL)
+	}
+	return out
+}
+
+func filterRegistryByServidor(reg []rustProcessorRegistryEntry, servidorID string) []rustProcessorRegistryEntry {
+	servidorID = strings.TrimSpace(servidorID)
+	if servidorID == "" {
+		return reg
+	}
+	out := make([]rustProcessorRegistryEntry, 0, len(reg))
+	for _, e := range reg {
+		if e.ServidorID == "" || strings.EqualFold(e.ServidorID, servidorID) {
+			out = append(out, e)
 		}
 	}
 	return out
 }
 
 func FetchAllProcessorCapacity(ctx context.Context) ([]ProcessorCapacityRow, error) {
-	urls := RustProcessorBaseURLs()
-	if len(urls) == 0 {
+	return FetchProcessorCapacityScoped(ctx, "")
+}
+
+func FetchProcessorCapacityScoped(ctx context.Context, servidorID string) ([]ProcessorCapacityRow, error) {
+	reg := filterRegistryByServidor(parseRustProcessorRegistry(), servidorID)
+	if len(reg) == 0 {
+		if strings.TrimSpace(servidorID) != "" {
+			return nil, fmt.Errorf("nenhum processor para servidor_id=%s", servidorID)
+		}
 		return nil, fmt.Errorf("RUST_PROCESSOR_BASE_URLS vazio")
 	}
-	out := make([]ProcessorCapacityRow, 0, len(urls))
-	for _, base := range urls {
-		row, _ := fetchOneProcessorCapacity(ctx, base)
+	out := make([]ProcessorCapacityRow, 0, len(reg))
+	for _, e := range reg {
+		row, _ := fetchOneProcessorCapacity(ctx, e.BaseURL)
+		row.ServidorID = e.ServidorID
 		out = append(out, row)
 	}
 	sort.Slice(out, func(i, j int) bool {
@@ -199,7 +250,7 @@ func AssignCameraWorkerID(ctx context.Context, cameraID int, workerID string) (m
 	return UpdateCamera(ctx, cameraID, map[string]any{"worker_id": workerID})
 }
 
-func AutoAssignCameraWorker(ctx context.Context, cameraID int) (string, map[string]any, error) {
+func AutoAssignCameraWorkerScoped(ctx context.Context, cameraID int, servidorID string) (string, map[string]any, error) {
 	cam, err := GetCameraByID(ctx, cameraID)
 	if err != nil {
 		return "", nil, err
@@ -208,7 +259,7 @@ func AutoAssignCameraWorker(ctx context.Context, cameraID int) (string, map[stri
 		w := trimAny(cam["worker_id"])
 		return w, map[string]any{"skipped": true, "reason": "worker_id_ja_definido", "worker_id": w}, nil
 	}
-	rows, err := FetchAllProcessorCapacity(ctx)
+	rows, err := FetchProcessorCapacityScoped(ctx, servidorID)
 	if err != nil {
 		return "", nil, err
 	}
@@ -224,10 +275,18 @@ func AutoAssignCameraWorker(ctx context.Context, cameraID int) (string, map[stri
 		"worker_id":    best.WorkerID,
 		"processor_id": best.ProcessorID,
 		"base_url":     best.BaseURL,
+		"servidor_id":  best.ServidorID,
 		"assign_score": best.AssignScore,
 		"reason":       "d5_auto_capacity",
 	}
+	if strings.TrimSpace(servidorID) != "" {
+		meta["assign_scope"] = servidorID
+	}
 	return best.WorkerID, meta, nil
+}
+
+func AutoAssignCameraWorker(ctx context.Context, cameraID int) (string, map[string]any, error) {
+	return AutoAssignCameraWorkerScoped(ctx, cameraID, "")
 }
 
 func cameraNeedsWorkerAssign(cam map[string]any) bool {
