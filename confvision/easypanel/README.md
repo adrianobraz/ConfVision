@@ -58,7 +58,8 @@ Log esperado:
 | Serviço EasyPanel | Arquivo local | Entry point |
 |-------------------|---------------|-------------|
 | **confvision** (MediaMTX + Guard) | `mediamtx.env` | `Dockerfile-mediamtx` |
-| **confvision-worker** | `worker.env.vps-sem-gpu` ou `worker.env.gex44-gpu` | `python -u main.py` |
+| **confvision-rust-processor** | `deploy/tenant-stack/env/rust-processor.env.example` + `confvision-rust-processor/easypanel.env.*.example` | binário Rust (ver `DEPLOY_EASYPANEL.md` no processor) |
+| **confvision-worker** | *(manter **STOPPED**)* — ver `worker.env.*.example` só referência | `python -u main.py` — **não** rodar junto com Rust na mesma câmera |
 | **confvision-sync-agent** | `sync-agent.env` | `python -u sync_agent_main.py` |
 | **confvision-dvr** | `dvr.env` | `python -u dvr_main.py` |
 | **confvision-motion** | `motion.env` | `python -u motion_main.py` |

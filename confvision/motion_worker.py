@@ -1,3 +1,4 @@
+import json
 import os
 import signal
 import subprocess
@@ -24,6 +25,43 @@ from dvr_segment import process_segment_file
 from urls import rtsp_url_for_camera
 
 os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
+
+_MOTION_SHADOW_DIR = os.getenv("MOTION_SHADOW_LOG_DIR", "").strip()
+_MOTION_SHADOW_ENABLED = os.getenv("MOTION_SHADOW_COMPARE", "").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+
+
+def _shadow_log_sample(
+    camera_id: int,
+    detected: bool,
+    *,
+    session_event: str | None = None,
+    recording: bool | None = None,
+):
+    if not (_MOTION_SHADOW_ENABLED and _MOTION_SHADOW_DIR):
+        return
+    try:
+        out_dir = Path(_MOTION_SHADOW_DIR)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        path = out_dir / f"python_cam_{camera_id}.jsonl"
+        row = {
+            "source": "python",
+            "algorithm": "mog2",
+            "camera_id": camera_id,
+            "ts_unix_ms": int(time.time() * 1000),
+            "detected": detected,
+        }
+        if session_event:
+            row["session_event"] = session_event
+        if recording is not None:
+            row["recording"] = recording
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    except Exception as exc:
+        print(f"[MOTION] shadow log camera={camera_id} erro: {exc}")
 
 
 class MotionCameraWorker:
@@ -206,6 +244,12 @@ class MotionCameraWorker:
                 f"[MOTION] REC STOP camera={self.camera_id} "
                 f"file={path.name} dur={(clip_end - inicio).total_seconds():.0f}s"
             )
+            _shadow_log_sample(
+                self.camera_id,
+                False,
+                session_event="motion_ended",
+                recording=False,
+            )
             self._stop_ffmpeg(proc, path)
             self._upload_clip(path, inicio, clip_end)
 
@@ -221,6 +265,12 @@ class MotionCameraWorker:
             recording = True
             print(
                 f"[MOTION] REC START camera={self.camera_id} file={clip_path.name}"
+            )
+            _shadow_log_sample(
+                self.camera_id,
+                True,
+                session_event="motion_started",
+                recording=True,
             )
 
         while not self._stop.is_set():
@@ -244,6 +294,7 @@ class MotionCameraWorker:
             motion = False
             if frame_idx % MOTION_FRAME_SKIP == 0:
                 motion = self._detect_motion(frame, fgbg, kernel)
+                _shadow_log_sample(self.camera_id, motion)
                 if motion:
                     last_motion = now
 
