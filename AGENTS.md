@@ -38,3 +38,35 @@ Prior to building the frontend, ensure that all the changes have been pushed to 
 - **Xano Statements**: Familiarize yourself with the available statements in XanoScript by consulting the [Function Lexicon](./docs/functions.md). Use control flow statements like `if`, `foreach`, and `try_catch` to manage logic effectively.
 - **User Management**: Most Xano workspaces come with a built-in user auth and user table, avoid recreating these, the user table can be extended with the necessary columns and the the built-in auth functions can be customized accordingly.
 - **Building from Loveable**: If the project is being built from a Loveable-generated website, follow the specific strategy outlined in the [Building from Loveable Guide](./docs/build_from_lovable.md).
+
+---
+
+## MAPA DO ECOSSISTEMA (ConfMonit / ConfVision)
+
+Documentação completa: [docs/ESTRUTURA_ECOSISTEMA.md](./docs/ESTRUTURA_ECOSISTEMA.md).
+
+| O quê | Caminho correto |
+|-------|-----------------|
+| Raiz workspace / ecossistema | `C:\sistemaconfmonit\core4\` (Git: ConfVision.git, branch `main`) |
+| Vários sistemas ConfMonit | `core4\home\confmonit\v4.0\` |
+| **ConfVision aplicação (Go, API, portal)** | `core4\home\confmonit\v4.0\confvision\` |
+| **ConfVision vídeo (Python workers)** | `core4\confvision\` (no branch `main`; no clone `rust-pilot` Python fica na **raiz** do repo) |
+| **Rust processor (fonte)** | `C:\sistemaconfmonit\core4-rust-pilot\confvision-rust-processor\` |
+| Clone alternativo ConfVision | `C:\sistemaconfmonit\ConfVision\` (mesmo GitHub, branch `rust-pilot`, layout diferente do workspace `core4`) |
+| XanoScript (não é ConfVision vídeo) | `core4\apis\`, `tables\`, `functions\` |
+
+Antes de alterar código: identificar `git rev-parse --show-toplevel` e não confundir as duas pastas chamadas `confvision` (Go vs Python).
+
+## MAPA DE PROJETOS E WORKTREES
+
+> Antes de alterar qualquer código, o agente deve identificar em qual árvore está trabalhando, verificar o Git remoto, branch e finalidade daquele diretório. Diretórios com nomes semelhantes não devem ser considerados equivalentes sem auditoria.
+
+| Path | Git | Branch típica | Use para |
+|------|-----|---------------|----------|
+| `C:\sistemaconfmonit\core4` | Repositório **principal** (`.git` real) | `main` | XanoScript, ecossistema, Go app, Python em `confvision\` |
+| `C:\sistemaconfmonit\core4-rust-pilot` | Worktree → `core4\.git` | `rust-pilot` | `confvision-rust-processor\`, docs Fases 1–6 (WIP) |
+| `C:\sistemaconfmonit\core4-fase0-push` | Worktree | `chore/fase0-apply-ops` | Branch Fase 0 apply-ops — não assumir layout `home/` |
+| `C:\sistemaconfmonit\core4-push-wt` | Worktree | `confvision/fase0-scripts` | Scripts Fase 0 — checkout mínimo |
+| `C:\sistemaconfmonit\ConfVision` | **Clone separado** (`.git` próprio) | `rust-pilot` (desatualizado vs piloto) | Evitar edição salvo decisão explícita |
+
+Comandos mínimos: `git rev-parse --show-toplevel`, `git branch --show-current`, `git worktree list` (executar a partir de `core4`). Detalhes: [docs/AUDITORIA_ARVORES_GIT.md](./docs/AUDITORIA_ARVORES_GIT.md).

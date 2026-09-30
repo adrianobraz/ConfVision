@@ -8,3 +8,11 @@ __pycache__/
 node_modules/
 .DS_Store
 Thumbs.db
+confvision-rust-processor/target/
+confvision-rust-processor/tmp/
+confvision-rust-processor/profile-output/
+*.exe
+*.rar
+home/confmonit/v4.0/confvision/confvision
+home/confmonit/v4.0/confvision/confvision-test-build.exe
+confvision/.env
