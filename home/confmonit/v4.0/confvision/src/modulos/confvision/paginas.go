@@ -69,3 +69,11 @@ func CarregarRelatorioFaturas(w http.ResponseWriter, r *http.Request) {
 func CarregarGradeHorario(w http.ResponseWriter, r *http.Request) {
 	carregarPagina(w, r, "grade-horario.html", paginaBase("Grade horária", "/carregar-menu-confvision"))
 }
+
+func CarregarIntegracaoEventos(w http.ResponseWriter, r *http.Request) {
+	carregarPagina(w, r, "integracao-eventos.html", paginaBase("Integração de eventos", "/carregar-menu-confvision"))
+}
+
+func CarregarIpsBanidos(w http.ResponseWriter, r *http.Request) {
+	carregarPagina(w, r, "ips-banidos.html", paginaBase("IPs banidos", "/carregar-menu-confvision"))
+}
