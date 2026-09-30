@@ -7,7 +7,8 @@ param(
     [string]$WorkerKey = "",
     [string]$IdFranqueado = "2025110408303794600766334",
     [int]$PilotCameraId = 15,
-    [int]$MinPilotBCamerasAtivas = 1
+    [int]$MinPilotBCamerasAtivas = 1,
+    [switch]$SkipRustPilotA
 )
 
 function Pass($msg) { Write-Host "[OK] $msg" -ForegroundColor Green }
@@ -62,34 +63,44 @@ function Test-RustHealth($label, $base) {
 }
 
 Test-RustHealth "B" $RustB
-Test-RustHealth "A" $RustA
+if (-not $SkipRustPilotA) {
+    Test-RustHealth "A" $RustA
+} else {
+    Warn "SkipRustPilotA - Rust pilot A omitido (piloto so B)"
+}
 
 # 3 Postgres piloto (requer POSTGRES_URL no ambiente)
 if ($env:POSTGRES_URL) {
     $auditDir = Join-Path $PSScriptRoot "pg-audit"
     Push-Location $auditDir
-    $out = go run . 2>&1 | Out-String
+    $out = (go run . *>&1 | Out-String)
+    $pgExit = $LASTEXITCODE
+    if ($pgExit -eq 0 -and $out -match "ping: failed") { $pgExit = 1 }
     Pop-Location
-    if ($out -match "sem linhas" -or $out -match "\(sem linhas\)") {
-        Fail "vis_evento camera $PilotCameraId sem eventos recentes"
-        $script:fail++
-    } elseif ($out -match "Ultimos eventos") {
-        Warn "Conferir manualmente bloco eventos camera $PilotCameraId no pg-audit"
-    }
-    if ($out -match "id\s+15\s+ESCRITORIO\s+offline\s+<nil>") {
-        Warn "vis_camera.status=offline e ultimo_stream_ok_em null (campo status e legado; ver vis_worker ping)"
-    }
-    if ($out -match "rust-processor-pilot-b-02\s+(\d+)\s+(\d{4}-\d{2}-\d{2})") {
-        $camAtivas = [int]$Matches[1]
-        if ($camAtivas -ge $MinPilotBCamerasAtivas) {
-            Pass "vis_worker pilot-b cameras_ativas=$camAtivas (min=$MinPilotBCamerasAtivas)"
+    if ($pgExit -ne 0 -or $out -match "ping: failed") {
+        Warn "pg-audit inacessivel desta rede (rode na VPS com acesso a Postgres)"
+    } else {
+        if ($out -match "sem linhas" -or $out -match "\(sem linhas\)") {
+            Fail "vis_evento camera $PilotCameraId sem eventos recentes"
+            $script:fail++
+        } elseif ($out -match "Ultimos eventos") {
+            Warn "Conferir manualmente bloco eventos camera $PilotCameraId no pg-audit"
+        }
+        if ($out -match "id\s+15\s+ESCRITORIO\s+offline\s+<nil>") {
+            Warn "vis_camera.status=offline e ultimo_stream_ok_em null (campo status e legado; ver vis_worker ping)"
+        }
+        if ($out -match "rust-processor-pilot-b-02\s+(\d+)\s+(\d{4}-\d{2}-\d{2})") {
+            $camAtivas = [int]$Matches[1]
+            if ($camAtivas -ge $MinPilotBCamerasAtivas) {
+                Pass "vis_worker pilot-b cameras_ativas=$camAtivas (min=$MinPilotBCamerasAtivas)"
+            } else {
+                Fail "vis_worker pilot-b cameras_ativas=$camAtivas (min=$MinPilotBCamerasAtivas)"
+                $script:fail++
+            }
         } else {
-            Fail "vis_worker pilot-b cameras_ativas=$camAtivas (min=$MinPilotBCamerasAtivas)"
+            Fail "vis_worker rust-processor-pilot-b-02 sem ping recente no pg-audit"
             $script:fail++
         }
-    } else {
-        Fail "vis_worker rust-processor-pilot-b-02 sem ping recente no pg-audit"
-        $script:fail++
     }
 } else {
     Warn "POSTGRES_URL nao definido - rode: `$env:POSTGRES_URL='...'; .\fase0-verify.ps1 -WorkerKey '...'"

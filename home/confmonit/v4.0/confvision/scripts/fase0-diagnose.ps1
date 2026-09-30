@@ -5,7 +5,9 @@ param(
     [string]$RustB = "https://foxpro-rust-pilot-b.rkr351.easypanel.host",
     [string]$YoloBase = "https://foxpro-rust-yolo-sidecar.rkr351.easypanel.host",
     [string]$WorkerKey = "",
-    [string]$IdFranqueado = "2025110408303794600766334"
+    [string]$IdFranqueado = "2025110408303794600766334",
+    [int]$PilotBCameraId = 3,
+    [switch]$SkipRustPilotA
 )
 
 $ErrorActionPreference = "Continue"
@@ -34,7 +36,9 @@ if ($WorkerKey) {
 }
 
 Section "Rust processors"
-foreach ($pair in @(@{L='A';U=$RustA}, @{L='B';U=$RustB})) {
+$rustPairs = @(@{L='B';U=$RustB})
+if (-not $SkipRustPilotA) { $rustPairs = @(@{L='A';U=$RustA}) + $rustPairs } else { Info "SkipRustPilotA - omitindo Rust A" }
+foreach ($pair in $rustPairs) {
     $label = $pair.L
     $base = $pair.U
     try {
@@ -75,19 +79,21 @@ try {
     }
 } catch { Bad "yolo sidecar inacessivel: $_" }
 
-Section "Pipeline eventos (Rust B / camera 15)"
+Section "Pipeline eventos (Rust B / camera $PilotBCameraId)"
 try {
     $m = Invoke-RestMethod "$RustB/metrics" -TimeoutSec 25
     $gm = $m.metrics
-    $c15 = $m.cameras | Where-Object { [int64]$_.camera_id -eq 15 } | Select-Object -First 1
-    if ($c15) {
-        Info "cam15 status=$($c15.status) fps=$([math]::Round($c15.fps,2)) decoded=$($c15.frames_decoded) motion_hits=$($c15.motion_detected) motion_score=$($c15.last_motion_score)"
-        if ($c15.status -ne "online") { Bad "Camera 15 nao online no Rust B" }
-        if ([int64]$c15.frames_decoded -gt 5 -and [int64]$c15.motion_detected -eq 0) {
+    $ids = @($m.cameras | ForEach-Object { [int64]$_.camera_id })
+    Info "Rust B metricas camera_ids: $($ids -join ', ')"
+    $cp = $m.cameras | Where-Object { [int64]$_.camera_id -eq $PilotBCameraId } | Select-Object -First 1
+    if ($cp) {
+        Info "cam$PilotBCameraId status=$($cp.status) fps=$([math]::Round($cp.fps,2)) decoded=$($cp.frames_decoded) motion_hits=$($cp.motion_detected) motion_score=$($cp.last_motion_score)"
+        if ($cp.status -ne "online") { Bad "Camera $PilotBCameraId nao online no Rust B (status=$($cp.status))" }
+        if ([int64]$cp.frames_decoded -gt 5 -and [int64]$cp.motion_detected -eq 0) {
             Info "YOLO pode rodar, mas motion gate=0 (cena estatica ou decode parcial)"
         }
     } else {
-        Bad "Camera 15 ausente nas metricas do Rust B"
+        Bad "Camera $PilotBCameraId ausente nas metricas do Rust B (assign D5 ou shedding?)"
     }
     if ($gm.decode_errors -gt 0) {
         Info "decode_errors global=$($gm.decode_errors) (ver logs h264 NAL no container)"
@@ -103,26 +109,32 @@ Section "Postgres (pg-audit)"
 if ($env:POSTGRES_URL) {
     $auditDir = Join-Path $PSScriptRoot "pg-audit"
     Push-Location $auditDir
-    $out = go run . 2>&1 | Out-String
+    $out = (go run . *>&1 | Out-String)
+    $pgExit = $LASTEXITCODE
+    if ($pgExit -eq 0 -and $out -match "ping: failed") { $pgExit = 1 }
     Pop-Location
-    if ($out -match "id\s+15\s+ESCRITORIO\s+offline\s+<nil>") {
-        Info "vis_camera.status offline + ultimo_stream_ok_em null (status cadastro nao vem do Rust, stream_ok no ping)"
-    }
-    if ($out -match "rust-processor-pilot-b-02\s+(\d+)") {
-        $n = [int]$Matches[1]
-        if ($n -ge 1) { Ok "vis_worker pilot-b cameras_ativas=$n" } else { Bad "vis_worker pilot-b cameras_ativas=0" }
+    if ($pgExit -ne 0 -or $out -match "ping: failed") {
+        Info "pg-audit inacessivel desta rede (use VPS/VPN ate Postgres) - pulando blocos SQL"
     } else {
-        Bad "vis_worker pilot-b sem linha no pg-audit"
+        if ($out -match "id\s+15\s+ESCRITORIO\s+offline\s+<nil>") {
+            Info "vis_camera.status offline + ultimo_stream_ok_em null (status cadastro nao vem do Rust, stream_ok no ping)"
+        }
+        if ($out -match "rust-processor-pilot-b-02\s+(\d+)") {
+            $n = [int]$Matches[1]
+            if ($n -ge 1) { Ok "vis_worker pilot-b cameras_ativas=$n" } else { Bad "vis_worker pilot-b cameras_ativas=0" }
+        } else {
+            Bad "vis_worker pilot-b sem linha no pg-audit"
+        }
+        if ($out -match "Ultimos eventos c[^\r\n]+\r?\n\(sem linhas\)") { Bad "Camera 15 sem eventos em vis_evento" }
+        if ($out -match "Sync Rust pilot-b[\s\S]*?\n3\t") { Ok "Camera 3 elegivel no sync pilot-b" }
+        if ($out -match "id\s+15[\s\S]*?rust-processor-pilot-b-02" -and $out -notmatch "id\s+15[\s\S]*?analitico_pausado\s+true") {
+            Ok "Camera 15 no worker B e analitico nao pausado (conferir bloco piloto)"
+        } elseif ($out -match "id\s+15[\s\S]*?analitico_pausado\s+true") {
+            Bad "Camera 15 ainda analitico_pausado=true (rodar fase0-apply-ops)"
+        }
+        $lines = ($out -split "`n" | Select-Object -First 35) -join "`n"
+        Write-Host $lines
     }
-    if ($out -match "Ultimos eventos c[^\r\n]+\r?\n\(sem linhas\)") { Bad "Camera 15 sem eventos em vis_evento" }
-    if ($out -match "Sync Rust pilot-b[\s\S]*?\n3\t") { Ok "Camera 3 elegivel no sync pilot-b" }
-    if ($out -match "id\s+15[\s\S]*?rust-processor-pilot-b-02" -and $out -notmatch "id\s+15[\s\S]*?analitico_pausado\s+true") {
-        Ok "Camera 15 no worker B e analitico nao pausado (conferir bloco piloto)"
-    } elseif ($out -match "id\s+15[\s\S]*?analitico_pausado\s+true") {
-        Bad "Camera 15 ainda analitico_pausado=true (rodar fase0-apply-ops)"
-    }
-    $lines = ($out -split "`n" | Select-Object -First 35) -join "`n"
-    Write-Host $lines
 } else {
     Info "POSTGRES_URL nao definido - defina e rode de novo para audit completo"
 }
