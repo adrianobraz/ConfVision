@@ -39,10 +39,24 @@ impl AnalyticsRuntime {
         })
     }
 
-    pub async fn upsert_cameras(&self, cameras: &[CameraRecord]) {
+    pub async fn upsert_cameras(&self, cameras: &[CameraRecord], areas: &[Value]) {
+        let mut by_camera: HashMap<i64, Vec<Value>> = HashMap::new();
+        for area in areas {
+            let Some(cid) = area
+                .get("vis_camera_id")
+                .and_then(|v| v.as_i64().or_else(|| v.as_u64().map(|u| u as i64)))
+            else {
+                continue;
+            };
+            by_camera.entry(cid).or_default().push(area.clone());
+        }
+
         let mut map = self.camera_configs.write().await;
         for cam in cameras {
-            if let Ok(v) = serde_json::to_value(cam) {
+            if let Ok(mut v) = serde_json::to_value(cam) {
+                if let Some(zones) = by_camera.get(&cam.id) {
+                    v["areas"] = Value::Array(zones.clone());
+                }
                 map.insert(cam.id, v);
             }
         }

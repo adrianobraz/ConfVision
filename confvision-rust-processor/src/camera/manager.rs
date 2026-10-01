@@ -144,9 +144,9 @@ impl CameraManager {
         *self.shutdown_rx.borrow()
     }
 
-    pub async fn sync_cameras(&self, desired: Vec<CameraRecord>) {
+    pub async fn sync_cameras(&self, desired: Vec<CameraRecord>, areas: &[serde_json::Value]) {
         let mut limited = desired;
-        self.analytics.upsert_cameras(&limited).await;
+        self.analytics.upsert_cameras(&limited, areas).await;
         let hard_max = self.cfg.effective_max_cameras();
         if limited.len() > hard_max {
             warn!(
@@ -427,7 +427,7 @@ mod tests {
                 extra: json!({}),
             })
             .collect();
-        mgr.sync_cameras(cams).await;
+        mgr.sync_cameras(cams, &[]).await;
         tokio::time::sleep(Duration::from_millis(50)).await;
         assert!(mgr.active_camera_count().await <= 2);
         mgr.stop_all().await;
@@ -580,7 +580,7 @@ mod tests {
             stream_tentativas_horarias: None,
             extra: json!({}),
         };
-        mgr.sync_cameras(vec![cam1.clone()]).await;
+        mgr.sync_cameras(vec![cam1.clone()], &[]).await;
         tokio::time::sleep(Duration::from_millis(80)).await;
         assert_eq!(mgr.active_camera_count().await, 1);
 
@@ -590,7 +590,7 @@ mod tests {
             id: 102,
             ..cam1.clone()
         };
-        mgr.sync_cameras(vec![cam1, cam2]).await;
+        mgr.sync_cameras(vec![cam1, cam2], &[]).await;
         tokio::time::sleep(Duration::from_millis(50)).await;
         assert_eq!(mgr.active_camera_count().await, 1);
 

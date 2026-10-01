@@ -140,12 +140,12 @@ Ver também: [RUNBOOK_YOLO_SIDECAR.md](./RUNBOOK_YOLO_SIDECAR.md), [FASE_5.md](.
 
 Container sobe a imagem com `ultralytics --no-deps` mas faltou pacote na lista → **rebuild** após atualizar `requirements-yolo-sidecar.txt` (commit com `tqdm`+). Até subir de novo, proxy público do sidecar tende **502**.
 
-### Rust A/B: `rtsp://foxpro_confvision:8554/cam/...` → `Name or service not known`
+### Rust A/B: RTSP → `Name or service not known`
 
 | Causa | Ação EasyPanel |
 |--------|------------------|
-| App **`confvision`** (MediaMTX) **parado** (HTTP 503) | **Start** / redeploy `confvision` |
-| Hostname interno errado | Nos pilots, `MEDIAMTX_RTSP_BASE=rtsp://<hostname-interno-confvision>:8554` — no foxpro costuma ser `foxpro_confvision` (projeto_serviço); conferir na UI rede Docker |
+| App **`rust-mediamtx`** (MediaMTX+Guard) **parado** | **Start** / redeploy |
+| Hostname interno errado | `MEDIAMTX_RTSP_BASE=rtsp://foxpro_rust-mediamtx:8554` e `rtsp_url_sec` com o mesmo host — ver [FOXPRO_EASYPANEL_HOSTNAMES.md](./FOXPRO_EASYPANEL_HOSTNAMES.md) |
 | Path `cam/{hash}` sem publisher | Worker Python off → usar **Opção A** `rtsp_url_sec` na câmera ([OPCAO_A_RTSP_DIRETO.md](./OPCAO_A_RTSP_DIRETO.md)) |
 
 Pilots **OK** (redis, YOLO URL `http://foxpro_rust-yolo-sidecar:8091`) mesmo com RTSP quebrado — `/health` pode mostrar `cameras_total=1` e `cameras_online=0`.

@@ -278,7 +278,7 @@ async fn run_sync_loop(client: ConfVisionClient, manager: Arc<CameraManager>, cf
                 }
                 if !resp.unchanged {
                     let cameras = sharding::filter_analytic_cameras(&cfg, resp.cameras);
-                    manager.sync_cameras(cameras).await;
+                    manager.sync_cameras(cameras, &resp.areas).await;
                 }
             }
             Err(e) => {

@@ -9,6 +9,8 @@ Documentação dos serviços Python/MediaMTX do ConfVision no EasyPanel.
 > ConfVision é um sistema **solo**. Cada worker roda a partir desta pasta.
 > A app web Go fica em `home/confmonit/v4.0/confvision/` (deploy separado).
 
+> **Hostnames atuais (rust-mediamtx):** ver `confvision-rust-processor/docs/FOXPRO_EASYPANEL_HOSTNAMES.md` — RTSP `foxpro_rust-mediamtx:8554`, Guard público `https://foxpro-confvision.rkr351.easypanel.host`, HLS `https://hls1.dnsid.com.br`.
+
 ---
 
 ## Visão geral dos serviços
@@ -101,8 +103,8 @@ Mesmo volume do DVR.
 
 Outros serviços referenciam este container como:
 
-- RTSP: `rtsp://foxpro_confvision:8554`
-- API: `http://foxpro_confvision:9997`
+- RTSP: `rtsp://foxpro_rust-mediamtx:8554`
+- API: `http://foxpro_rust-mediamtx:9997`
 - Guard (app Go): `http://IP_DA_VPS:8100` (ou hostname interno se exposto)
 - RTMP: `rtmp://rtmp.dnsid.com.br:1935` (público)
 
@@ -122,7 +124,7 @@ Outros serviços referenciam este container como:
 Se ainda usar imagem `bluenviron/mediamtx:1` **sem** Guard no mesmo container, precisa do serviço `confvision-rtmp-guard` separado e:
 
 ```yaml
-authHTTPAddress: http://foxpro_confvision-rtmp-guard:8100/auth
+authHTTPAddress: http://foxpro_rust-mediamtx:8100/auth
 ```
 
 Isso falhou em produção quando o MediaMTX não alcançou o Guard na rede Docker. Preferir a seção **1**.
@@ -144,7 +146,7 @@ Processa câmeras com detecção de pessoas ativa. **Não** grava timelapse/DVR.
 | Variável | Valor (foxpro) |
 |---|---|
 | `XANO_BASE_URL` | `https://xpcy-oyme-lno7.b2.xano.io/api:AC7rgWwW` |
-| `MEDIAMTX_RTSP_BASE` | `rtsp://foxpro_confvision:8554` |
+| `MEDIAMTX_RTSP_BASE` | `rtsp://foxpro_rust-mediamtx:8554` |
 | `RTMP_PUBLISH_SECRET` | *(segredo longo)* | **Igual** ao `confvision` (MediaMTX) e à app Go |
 | `WORKER_ID` | `worker-docker-01` |
 | `WORKER_VERSION` | `0.3.0` |
@@ -194,8 +196,8 @@ Deve ser o **mesmo volume** onde o MediaMTX grava.
 | Variável | Valor (foxpro) |
 |---|---|
 | `XANO_BASE_URL` | `https://xpcy-oyme-lno7.b2.xano.io/api:AC7rgWwW` |
-| `MEDIAMTX_API_BASE` | `http://foxpro_confvision:9997` |
-| `MEDIAMTX_RTSP_BASE` | `rtsp://foxpro_confvision:8554` |
+| `MEDIAMTX_API_BASE` | `http://foxpro_rust-mediamtx:9997` |
+| `MEDIAMTX_RTSP_BASE` | `rtsp://foxpro_rust-mediamtx:8554` |
 | `RTMP_PUBLISH_SECRET` | *(segredo longo)* | **Igual** ao MediaMTX e app Go |
 | `DVR_RECORD_DIR` | `/recordings` |
 | `DVR_SYNC_INTERVAL_SEC` | `30` |
@@ -225,7 +227,7 @@ Grava clipes quando detecta movimento (MOG2). Plano **movimento** — não timel
 | Variável | Valor (foxpro) |
 |---|---|
 | `XANO_BASE_URL` | `https://xpcy-oyme-lno7.b2.xano.io/api:AC7rgWwW` |
-| `MEDIAMTX_RTSP_BASE` | `rtsp://foxpro_confvision:8554` |
+| `MEDIAMTX_RTSP_BASE` | `rtsp://foxpro_rust-mediamtx:8554` |
 | `RTMP_PUBLISH_SECRET` | *(segredo longo)* | **Igual** ao MediaMTX e app Go |
 | `WORKER_ID` | `worker-docker-01` |
 | `MOTION_WORKER_VERSION` | `0.1.0` |
@@ -297,7 +299,7 @@ Demais variáveis compartilhadas com motion: `RTMP_PUBLISH_SECRET`, `MOTION_SYNC
 
 ```
 [TIMELAPSE] START ConfVision timelapse worker
-[TIMELAPSE] OK | xano=... | rtsp=rtsp://foxpro_confvision:8554 ...
+[TIMELAPSE] OK | xano=... | rtsp=rtsp://foxpro_rust-mediamtx:8554 ...
 [TIMELAPSE] SYNC 1 camera(s) timelapse ids=[123]
 [TIMELAPSE] camera=123 stream OK
 [TIMELAPSE] camera=123 frame 1/5 capturado
@@ -377,7 +379,7 @@ HLS/ao vivo usam o mesmo path: `…/cam/{hash12}/index.m3u8`
 | `RTMP_BAN_MAX_FAILS` | `12` | Falhas na janela; path inválido conta por path (NVR) |
 | `RTMP_BAN_WINDOW_SEC` | `60` | Janela de contagem |
 | `RTMP_BAN_TTL_SEC` | `3600` | Duração do ban (1h) |
-| `MEDIAMTX_API_BASE` | `http://foxpro_confvision:9997` | API Control (lista online) |
+| `MEDIAMTX_API_BASE` | `http://foxpro_rust-mediamtx:9997` | API Control (lista online) |
 | `MEDIAMTX_API_USER` | `dvr` | Auth da API MediaMTX |
 | `MEDIAMTX_API_PASS` | *(senha)* | Igual ao worker DVR |
 | `RTMP_ALLOW_READ_OPEN` | `0` | HLS/read exige auth (bloqueado/ativo/plano online) |
@@ -458,7 +460,7 @@ O guard já inclui `/falhas` — preferir o guard.
 Câmera IP / DVR
     │ RTMP publish  rtmp://…:1935/cam/{hash12}
     ▼
-confvision (MediaMTX)  ← foxpro_confvision:8554 / :9997 / :1935
+confvision (MediaMTX)  ← foxpro_rust-mediamtx:8554 / :9997 / :1935
     │ log → /recordings/mediamtx.log
     │
     ├── confvision-worker     → main.py              (detecção YOLO / eventos)

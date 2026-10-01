@@ -68,6 +68,9 @@ pub struct SyncCamerasResponse {
     pub unchanged: bool,
     #[serde(default)]
     pub cameras: Vec<CameraRecord>,
+    /// Polígonos ativos (API envia separado de `cameras`; ver `AnalyticsRuntime::upsert_cameras`).
+    #[serde(default)]
+    pub areas: Vec<Value>,
     #[serde(default)]
     pub config_version: Option<String>,
 }
@@ -164,6 +167,7 @@ impl ConfVisionClient {
             return Ok(SyncCamerasResponse {
                 unchanged: true,
                 cameras: vec![],
+                areas: vec![],
                 config_version: raw
                     .get("config_version")
                     .and_then(|v| v.as_str())
@@ -172,9 +176,11 @@ impl ConfVisionClient {
         }
 
         let cameras = parse_cameras(&raw);
+        let areas = parse_areas(&raw);
         Ok(SyncCamerasResponse {
             unchanged: false,
             cameras,
+            areas,
             config_version: raw
                 .get("config_version")
                 .and_then(|v| v.as_str())
@@ -201,6 +207,13 @@ impl ConfVisionClient {
         }
         Ok(())
     }
+}
+
+fn parse_areas(raw: &Value) -> Vec<Value> {
+    raw.get("areas")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.clone())
+        .unwrap_or_default()
 }
 
 fn parse_cameras(raw: &Value) -> Vec<CameraRecord> {

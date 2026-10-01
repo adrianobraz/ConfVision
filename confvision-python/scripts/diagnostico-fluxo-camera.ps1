@@ -61,8 +61,13 @@ try {
         Write-Host "[OK] sync_ativas: worker_id=$($c.worker_id) rtsp_url_sec=$($c.rtsp_url_sec)"
         Write-Host "     mediamtx_rtsp_base=$($c.mediamtx_rtsp_base)"
         if ([string]$c.rtsp_url_sec -match "srv1\.dnsid\.com\.br") {
-            Write-Host "[AVISO] rtsp_url_sec aponta DNS publico - Rust na rede foxpro deve usar foxpro_confvision:8554"
-            Write-Host "        PUT /vis_camera/$CameraId body rtsp_url_sec=rtsp://foxpro_confvision:8554/cam/<hash>"
+            Write-Host "[AVISO] rtsp_url_sec usa srv1:8554 (DNS ingest) — Rust no Docker deve usar foxpro_rust-mediamtx:8554 ou rtsp_url_sec vazio + nó"
+        }
+        if ([string]$c.rtsp_url_sec -match "foxpro_confvision") {
+            Write-Host "[AVISO] rtsp_url_sec host legado foxpro_confvision — use foxpro_rust-mediamtx ou NULL"
+        }
+        if (-not [string]$c.rtsp_url_sec -and [string]$c.mediamtx_rtsp_base -match "foxpro_rust-mediamtx") {
+            Write-Host "[OK] RTSP via nó MTX (rtsp_url_sec vazio + mediamtx_rtsp_base interno)"
         }
         if (-not [string]$c.rtsp_url_sec -and -not [string]$c.mediamtx_rtsp_base) {
             Write-Host "[AVISO] sem rtsp_url_sec e sem mediamtx_rtsp_base - Rust nao monta URL"
@@ -88,5 +93,5 @@ Write-Host ""
 Write-Host "Proximos passos na VPS foxpro:"
 Write-Host "  1) confvision (MediaMTX+Guard) Running"
 Write-Host "  2) NVR publicando RTMP cam/HASH (hash = rtmp_token camera $CameraId)"
-Write-Host "  3) rust-pilot Running WORKER_ID=$WorkerId MEDIAMTX_RTSP_BASE=rtsp://foxpro_confvision:8554"
+Write-Host "  3) rust-pilot Running WORKER_ID=$WorkerId MEDIAMTX_RTSP_BASE=rtsp://foxpro_rust-mediamtx:8554"
 Write-Host "  4) Guard: unban IP se ip_banido nos logs"

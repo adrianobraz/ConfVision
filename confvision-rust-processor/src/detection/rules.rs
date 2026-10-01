@@ -22,6 +22,12 @@ pub fn evaluate_detections<'a>(
     let mut pessoas = 0u32;
     let mut pessoas_match = 0u32;
 
+    let modo_eff = if areas.is_empty() && modo != "ambos" {
+        "ambos"
+    } else {
+        modo
+    };
+
     for det in detections {
         if det.class_id != 0 || det.confidence < conf_min {
             continue;
@@ -33,7 +39,7 @@ pub fn evaluate_detections<'a>(
             find_area_for_box(det.xyxy, frame_w, frame_h, areas)
         };
 
-        let bate = match modo {
+        let bate = match modo_eff {
             "ambos" => true,
             "fora" => area.is_none(),
             _ => area.is_some(),
@@ -58,12 +64,19 @@ pub fn evaluate_detections<'a>(
     )
 }
 
+fn json_f64(v: &Value) -> Option<f64> {
+    v.as_f64()
+        .or_else(|| v.as_i64().map(|x| x as f64))
+        .or_else(|| v.as_u64().map(|x| x as f64))
+        .or_else(|| v.as_str().and_then(|s| s.trim().parse().ok()))
+}
+
 pub fn camera_conf_min(camera: &Value, default: f64) -> f64 {
     camera
         .get("confianca_minima")
         .or_else(|| camera.get("confianca_min"))
         .or_else(|| camera.get("conf_min"))
-        .and_then(|v| v.as_f64())
+        .and_then(json_f64)
         .unwrap_or(default)
         .clamp(0.01, 1.0)
 }

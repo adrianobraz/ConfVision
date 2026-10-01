@@ -23,20 +23,27 @@ $env:RUST_HEALTH_URL = "https://<seu-rust-pilot>/health"
 | Guard | `camera_inativa` | `ativo=true` ou plano online; path `cam/{hash}` ≠ número UI |
 | Guard | `stream_pausado_sistema` | Corrigir encode; Reativar stream no painel |
 | MediaMTX | HLS “no stream” | NVR não publicou ou auth 403 |
-| Cadastro | `rtsp_url_sec` → `srv1.dnsid.com.br` | **PUT** RTSP interno `rtsp://foxpro_confvision:8554/cam/{hash}` |
+| Cadastro | `rtsp_url_sec` → DNS público | **PUT** RTSP interno `rtsp://foxpro_rust-mediamtx:8554/cam/{hash}` |
 | Rust | HTTP 503 `/health` | **Start** app `foxpro-rust-pilot*` no EasyPanel |
 | Assignment | sync vazio | `worker_id` no Postgres = `WORKER_ID` do container Rust |
 
 ## Fluxo RTMP → MTX → RTSP (câmera 6 exemplo)
 
 - Hash: `m6e4ywjpda5o` → path `cam/m6e4ywjpda5o`
-- RTSP interno: `rtsp://foxpro_confvision:8554/cam/m6e4ywjpda5o`
+- RTSP interno: `rtsp://foxpro_rust-mediamtx:8554/cam/m6e4ywjpda5o`
+
+**Câmera 32** (hash `qjg3p8j296z7`):
+
+```powershell
+$body = '{"rtsp_url_sec":"rtsp://foxpro_rust-mediamtx:8554/cam/qjg3p8j296z7","analitico_pausado":false}'
+# PUT /vis_camera/32 com X-API-Key
+```
 - Worker cadastro: `rust-processor-pilot-b-04`
 
 ## Corrigir RTSP para rede Docker (API)
 
 ```powershell
-$body = '{"rtsp_url_sec":"rtsp://foxpro_confvision:8554/cam/m6e4ywjpda5o","analitico_pausado":false}'
+$body = '{"rtsp_url_sec":"rtsp://foxpro_rust-mediamtx:8554/cam/m6e4ywjpda5o","analitico_pausado":false}'
 Invoke-RestMethod -Method Put -Uri "https://vision.confmonit2.com.br/vis_camera/6" `
   -Headers @{ "X-Vis-Worker-Key" = $env:VIS_WORKER_API_KEY; "Content-Type" = "application/json" } `
   -Body $body
