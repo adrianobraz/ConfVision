@@ -19,11 +19,13 @@ COPY --from=mtx /mediamtx /mediamtx
 COPY mediamtx/mediamtx.yml /mediamtx.yml
 
 COPY log_rotate.py \
+     stream_health_client.py \
      rtmp_ban.py \
      rtmp_guard.py \
      rtmp_guard_main.py \
      rtmp_messages.py \
      rtmp_online.py \
+     rtmp_publish_health.py \
      rtmp_token.py \
      rtmp_watch.py \
      start_mediamtx_guard.py \

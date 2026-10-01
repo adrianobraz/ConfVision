@@ -31,6 +31,7 @@ RE_PATH_ONLINE = re.compile(r"^\[path (?P<path>[^\]]+)\] stream is available")
 RE_MUXER_DESTROY = re.compile(r"^\[HLS\] \[muxer (?P<path>[^\]]+)\] destroyed")
 RE_CLOSED = re.compile(r"^closed:\s*(?P<reason>.+)$")
 RE_STREAM_PATH = re.compile(rf"({STREAM_APP}/[0-9a-z]{{12,}})")
+RE_CONN_IN_LINE = re.compile(r"\[conn (?P<ip>\d{1,3}(?:\.\d{1,3}){3}):(?P<port>\d+)\]")
 
 
 def path_label(path: str) -> str:
@@ -199,6 +200,44 @@ class RtmpLogParser:
         # path -> {ip, since} para fallback da lista online
         self.publishers: dict[str, dict] = {}
 
+    def register_publish_context(self, ip: str, path: str, *, fonte: str = "auth") -> None:
+        """Vincula IP↔path (auth HTTP ou log RTMP) para resolver falhas sem path na linha."""
+        ip = (ip or "").strip()
+        path = (path or "").strip().rstrip("/")
+        if not ip or ip == "-" or not path:
+            return
+        self.last_path_by_ip[ip] = path
+        self.publishers[path] = {"ip": ip, "since": fonte}
+
+    def resolve_stream_camera_id(
+        self,
+        path: str,
+        ip: str,
+        *,
+        log_line: str = "",
+    ) -> tuple[Optional[int], str]:
+        """IP / último path / publishers / conns → cam/{hash} → camera_id."""
+        path = (path or "").strip().rstrip("/")
+        ip = (ip or "").strip()
+        if ip in ("?", "-", ""):
+            ip = ""
+        if not path and log_line:
+            path = self._path_from_reason(log_line)
+        if not path and ip:
+            path = (self.last_path_by_ip.get(ip) or "").strip().rstrip("/")
+        if not path and ip:
+            for p, meta in self.publishers.items():
+                if str(meta.get("ip") or "") == ip:
+                    path = p
+                    break
+        if not path and ip:
+            for st in self.conns.values():
+                if st.ip == ip and st.path:
+                    path = st.path.rstrip("/")
+                    break
+        camera_id = parse_chave_rtmp(path) if path else None
+        return camera_id, path
+
     def feed(self, line: str) -> Optional[Falha]:
         line = (line or "").rstrip("\n")
         if not line.strip():
@@ -218,6 +257,11 @@ class RtmpLogParser:
             line,
         )
         if m_online:
+            p = m_online.group("path").strip().rstrip("/")
+            if p:
+                meta = self.publishers.get(p)
+                if meta and str(meta.get("ip") or "").strip():
+                    self.last_path_by_ip[str(meta["ip"]).strip()] = p
             return None
 
         m = RE_LINE.match(line)
@@ -235,6 +279,30 @@ class RtmpLogParser:
 
         return None
 
+    def _resolve_path_and_ip_for_diag(self, line: str, path: str) -> tuple[str, str]:
+        path = (path or "").strip().rstrip("/")
+        ip = ""
+        if not path:
+            path = self._path_from_reason(line)
+        cm = RE_CONN_IN_LINE.search(line or "")
+        if cm:
+            ip = cm.group("ip")
+        if not path and ip:
+            path = (self.last_path_by_ip.get(ip) or "").strip().rstrip("/")
+        if not path and ip:
+            for p, meta in self.publishers.items():
+                if str(meta.get("ip") or "") == ip:
+                    path = p
+                    break
+        if not path and ip:
+            for st in self.conns.values():
+                if st.ip == ip and st.path:
+                    path = st.path.rstrip("/")
+                    break
+        if not ip and path and path in self.publishers:
+            ip = str(self.publishers[path].get("ip") or "")
+        return path, ip
+
     def _handle_stream_diag(self, line: str, codigo: str) -> Optional[Falha]:
         """HLS/muxer/RTMP — diagnóstico de encode (não auto-ban)."""
         ts_m = re.match(r"^(?P<ts>\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})", line)
@@ -243,11 +311,7 @@ class RtmpLogParser:
         pm = re.search(r"\[(?:path|muxer)\s+([^\]]+)\]", line)
         if pm:
             path = pm.group(1).strip().rstrip("/")
-        if not path:
-            path = self._path_from_reason(line)
-        ip = ""
-        if path and path in self.publishers:
-            ip = str(self.publishers[path].get("ip") or "")
+        path, ip = self._resolve_path_and_ip_for_diag(line, path)
         falha = self.store.add(
             ts=ts,
             ip=ip or "?",
@@ -279,8 +343,7 @@ class RtmpLogParser:
             st.published = True
             st.path = pub.group(1).rstrip("/")
             self.conns[key] = st
-            self.last_path_by_ip[ip] = st.path
-            self.publishers[st.path] = {"ip": ip, "since": ts}
+            self.register_publish_context(ip, st.path, fonte=ts)
             print(
                 f"[RTMP-WATCH] OK ip={ip} path={st.path} — publicando",
                 flush=True,

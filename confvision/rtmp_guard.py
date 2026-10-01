@@ -10,6 +10,7 @@ import requests
 
 from rtmp_ban import BanStore
 from rtmp_token import RE_HASH_PATH, chave_valida, parse_chave_rtmp, publish_secret
+from stream_health_client import confvision_api_base
 
 
 def _env(name: str, default: str = "") -> str:
@@ -60,10 +61,20 @@ class CameraCache:
         self._data.pop(camera_id, None)
 
 
+# Motivo Postgres / Go — prefixo sistema_stream obrigatório.
+STREAM_PAUSE_VIDEO_TRACK = "sistema_stream_video_track_not_set_up"
+STREAM_ERRO_VIDEO_TRACK = "VIDEO_TRACK_NOT_SET_UP"
+
+
+def _cam_has_stream_policy_fields(cam: dict[str, Any]) -> bool:
+    return "stream_motivo_pausa" in cam or "analitico_pausado" in cam
+
+
 class RtmpGuard:
     def __init__(self, bans: BanStore):
         self.bans = bans
         self.xano = _env("XANO_BASE_URL").rstrip("/")
+        self.auth_bases = self._rtmp_auth_bases()
         self.secret = publish_secret()
         self.dvr_user = _env("MEDIAMTX_API_USER", "dvr")
         self.dvr_pass = _env("MEDIAMTX_API_PASS")
@@ -135,7 +146,9 @@ class RtmpGuard:
             return 403, "camera_bloqueada", meta
 
         if _stream_pausado_pelo_sistema(cam):
-            meta["stream_motivo_pausa"] = str(cam.get("stream_motivo_pausa") or "").strip()
+            meta["stream_motivo_pausa"] = str(
+                cam.get("stream_motivo_pausa") or STREAM_PAUSE_VIDEO_TRACK
+            ).strip()
             return 403, "stream_pausado_sistema", meta
 
         # Plano online grava ativo=false de propósito (sob demanda).
@@ -149,27 +162,67 @@ class RtmpGuard:
         if ip:
             self.bans.registrar_falha(ip, motivo=motivo)
 
+    @staticmethod
+    def _rtmp_auth_bases() -> list[str]:
+        """Go (vis_*) primeiro — endpoint legado Xano não traz stream_motivo_pausa."""
+        out: list[str] = []
+        go = confvision_api_base()
+        if go:
+            out.append(go)
+        xano = _env("XANO_BASE_URL").rstrip("/")
+        if xano and xano not in out:
+            out.append(xano)
+        return out
+
+    @staticmethod
+    def _parse_rtmp_auth_payload(data: dict) -> Optional[dict]:
+        if not isinstance(data, dict):
+            return None
+        cam = data.get("dados") if isinstance(data.get("dados"), dict) else data
+        if not cam or cam.get("id") is None:
+            return None
+        return cam
+
     def _fetch_camera(self, camera_id: int) -> Optional[dict]:
         cached = self.cache.get(camera_id)
         if cached is not None:
             return cached
-        if not self.xano:
-            print("[RTMP-GUARD] XANO_BASE_URL vazio", flush=True)
+        bases = self.auth_bases or self._rtmp_auth_bases()
+        if not bases:
+            print(
+                "[RTMP-GUARD] ERRO rtmp_auth: CONFVISION_API_URL e XANO_BASE_URL vazios",
+                flush=True,
+            )
             return None
-        url = f"{self.xano}/vis_camera/rtmp_auth/{camera_id}"
-        try:
-            r = requests.get(url, params={"vis_camera_id": camera_id}, timeout=8)
-            if r.status_code == 404:
-                return None
-            r.raise_for_status()
-            data = r.json()
-            if not isinstance(data, dict):
-                return None
-            cam = data.get("dados") if isinstance(data.get("dados"), dict) else data
-            if not cam or cam.get("id") is None:
-                return None
-            self.cache.set(camera_id, cam)
-            return cam
-        except Exception as exc:
-            print(f"[RTMP-GUARD] xano falhou camera={camera_id}: {exc}", flush=True)
-            return None
+        last_exc: Optional[Exception] = None
+        for base in bases:
+            url = f"{base.rstrip('/')}/vis_camera/rtmp_auth/{camera_id}"
+            try:
+                r = requests.get(url, params={"vis_camera_id": camera_id}, timeout=8)
+                if r.status_code == 404:
+                    continue
+                r.raise_for_status()
+                cam = self._parse_rtmp_auth_payload(r.json())
+                if not cam:
+                    continue
+                if not _cam_has_stream_policy_fields(cam):
+                    print(
+                        "[RTMP-GUARD] AVISO rtmp_auth sem campos stream_policy "
+                        f"(endpoint legado?) base={base} camera_id={camera_id} — tentando proxima base",
+                        flush=True,
+                    )
+                    continue
+                self.cache.set(camera_id, cam)
+                return cam
+            except Exception as exc:
+                last_exc = exc
+                print(
+                    f"[RTMP-GUARD] rtmp_auth falhou base={base} camera={camera_id}: {exc}",
+                    flush=True,
+                )
+        if last_exc:
+            print(
+                f"[RTMP-GUARD] ERRO rtmp_auth esgotou bases camera_id={camera_id}: {last_exc}",
+                flush=True,
+            )
+        return None

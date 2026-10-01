@@ -18,12 +18,17 @@ from urllib.parse import parse_qs, urlparse
 
 from rtmp_ban import BanStore
 from rtmp_guard import RtmpGuard
+from stream_health_client import ERROR_CLASS_VIDEO_TRACK, PAUSE_REASON_VIDEO_TRACK
 from rtmp_online import listar_online
 from rtmp_publish_health import PublishHealthStore
 from rtmp_token import publish_secret
 from rtmp_token import parse_chave_rtmp
 from rtmp_watch import RtmpLogParser, RtmpWatchStore, follow_file
-from stream_health_client import pause_camera_video_track
+from stream_health_client import (
+    confvision_api_base,
+    pause_camera_video_track,
+    stream_health_configured,
+)
 
 
 def _env(name: str, default: str = "") -> str:
@@ -88,6 +93,41 @@ def _online_paths() -> set[str]:
 class _WatchWithBan(RtmpLogParser):
     """Falhas → auto-ban (limiar por motivo); publish OK → health + desban."""
 
+    def _camera_id_from_video_track_falha(self, falha, *, log_line: str = "") -> tuple[Optional[int], str]:
+        return self.resolve_stream_camera_id(
+            falha.path or "",
+            falha.ip or "",
+            log_line=log_line or (falha.motivo_raw or ""),
+        )
+
+    def _aplicar_pausa_video_track(self, falha, camera_id: int, path: str) -> None:
+        """Política existente: pause_analytic (Go/Postgres) + invalidar cache de auth."""
+        raw_err = (falha.motivo_raw or "").strip()[:500]
+        api_ok = pause_camera_video_track(
+            camera_id,
+            last_error=raw_err,
+            path=path,
+        )
+        if api_ok:
+            GUARD.cache.invalidate(camera_id)
+        elif not api_ok:
+            print(
+                f"[RTMP-GUARD] AVISO cache auth NAO invalidado camera_id={camera_id} "
+                "(pause_analytic falhou ou dedupe; proximo publish pode usar cache antigo)",
+                flush=True,
+            )
+        print(
+            "[RTMP-GUARD] STREAM PAUSADO\n"
+            f"camera_id={camera_id}\n"
+            f"path={path or '-'}\n"
+            f"motivo={PAUSE_REASON_VIDEO_TRACK}\n"
+            f"erro_classe={ERROR_CLASS_VIDEO_TRACK}\n"
+            f"acao=pause_analytic\n"
+            f"vis_worker_ping={'ok' if api_ok else 'falhou_ou_dedupe'}\n"
+            f"cache_auth={'invalidado' if api_ok else 'mantido_ate_go_ou_proximo_fetch'}",
+            flush=True,
+        )
+
     def _handle_stream_diag(self, line: str, codigo: str):
         falha = super()._handle_stream_diag(line, codigo)
         if (
@@ -95,15 +135,17 @@ class _WatchWithBan(RtmpLogParser):
             and falha.motivo_codigo == "rtmp_video_track_nao_configurado"
             and falha.vezes == 1
         ):
-            path = (falha.path or "").strip().rstrip("/")
-            camera_id = parse_chave_rtmp(path) if path else None
+            camera_id, path = self._camera_id_from_video_track_falha(falha, log_line=line)
+            if path and not (falha.path or "").strip():
+                falha.path = path
             if camera_id:
-                if pause_camera_video_track(
-                    camera_id,
-                    last_error=falha.motivo_raw or line.strip()[:500],
-                    path=path,
-                ):
-                    GUARD.cache.invalidate(camera_id)
+                self._aplicar_pausa_video_track(falha, camera_id, path)
+            else:
+                print(
+                    "[RTMP-GUARD] video track: pause_analytic NAO acionado "
+                    f"(camera_id desconhecido ip={falha.ip or '-'} path={path or falha.path or '-'})",
+                    flush=True,
+                )
         return falha
 
     def _handle_rtmp_conn(self, ts: str, sub: str, msg: str):
@@ -118,7 +160,7 @@ class _WatchWithBan(RtmpLogParser):
                     ip=cm.group("ip"),
                     fonte="log",
                 )
-                BANS.registrar_sucesso(cm.group("ip"))
+                BANS.registrar_sucesso(cm.group("ip"), path=pub.group(1).rstrip("/"))
 
         falha = super()._handle_rtmp_conn(ts, sub, msg)
         if falha and falha.motivo_codigo in (
@@ -135,7 +177,7 @@ class _WatchWithBan(RtmpLogParser):
                     motivo = "chave_invalida"
                 elif "path_invalido" in raw or "invalid path" in raw:
                     motivo = "path_invalido"
-            BANS.registrar_falha(falha.ip, motivo=motivo)
+            BANS.registrar_falha(falha.ip, motivo=motivo, path=falha.path or None)
         return falha
 
 
@@ -297,6 +339,13 @@ class Handler(BaseHTTPRequestHandler):
                             "AÇÃO: conexão rejeitada",
                             flush=True,
                         )
+                    elif motivo == "stream_pausado_sistema":
+                        print(
+                            f"[RTMP-GUARD] NEGADO action={action} ip={ip} path={path_v} "
+                            f"hash={hash_v} camera_id={cam_v} plano={plano_v} "
+                            f"motivo=stream_pausado_sistema",
+                            flush=True,
+                        )
                     else:
                         print(
                             f"[RTMP-GUARD] NEGADO action={action} ip={ip} path={path_v} "
@@ -311,14 +360,15 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 if action == "publish" and code < 300 and ip and ip != "-":
                     p = str(path_v or "").strip().rstrip("/")
-                    if p:
+                    if p and p != "-":
+                        PARSER.register_publish_context(ip, p, fonte="auth")
                         HEALTH.registrar_publish(
                             p,
                             ip=ip,
                             camera_id=meta.get("camera_id"),
                             fonte="auth",
                         )
-                    BANS.registrar_sucesso(ip)
+                    BANS.registrar_sucesso(ip, path=p or None)
             return
 
         if path == "/ban":
@@ -363,7 +413,12 @@ class Handler(BaseHTTPRequestHandler):
             if cid is None:
                 self._json(400, {"status": "vis_camera_id obrigatorio"})
                 return
-            GUARD.cache.invalidate(int(cid))
+            cid_int = int(cid)
+            GUARD.cache.invalidate(cid_int)
+            print(
+                f"[RTMP-GUARD] cache auth invalidado camera_id={cid_int}",
+                flush=True,
+            )
             self._json(200, {"status": "ok"})
             return
 
@@ -382,6 +437,16 @@ def main():
     print(
         f"[RTMP-GUARD] ban hard={BANS.hard.max_fails}/{BANS.hard.window_sec}s "
         f"soft_eof={BANS.soft.max_fails}/{BANS.soft.window_sec}s auto_unban={'sim' if BANS.auto_unban_on_publish else 'nao'}",
+        flush=True,
+    )
+    sh_ok = stream_health_configured()
+    print(
+        f"[RTMP-GUARD] stream_health pause_analytic={'ok' if sh_ok else 'DESLIGADO'} "
+        f"api={confvision_api_base() or '-'} vis_worker_key={'sim' if _env('VIS_WORKER_API_KEY') else 'NAO'}",
+        flush=True,
+    )
+    print(
+        f"[RTMP-GUARD] rtmp_auth bases (Go primeiro): {GUARD.auth_bases or ['-']}",
         flush=True,
     )
 

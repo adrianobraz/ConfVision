@@ -75,9 +75,17 @@ class BanStore:
         self.auto_unban_on_publish = auto_unban_on_publish
         self._lock = threading.Lock()
         self._bans: dict[str, BanEntry] = {}
-        # ip -> motivo -> timestamps
-        self._fails: dict[str, dict[str, list[float]]] = {}
+        # ip -> motivo -> path_key -> timestamps (soft: path real; hard: "*")
+        self._fails: dict[str, dict[str, dict[str, list[float]]]] = {}
         self._load()
+
+    @staticmethod
+    def _path_key(motivo: str, path: Optional[str]) -> str:
+        m = (motivo or "").strip()
+        p = (path or "").strip().rstrip("/")
+        if m in MOTIVOS_SOFT and p:
+            return p
+        return "*"
 
     def _limites(self, motivo: str) -> _Limites:
         m = (motivo or "").strip()
@@ -127,12 +135,16 @@ class BanStore:
         for ip in expired:
             del self._bans[ip]
         for ip, por_motivo in list(self._fails.items()):
-            kept_m: dict[str, list[float]] = {}
-            for motivo, times in por_motivo.items():
+            kept_m: dict[str, dict[str, list[float]]] = {}
+            for motivo, por_path in por_motivo.items():
                 lim = self._limites(motivo)
-                kept = [t for t in times if now - t <= lim.window_sec]
-                if kept:
-                    kept_m[motivo] = kept
+                kept_p: dict[str, list[float]] = {}
+                for path_key, times in por_path.items():
+                    kept = [t for t in times if now - t <= lim.window_sec]
+                    if kept:
+                        kept_p[path_key] = kept
+                if kept_p:
+                    kept_m[motivo] = kept_p
             if kept_m:
                 self._fails[ip] = kept_m
             else:
@@ -195,25 +207,52 @@ class BanStore:
         print(f"[RTMP-BAN] UNBAN ip={ip}", flush=True)
         return True
 
-    def registrar_sucesso(self, ip: str) -> bool:
-        """Limpa falhas; remove auto-ban (mantém ban manual)."""
+    def registrar_sucesso(self, ip: str, *, path: Optional[str] = None) -> bool:
+        """Limpa falhas do publish OK; remove auto-ban hard (mantém ban manual)."""
         ip = (ip or "").strip()
         if not ip or not self.auto_unban_on_publish:
             return False
+        path_norm = (path or "").strip().rstrip("/")
         with self._lock:
             self._purge_locked()
-            self._fails.pop(ip, None)
+            por_motivo = self._fails.get(ip)
+            if por_motivo:
+                for motivo in list(por_motivo.keys()):
+                    if motivo in MOTIVOS_SOFT:
+                        if path_norm:
+                            por_path = por_motivo.get(motivo) or {}
+                            por_path.pop(path_norm, None)
+                            if por_path:
+                                por_motivo[motivo] = por_path
+                            else:
+                                por_motivo.pop(motivo, None)
+                    else:
+                        por_motivo.pop(motivo, None)
+                if not por_motivo:
+                    self._fails.pop(ip, None)
             entry = self._bans.get(ip)
             if entry and entry.manual:
                 return False
             if entry:
+                motivo_ban = entry.motivo or ""
+                if any(s in motivo_ban for s in MOTIVOS_SOFT):
+                    return False
                 del self._bans[ip]
                 self._save()
-                print(f"[RTMP-BAN] AUTO-UNBAN ip={ip} motivo=publish_ok", flush=True)
+                print(
+                    f"[RTMP-BAN] AUTO-UNBAN ip={ip} motivo=publish_ok path={path_norm or '-'}",
+                    flush=True,
+                )
                 return True
         return False
 
-    def registrar_falha(self, ip: str, motivo: str = "auth_falhou") -> Optional[BanEntry]:
+    def registrar_falha(
+        self,
+        ip: str,
+        motivo: str = "auth_falhou",
+        *,
+        path: Optional[str] = None,
+    ) -> Optional[BanEntry]:
         """Conta falha por motivo; se estourar limiar, bane e retorna o ban."""
         ip = (ip or "").strip()
         motivo = (motivo or "auth_falhou").strip() or "auth_falhou"
@@ -227,13 +266,17 @@ class BanStore:
             self._purge_locked()
             if ip in self._bans:
                 return self._bans[ip]
+            pk = self._path_key(motivo, path)
             por_motivo = self._fails.setdefault(ip, {})
-            times = [t for t in por_motivo.get(motivo, []) if now - t <= lim.window_sec]
+            por_path = por_motivo.setdefault(motivo, {})
+            times = [t for t in por_path.get(pk, []) if now - t <= lim.window_sec]
             times.append(now)
-            por_motivo[motivo] = times
+            por_path[pk] = times
             if len(times) < lim.max_fails:
+                path_log = pk if pk != "*" else "-"
                 print(
-                    f"[RTMP-BAN] falha ip={ip} tentativa={len(times)}/{lim.max_fails} "
+                    f"[RTMP-BAN] falha ip={ip} path={path_log} "
+                    f"tentativa={len(times)}/{lim.max_fails} "
                     f"motivo={motivo} ({'soft' if motivo in MOTIVOS_SOFT else 'hard'})",
                     flush=True,
                 )
@@ -247,7 +290,9 @@ class BanStore:
                 manual=False,
             )
             self._bans[ip] = entry
-            por_motivo.pop(motivo, None)
+            por_path.pop(pk, None)
+            if not por_path:
+                por_motivo.pop(motivo, None)
             if not por_motivo:
                 self._fails.pop(ip, None)
             self._save()

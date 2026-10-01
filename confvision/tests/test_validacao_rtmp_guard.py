@@ -7,7 +7,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from log_rotate import log_rotate_config, maybe_rotate_log
 from rtmp_ban import BanStore
@@ -157,6 +157,74 @@ class TestVideoTrackPauseIntegration(unittest.TestCase):
             self.parser.feed(line)
             mock_post.assert_not_called()
 
+        self.assertIsNone(GUARD.cache.get(self.camera_id))
+
+    def test_video_track_blocks_next_publish(self):
+        from rtmp_guard_main import GUARD
+
+        os.environ["CONFVISION_API_URL"] = "http://127.0.0.1:59999"
+        os.environ["VIS_WORKER_API_KEY"] = "test-key"
+        GUARD.cache.invalidate(self.camera_id)
+        GUARD.cache.set(
+            self.camera_id,
+            {"id": self.camera_id, "ativo": True, "plano": "analitico_24h_foto", "bloqueado": False},
+        )
+        line = (
+            f"2026/09/30 12:00:01 INF [path {self.path}] "
+            "received a packet for video track 0, but track is not set up"
+        )
+        paused_cam = {
+            "id": self.camera_id,
+            "ativo": True,
+            "plano": "analitico_24h_foto",
+            "bloqueado": False,
+            "analitico_pausado": True,
+            "stream_motivo_pausa": "sistema_stream_video_track_not_set_up",
+        }
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"dados": paused_cam}
+        mock_resp.raise_for_status = lambda: None
+        with patch("stream_health_client.requests.post") as mock_post:
+            mock_post.return_value.status_code = 200
+            self.parser.feed(line)
+        with patch("rtmp_guard.requests.get", return_value=mock_resp):
+            code, motivo, _ = GUARD.authorize(
+                {"action": "publish", "ip": "198.51.100.2", "path": self.path}
+            )
+        self.assertEqual(code, 403)
+        self.assertEqual(motivo, "stream_pausado_sistema")
+
+    def test_video_track_resolves_path_from_conn_ip(self):
+        from rtmp_guard_main import PARSER
+
+        ip = "203.0.113.10"
+        PARSER.register_publish_context(ip, self.path, fonte="test")
+        line = (
+            f"2026/09/30 12:00:01 INF [RTMP] [conn {ip}:44001] closed: "
+            "received a packet for video track 0, but track is not set up"
+        )
+        falha = PARSER.feed(line)
+        self.assertIsNotNone(falha)
+        assert falha is not None
+        self.assertEqual(falha.path, self.path)
+        self.assertEqual(falha.motivo_codigo, "rtmp_video_track_nao_configurado")
+
+    def test_video_track_triggers_pause_from_auth_context_only(self):
+        from rtmp_guard_main import GUARD, PARSER
+
+        os.environ["CONFVISION_API_URL"] = "http://127.0.0.1:59999"
+        os.environ["VIS_WORKER_API_KEY"] = "test-key"
+        ip = "198.51.100.88"
+        PARSER.register_publish_context(ip, self.path, fonte="auth")
+        line = (
+            f"2026/09/30 12:00:01 INF [RTMP] [conn {ip}:44002] "
+            "received a packet for video track 0, but track is not set up"
+        )
+        with patch("stream_health_client.requests.post") as mock_post:
+            mock_post.return_value.status_code = 200
+            PARSER.feed(line)
+            mock_post.assert_called_once()
         self.assertIsNone(GUARD.cache.get(self.camera_id))
 
     def test_dts_does_not_pause(self):

@@ -26,6 +26,7 @@ def confvision_api_base() -> str:
         _env("CONFVISION_API_URL")
         or _env("CONFVISION_VISDATA_URL")
         or _env("VISDATA_BASE_URL")
+        or _env("XANO_BASE_URL")
     )
     return base.rstrip("/")
 
@@ -37,19 +38,25 @@ def _dedupe_sec() -> float:
         return 3600.0
 
 
-def _should_send_pause(camera_id: int) -> bool:
+def _pause_dedupe_allows(camera_id: int) -> bool:
     now = time.time()
     with _lock:
         last = _last_pause_at.get(camera_id, 0.0)
-        if now - last < _dedupe_sec():
-            return False
-        _last_pause_at[camera_id] = now
-        return True
+        return now - last >= _dedupe_sec()
+
+
+def _mark_pause_sent(camera_id: int) -> None:
+    with _lock:
+        _last_pause_at[camera_id] = time.time()
 
 
 def reset_pause_dedupe_for_tests() -> None:
     with _lock:
         _last_pause_at.clear()
+
+
+def stream_health_configured() -> bool:
+    return bool(confvision_api_base() and _env("VIS_WORKER_API_KEY"))
 
 
 def pause_camera_video_track(
@@ -61,15 +68,15 @@ def pause_camera_video_track(
     """Pausa analítico por video track não configurado. Retorna True se POST enviado."""
     if camera_id < 1:
         return False
-    if not _should_send_pause(camera_id):
+    if not _pause_dedupe_allows(camera_id):
         return False
 
     base = confvision_api_base()
     key = _env("VIS_WORKER_API_KEY")
     if not base or not key:
         print(
-            "[RTMP-GUARD] stream_health: CONFVISION_API_URL ou VIS_WORKER_API_KEY ausente — "
-            f"nao pausou camera_id={camera_id}",
+            "[RTMP-GUARD] stream_health: ERRO — CONFVISION_API_URL ou VIS_WORKER_API_KEY "
+            f"ausente; camera_id={camera_id} (pause_analytic não enviado)",
             flush=True,
         )
         return False
@@ -106,20 +113,22 @@ def pause_camera_video_track(
         r = requests.post(url, json=body, headers=headers, timeout=12)
         if r.status_code >= 300:
             print(
-                f"[RTMP-GUARD] stream_health: HTTP {r.status_code} camera_id={camera_id} "
-                f"body={r.text[:200]}",
+                f"[RTMP-GUARD] stream_health: ERRO HTTP {r.status_code} POST /vis_worker_ping "
+                f"camera_id={camera_id} body={r.text[:200]}",
                 flush=True,
             )
             return False
+        _mark_pause_sent(camera_id)
         print(
-            f"[RTMP-GUARD] stream_health: pause_analytic camera_id={camera_id} "
-            f"motivo={PAUSE_REASON_VIDEO_TRACK}",
+            f"[RTMP-GUARD] stream_health: pause_analytic OK camera_id={camera_id} "
+            f"motivo={PAUSE_REASON_VIDEO_TRACK} error_class={ERROR_CLASS_VIDEO_TRACK}",
             flush=True,
         )
         return True
     except Exception as exc:
         print(
-            f"[RTMP-GUARD] stream_health: falha camera_id={camera_id}: {exc}",
+            f"[RTMP-GUARD] stream_health: ERRO HTTP POST /vis_worker_ping "
+            f"camera_id={camera_id}: {exc}",
             flush=True,
         )
         return False
