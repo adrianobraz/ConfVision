@@ -10,7 +10,7 @@ import requests
 
 from rtmp_ban import BanStore
 from rtmp_token import RE_HASH_PATH, chave_valida, parse_chave_rtmp, publish_secret
-from stream_health_client import confvision_api_base
+from stream_health_client import confvision_api_base, rtmp_auth_request_headers
 
 
 def _env(name: str, default: str = "") -> str:
@@ -134,8 +134,15 @@ class RtmpGuard:
         assert camera_id is not None
         meta["camera_id"] = camera_id
 
-        cam = self._fetch_camera(camera_id)
+        cam, fetch_err = self._fetch_camera(camera_id)
         if not cam:
+            if fetch_err == "rtmp_auth_nao_autorizado":
+                print(
+                    "[RTMP-GUARD] ERRO rtmp_auth 401 — confira VIS_WORKER_API_KEY no foxpro "
+                    "e no core-4 (sem contar falha de IP)",
+                    flush=True,
+                )
+                return 503, "rtmp_auth_nao_autorizado", meta
             self._fail(ip, "camera_nao_encontrada")
             return 403, "camera_nao_encontrada", meta
 
@@ -183,22 +190,43 @@ class RtmpGuard:
             return None
         return cam
 
-    def _fetch_camera(self, camera_id: int) -> Optional[dict]:
+    def _fetch_camera(self, camera_id: int) -> tuple[Optional[dict], Optional[str]]:
         cached = self.cache.get(camera_id)
         if cached is not None:
-            return cached
+            return cached, None
         bases = self.auth_bases or self._rtmp_auth_bases()
         if not bases:
             print(
                 "[RTMP-GUARD] ERRO rtmp_auth: CONFVISION_API_URL e XANO_BASE_URL vazios",
                 flush=True,
             )
-            return None
+            return None, "camera_nao_encontrada"
         last_exc: Optional[Exception] = None
+        saw_auth_error = False
         for base in bases:
             url = f"{base.rstrip('/')}/vis_camera/rtmp_auth/{camera_id}"
+            headers = rtmp_auth_request_headers(base)
+            if confvision_api_base() and base.rstrip("/") == confvision_api_base() and not headers:
+                print(
+                    "[RTMP-GUARD] AVISO rtmp_auth Go sem VIS_WORKER_API_KEY — "
+                    f"camera_id={camera_id}",
+                    flush=True,
+                )
             try:
-                r = requests.get(url, params={"vis_camera_id": camera_id}, timeout=8)
+                r = requests.get(
+                    url,
+                    params={"vis_camera_id": camera_id},
+                    headers=headers or None,
+                    timeout=8,
+                )
+                if r.status_code == 401:
+                    saw_auth_error = True
+                    print(
+                        f"[RTMP-GUARD] rtmp_auth 401 base={base} camera={camera_id} "
+                        "(VIS_WORKER_API_KEY ausente ou inválida)",
+                        flush=True,
+                    )
+                    continue
                 if r.status_code == 404:
                     continue
                 r.raise_for_status()
@@ -213,16 +241,18 @@ class RtmpGuard:
                     )
                     continue
                 self.cache.set(camera_id, cam)
-                return cam
+                return cam, None
             except Exception as exc:
                 last_exc = exc
                 print(
                     f"[RTMP-GUARD] rtmp_auth falhou base={base} camera={camera_id}: {exc}",
                     flush=True,
                 )
+        if saw_auth_error and not last_exc:
+            return None, "rtmp_auth_nao_autorizado"
         if last_exc:
             print(
                 f"[RTMP-GUARD] ERRO rtmp_auth esgotou bases camera_id={camera_id}: {last_exc}",
                 flush=True,
             )
-        return None
+        return None, "camera_nao_encontrada"

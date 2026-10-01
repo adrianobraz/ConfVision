@@ -31,6 +31,24 @@ def confvision_api_base() -> str:
     return base.rstrip("/")
 
 
+def vis_worker_auth_headers() -> dict[str, str]:
+    key = _env("VIS_WORKER_API_KEY")
+    if not key:
+        return {}
+    return {
+        "Authorization": f"Bearer {key}",
+        "X-Vis-Worker-Key": key,
+    }
+
+
+def rtmp_auth_request_headers(api_base: str) -> dict[str, str]:
+    """Worker auth exigido pelo Go em GET /vis_camera/rtmp_auth/{id}."""
+    go = confvision_api_base()
+    if not go or api_base.rstrip("/") != go:
+        return {}
+    return vis_worker_auth_headers()
+
+
 def _dedupe_sec() -> float:
     try:
         return max(60.0, float(_env("RTMP_STREAM_PAUSE_DEDUPE_SEC", "3600") or "3600"))
@@ -104,11 +122,7 @@ def pause_camera_video_track(
         ],
     }
     url = f"{base}/vis_worker_ping"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {key}",
-        "X-Vis-Worker-Key": key,
-    }
+    headers = {"Content-Type": "application/json", **vis_worker_auth_headers()}
     try:
         r = requests.post(url, json=body, headers=headers, timeout=12)
         if r.status_code >= 300:

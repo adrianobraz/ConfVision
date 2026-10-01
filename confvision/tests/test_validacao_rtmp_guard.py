@@ -69,6 +69,62 @@ class TestBanDenyLogRateLimit(unittest.TestCase):
         self.assertEqual(code, 403)
         self.assertEqual(motivo, "ip_banido")
 
+    def test_rtmp_auth_get_sends_worker_key_to_go(self):
+        os.environ["RTMP_PUBLISH_SECRET"] = "test-secret-for-unit-tests"
+        secret = os.environ["RTMP_PUBLISH_SECRET"]
+        camera_id = 42
+        chave = chave_rtmp(camera_id, secret=secret)
+        path = stream_path_from_chave(chave)
+        os.environ["CONFVISION_API_URL"] = "http://127.0.0.1:59999"
+        os.environ["VIS_WORKER_API_KEY"] = "unit-test-worker-key"
+        bans = BanStore("/tmp/rtmp_bans_auth_headers.json", max_fails=99, window_sec=60)
+        guard = RtmpGuard(bans)
+        guard.cache.invalidate(camera_id)
+        cam_payload = {
+            "id": camera_id,
+            "ativo": True,
+            "plano": "analitico_24h_foto",
+            "bloqueado": False,
+            "stream_motivo_pausa": "",
+            "analitico_pausado": False,
+        }
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"dados": cam_payload}
+        mock_resp.raise_for_status = lambda: None
+        with patch("rtmp_guard.requests.get", return_value=mock_resp) as mock_get:
+            code, motivo, _ = guard.authorize(
+                {"action": "publish", "ip": "198.51.100.3", "path": path}
+            )
+        self.assertEqual(code, 200)
+        self.assertEqual(motivo, "publish_ok")
+        mock_get.assert_called_once()
+        headers = mock_get.call_args.kwargs.get("headers") or {}
+        self.assertEqual(headers.get("X-Vis-Worker-Key"), "unit-test-worker-key")
+        self.assertEqual(headers.get("Authorization"), "Bearer unit-test-worker-key")
+
+    def test_rtmp_auth_401_does_not_increment_ip_fail(self):
+        os.environ["RTMP_PUBLISH_SECRET"] = "test-secret-for-unit-tests"
+        secret = os.environ["RTMP_PUBLISH_SECRET"]
+        camera_id = 43
+        chave = chave_rtmp(camera_id, secret=secret)
+        path = stream_path_from_chave(chave)
+        os.environ["CONFVISION_API_URL"] = "http://127.0.0.1:59999"
+        os.environ["VIS_WORKER_API_KEY"] = "wrong-key"
+        os.environ.pop("XANO_BASE_URL", None)
+        bans = BanStore("/tmp/rtmp_bans_auth_401.json", max_fails=1, window_sec=60)
+        guard = RtmpGuard(bans)
+        guard.cache.invalidate(camera_id)
+        mock_resp = MagicMock()
+        mock_resp.status_code = 401
+        with patch("rtmp_guard.requests.get", return_value=mock_resp):
+            code, motivo, _ = guard.authorize(
+                {"action": "publish", "ip": "198.51.100.4", "path": path}
+            )
+        self.assertEqual(code, 503)
+        self.assertEqual(motivo, "rtmp_auth_nao_autorizado")
+        self.assertFalse(bans.is_banned("198.51.100.4"))
+
     def test_banned_ip_skips_camera_fetch(self):
         os.environ["RTMP_PUBLISH_SECRET"] = "test-secret-for-unit-tests"
         secret = os.environ["RTMP_PUBLISH_SECRET"]
