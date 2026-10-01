@@ -1,0 +1,34 @@
+# MediaMTX — ConfVision (embutido em Dockerfile.mediamtx como /mediamtx.yml)
+# Volume compartilhado: /recordings -> confvision-recordings
+# Auth no mesmo container: 127.0.0.1:8100 (não depende de rede Docker)
+
+logLevel: info
+# stdout = EasyPanel | file = confvision-rtmp-guard (mesmo volume /recordings)
+logDestinations: [stdout, file]
+logFile: /recordings/mediamtx.log
+
+api: yes
+apiAddress: :9997
+
+rtspAddress: :8554
+rtmpAddress: :1935
+hlsAddress: :8888
+# no = HLS/remux só quando alguém assiste (escala ~800 câmeras/nó EX44)
+hlsAlwaysRemux: no
+rtspTransports: [tcp]
+
+# Auth HTTP → Guard no mesmo container (Dockerfile.mediamtx)
+# Publish: path cam/{hash12+} = Hashids(vis_camera.id), salt=RTMP_PUBLISH_SECRET
+# Alfabeto 0-9a-z, min_length=12 — app fixo "cam"
+# read/playback passam pelo Guard (mesma regra: bloqueado/ativo/plano online)
+# RTMP_ALLOW_READ_OPEN=1 desliga checagem no read (legado)
+authMethod: http
+authHTTPAddress: http://127.0.0.1:8100/auth
+
+pathDefaults:
+  source: publisher
+  record: no
+
+# Escala: qualquer cam/{hash12+} (não listar paths por câmera)
+paths:
+  all_others: {}

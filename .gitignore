@@ -1,0 +1,12 @@
+.env
+easypanel/*.env
+easypanel/worker.env.vps-sem-gpu
+easypanel/worker.env.gex44-gpu
+__pycache__/
+*.pyc
+*.pyo
+.Python
+.venv/
+venv/
+*.pt
+!yolov8n.pt

@@ -1,0 +1,261 @@
+"""Cache Redis da config de cameras (sync coordinator → workers)."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import time
+from typing import Any, Optional
+
+from config import (
+    CONFIG_CACHE_BACKEND,
+    CONFIG_CACHE_TTL_SEC,
+    MEDIAMTX_NODE_ID,
+    REDIS_URL,
+    RTMP_AUTH_CACHE_SEC,
+    SYNC_USE_UNIFIED_API,
+)
+from redis_client import get_redis, redis_available
+from sharding import filter_cameras, filter_gravacao_cameras, query_params
+
+KEY_PREFIX = "confvision:sync"
+RTMP_AUTH_PREFIX = "confvision:rtmp_auth"
+RTMP_AUTH_HASH_PREFIX = "confvision:rtmp_hash"
+RTMP_AUTH_MISS_PREFIX = "confvision:rtmp_miss"
+
+
+def _backend() -> str:
+    if CONFIG_CACHE_BACKEND == "redis" and REDIS_URL and redis_available():
+        return "redis"
+    return "memory"
+
+
+_memory_store: dict[str, tuple[float, dict]] = {}
+
+
+def _cache_key(kind: str) -> str:
+    params = query_params()
+    node = params.get("vis_mediamtx_node_id") or MEDIAMTX_NODE_ID or 0
+    worker = params.get("worker_id") or "all"
+    return f"{KEY_PREFIX}:{kind}:n{node}:w{worker}"
+
+
+def _version_key(kind: str) -> str:
+    return f"{_cache_key(kind)}:version"
+
+
+def _hash_payload(payload: dict) -> str:
+    canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
+
+
+def normalize_config_version(value: Any, payload: Optional[dict[str, Any]] = None) -> str:
+    """Xano 2399 pode devolver config_version como lista — Redis exige string."""
+    if value is None or value == "":
+        return _hash_payload(payload) if payload else ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (list, tuple)):
+        parts = [str(item) for item in value if item is not None and str(item) != ""]
+        if parts:
+            return ":".join(parts)
+        return _hash_payload(payload) if payload else ""
+    if isinstance(value, dict):
+        return json.dumps(value, sort_keys=True, ensure_ascii=False, default=str)
+    return str(value)
+
+
+def normalize_sync_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return {}
+    normalized = dict(payload)
+    version = normalize_config_version(normalized.get("config_version"), normalized)
+    if version:
+        normalized["config_version"] = version
+    return normalized
+
+
+def write_sync(kind: str, payload: dict[str, Any]) -> str:
+    """Grava sync no Redis/memoria. Retorna config_version."""
+    payload = normalize_sync_payload(payload)
+    version = payload.get("config_version") or _hash_payload(payload)
+    envelope = {
+        "config_version": version,
+        "fetched_at": time.time(),
+        "payload": payload,
+    }
+    key = _cache_key(kind)
+    if _backend() == "redis":
+        client = get_redis()
+        assert client is not None
+        pipe = client.pipeline()
+        pipe.setex(key, CONFIG_CACHE_TTL_SEC, json.dumps(envelope, ensure_ascii=False))
+        pipe.setex(_version_key(kind), CONFIG_CACHE_TTL_SEC, str(version))
+        pipe.execute()
+    else:
+        _memory_store[key] = (time.time(), envelope)
+    return version
+
+
+def read_sync(kind: str) -> Optional[dict[str, Any]]:
+    key = _cache_key(kind)
+    envelope = None
+    if _backend() == "redis":
+        client = get_redis()
+        assert client is not None
+        raw = client.get(key)
+        if raw:
+            envelope = json.loads(raw)
+    else:
+        hit = _memory_store.get(key)
+        if hit and time.time() - hit[0] <= CONFIG_CACHE_TTL_SEC:
+            envelope = hit[1]
+    if not envelope:
+        return None
+    return envelope.get("payload")
+
+
+def get_cached_version(kind: str) -> Optional[str]:
+    if _backend() == "redis":
+        client = get_redis()
+        assert client is not None
+        return client.get(_version_key(kind))
+    key = _cache_key(kind)
+    hit = _memory_store.get(key)
+    if hit:
+        return hit[1].get("config_version")
+    return None
+
+
+def write_rtmp_auth(camera_id: int, cam: dict, ttl_sec: int, *, hash_: str | None = None) -> None:
+    if _backend() != "redis":
+        return
+    client = get_redis()
+    assert client is not None
+    ttl = max(5, ttl_sec)
+    payload = json.dumps(cam, ensure_ascii=False)
+    pipe = client.pipeline()
+    pipe.setex(f"{RTMP_AUTH_PREFIX}:{camera_id}", ttl, payload)
+    if hash_:
+        pipe.setex(f"{RTMP_AUTH_HASH_PREFIX}:{hash_}", ttl, payload)
+    pipe.execute()
+
+
+def read_rtmp_auth(camera_id: int) -> Optional[dict]:
+    if _backend() != "redis":
+        return None
+    client = get_redis()
+    assert client is not None
+    raw = client.get(f"{RTMP_AUTH_PREFIX}:{camera_id}")
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+
+
+def read_rtmp_auth_by_hash(hash_: str) -> Optional[dict]:
+    if _backend() != "redis" or not hash_:
+        return None
+    client = get_redis()
+    assert client is not None
+    raw = client.get(f"{RTMP_AUTH_HASH_PREFIX}:{hash_}")
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+
+
+def write_rtmp_auth_miss(camera_id: int, ttl_sec: int) -> None:
+    if _backend() != "redis":
+        return
+    client = get_redis()
+    assert client is not None
+    client.setex(f"{RTMP_AUTH_MISS_PREFIX}:{camera_id}", max(60, ttl_sec), "1")
+
+
+def read_rtmp_auth_miss(camera_id: int) -> bool:
+    if _backend() != "redis":
+        return False
+    client = get_redis()
+    assert client is not None
+    return client.get(f"{RTMP_AUTH_MISS_PREFIX}:{camera_id}") is not None
+
+
+def write_rtmp_auth_batch(records: list[dict], ttl_sec: int | None = None) -> int:
+    """Grava lote RTMP auth no Redis (por id + hash). Retorna quantidade gravada."""
+    if _backend() != "redis" or not records:
+        return 0
+    from rtmp_token import chave_rtmp
+
+    client = get_redis()
+    assert client is not None
+    ttl = max(5, ttl_sec or RTMP_AUTH_CACHE_SEC)
+    pipe = client.pipeline()
+    count = 0
+    for cam in records:
+        if not isinstance(cam, dict):
+            continue
+        cid = cam.get("id")
+        if cid is None:
+            continue
+        try:
+            camera_id = int(cid)
+        except (TypeError, ValueError):
+            continue
+        payload = json.dumps(cam, ensure_ascii=False)
+        pipe.setex(f"{RTMP_AUTH_PREFIX}:{camera_id}", ttl, payload)
+        hash_ = chave_rtmp(camera_id, cam.get("id_franqueado"))
+        if hash_:
+            pipe.setex(f"{RTMP_AUTH_HASH_PREFIX}:{hash_}", ttl, payload)
+        count += 1
+    if count:
+        pipe.execute()
+    return count
+
+
+def invalidate_rtmp_auth(camera_id: int, hash_: str | None = None) -> None:
+    if _backend() != "redis":
+        return
+    client = get_redis()
+    assert client is not None
+    pipe = client.pipeline()
+    pipe.delete(f"{RTMP_AUTH_PREFIX}:{camera_id}")
+    pipe.delete(f"{RTMP_AUTH_MISS_PREFIX}:{camera_id}")
+    if hash_:
+        pipe.delete(f"{RTMP_AUTH_HASH_PREFIX}:{hash_}")
+    pipe.execute()
+
+
+def attach_areas(cameras: list, areas: list) -> list:
+    by_camera: dict[int, list] = {}
+    for area in areas:
+        camera_id = area.get("vis_camera_id")
+        if camera_id is None:
+            continue
+        by_camera.setdefault(int(camera_id), []).append(area)
+    for camera in cameras:
+        camera_id = camera.get("id")
+        if camera_id is None:
+            camera["areas"] = []
+            continue
+        camera["areas"] = by_camera.get(int(camera_id), [])
+    return cameras
+
+
+def cameras_from_sync_payload(payload: dict) -> list:
+    cameras = payload.get("cameras") or []
+    areas = payload.get("areas") or []
+    return filter_cameras(attach_areas(cameras, areas))
+
+
+def gravacao_from_sync_payload(payload: dict) -> list:
+    gravacao = payload.get("gravacao") or []
+    return filter_gravacao_cameras(gravacao, motion=False)
+
+
+def use_unified_api() -> bool:
+    return SYNC_USE_UNIFIED_API
