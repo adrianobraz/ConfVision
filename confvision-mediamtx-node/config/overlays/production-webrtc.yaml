@@ -1,0 +1,4 @@
+# Overlay: habilitar WebRTC apenas quando portal/player exigir
+webrtc: true
+webrtcAddress: :8889
+webrtcAllowOrigins: ["*"]

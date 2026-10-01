@@ -1,0 +1,4 @@
+# Overlay: development — mais verbose, pprof opcional
+# Aplicar manualmente ou via merge script (ver scripts/render-config.ps1)
+logLevel: debug
+pprof: true

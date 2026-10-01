@@ -1,0 +1,64 @@
+# ConfVision MediaMTX Node V1 — Streaming Plane
+# Build (repo root):
+#   docker build -f confvision-mediamtx-node/deploy/Dockerfile.v1 -t confvision-mediamtx-node:1.0.0 .
+#
+# MediaMTX 1.21.0 + RTMP-GUARD existente (sem alteração de código Guard).
+# Portas: 1935 RTMP, 8554 RTSP, 8888 HLS, 9996 playback, 9997 API, 9998 metrics, 8100 Guard
+
+FROM bluenviron/mediamtx:1.21.0 AS mtx
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY confvision-python/requirements-guard.txt ./requirements-guard.txt
+RUN pip install --no-cache-dir -r requirements-guard.txt
+
+COPY --from=mtx /mediamtx /mediamtx
+COPY confvision-mediamtx-node/config/mediamtx.confvision.yml /mediamtx.yml
+COPY confvision-mediamtx-node/VERSION.json /etc/confvision/mediamtx-node-version.json
+
+COPY confvision-python/log_rotate.py \
+     confvision-python/stream_health_client.py \
+     confvision-python/rtmp_ban.py \
+     confvision-python/rtmp_guard.py \
+     confvision-python/rtmp_guard_main.py \
+     confvision-python/rtmp_messages.py \
+     confvision-python/rtmp_online.py \
+     confvision-python/rtmp_publish_health.py \
+     confvision-python/rtmp_token.py \
+     confvision-python/rtmp_watch.py \
+     confvision-python/start_mediamtx_guard.py \
+     ./
+
+ENV MEDIAMTX_CONFIG=/mediamtx.yml
+ENV MEDIAMTX_BIN=/mediamtx
+ENV MEDIAMTX_API_BASE=http://127.0.0.1:9997
+ENV MEDIAMTX_METRICS_BASE=http://127.0.0.1:9998
+ENV MTX_LOG_FILE=/recordings/mediamtx.log
+ENV RTMP_GUARD_HTTP_PORT=8100
+ENV RTMP_BAN_JSON=/recordings/rtmp_bans.json
+ENV RTMP_WATCH_JSON=/recordings/rtmp_falhas.json
+ENV RTMP_PUBLISH_HEALTH_JSON=/recordings/rtmp_publish_health.json
+ENV RTMP_BAN_SOFT_MAX_FAILS=0
+ENV RTMP_BAN_MAX_FAILS=12
+ENV RTMP_BAN_WINDOW_SEC=60
+ENV RTMP_BAN_TTL_SEC=3600
+ENV RTMP_BAN_AUTO_UNBAN=1
+ENV RTMP_ALLOW_READ_OPEN=0
+ENV RTMP_LOG_MAX_BYTES=52428800
+ENV RTMP_LOG_KEEP_ROTATED=3
+ENV RTMP_BAN_DENY_LOG_INTERVAL_SEC=60
+
+# Identidade do nó (Control Plane preenche em deploy; sem lógica CP aqui)
+ENV CONFVISION_MEDIAMTX_NODE_ID=""
+ENV CONFVISION_CLUSTER_ID=""
+ENV CONFVISION_REGION=""
+ENV CONFVISION_SERVER_ID=""
+ENV CONFVISION_NODE_STATUS="ONLINE"
+
+EXPOSE 1935 8554 8888 8889 9996 9997 9998 8100
+
+VOLUME ["/recordings"]
+
+CMD ["python", "-u", "start_mediamtx_guard.py"]

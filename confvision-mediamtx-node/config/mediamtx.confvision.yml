@@ -1,0 +1,120 @@
+###############################################
+# ConfVision MediaMTX Node — Streaming Plane V1
+# CONFIG_VERSION: confvision-mtx-v2.0.0
+# MEDIAMTX_VERSION: 1.21.0
+#
+# Não contém regra de negócio: admission via RTMP-GUARD (HTTP).
+# Paths dinâmicos: cam/{hash} — não listar câmeras aqui.
+# Gravação contínua: record=false default; DVR liga via API v3/paths.
+###############################################
+
+###############################################
+# GLOBAL / LOGGING
+###############################################
+logLevel: info
+logDestinations: [stdout, file]
+logFile: /recordings/mediamtx.log
+logStructured: false
+readTimeout: 10s
+writeTimeout: 10s
+writeQueueSize: 512
+udpMaxPayloadSize: 1452
+
+###############################################
+# AUTH — delegado ao RTMP-GUARD (mesmo container ou sidecar)
+###############################################
+authMethod: http
+authHTTPAddress: http://127.0.0.1:8100/auth
+authHTTPExclude: []
+
+###############################################
+# API — operacional (DVR sync_record_paths, diagnóstico)
+# Credenciais: MEDIAMTX_API_USER/PASS → Guard authorize action=api
+###############################################
+api: yes
+apiAddress: :9997
+apiEncryption: false
+apiAllowOrigins: []
+apiTrustedProxies: []
+
+###############################################
+# METRICS — Prometheus (scrape :9998; auth via Guard action=metrics)
+###############################################
+metrics: yes
+metricsAddress: :9998
+metricsEncryption: false
+metricsAllowOrigins: []
+metricsTrustedProxies: []
+
+pprof: false
+pprofAddress: :9999
+
+###############################################
+# PLAYBACK — segmentos gravados (quando record ativo no path)
+###############################################
+playback: yes
+playbackAddress: :9996
+
+###############################################
+# RTSP — consumo interno (Rust Camera Processing Node)
+###############################################
+rtsp: yes
+rtspAddress: :8554
+rtspTransports: [tcp]
+rtspEncryption: "no"
+
+###############################################
+# RTMP — ingest principal NVR/câmera
+###############################################
+rtmp: yes
+rtmpAddress: :1935
+rtmpEncryption: "no"
+
+###############################################
+# HLS — entrega on-demand (sem remux permanente de milhões de paths)
+###############################################
+hls: yes
+hlsAddress: :8888
+hlsEncryption: false
+hlsAlwaysRemux: false
+hlsVariant: lowLatency
+hlsSegmentCount: 7
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
+hlsSegmentMaxSize: 50M
+hlsMuxerCloseAfter: 60s
+hlsAllowOrigins: ["*"]
+
+###############################################
+# WebRTC — desligado no baseline (overlay production-webrtc.yaml)
+###############################################
+webrtc: false
+
+###############################################
+# SRT / MoQ — desligados no baseline ConfVision RTMP
+###############################################
+srt: false
+moq: false
+
+###############################################
+# PATH DEFAULTS — publisher dinâmico, record off até DVR/API
+###############################################
+pathDefaults:
+  source: publisher
+  overridePublisher: true
+  record: false
+  recordFormat: fmp4
+  recordPath: /recordings/%path/%Y-%m-%d_%H-%M-%S-%f
+  recordPartDuration: 1s
+  recordSegmentDuration: 1h
+  recordDeleteAfter: 24h
+  maxReaders: 0
+
+###############################################
+# PATHS — escala: qualquer cam/{hash12+}; demais paths existem mas Guard nega publish inválido
+###############################################
+paths:
+  "~^cam/[0-9a-z]{12,}$":
+    source: publisher
+  all_others:
+    source: publisher

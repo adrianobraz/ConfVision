@@ -1,0 +1,491 @@
+"""Serviço ConfVision: auth RTMP (MediaMTX) + ban/desban + falhas.
+
+EasyPanel:
+  Arguments: -u rtmp_guard_main.py
+
+Porta padrão: 8100
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import threading
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Optional
+from urllib.parse import parse_qs, urlparse
+
+from rtmp_ban import BanStore
+from rtmp_guard import RtmpGuard
+from stream_health_client import ERROR_CLASS_VIDEO_TRACK, PAUSE_REASON_VIDEO_TRACK
+from rtmp_online import listar_online, mediamtx_api_reachable
+from rtmp_publish_health import PublishHealthStore
+from rtmp_token import publish_secret
+from rtmp_token import parse_chave_rtmp
+from rtmp_watch import RtmpLogParser, RtmpWatchStore, follow_file
+from stream_health_client import (
+    confvision_api_base,
+    pause_camera_video_track,
+    stream_health_configured,
+)
+
+
+def _env(name: str, default: str = "") -> str:
+    return (os.getenv(name) or default).strip()
+
+
+def _env_bool(name: str, default: str = "1") -> bool:
+    v = _env(name, default).lower()
+    return v in ("1", "true", "yes", "sim")
+
+
+BANS = BanStore(
+    _env("RTMP_BAN_JSON", "/recordings/rtmp_bans.json"),
+    max_fails=int(_env("RTMP_BAN_MAX_FAILS", "12") or "12"),
+    window_sec=int(_env("RTMP_BAN_WINDOW_SEC", "60") or "60"),
+    ban_ttl_sec=int(_env("RTMP_BAN_TTL_SEC", "3600") or "3600"),
+    soft_max_fails=int(_env("RTMP_BAN_SOFT_MAX_FAILS", "0") or "0"),
+    soft_window_sec=int(_env("RTMP_BAN_SOFT_WINDOW_SEC", "300") or "300"),
+    soft_ban_ttl_sec=int(_env("RTMP_BAN_SOFT_TTL_SEC", "600") or "600"),
+    auto_unban_on_publish=_env_bool("RTMP_BAN_AUTO_UNBAN", "1"),
+)
+GUARD = RtmpGuard(BANS)
+STORE = RtmpWatchStore(
+    max_items=int(_env("RTMP_WATCH_MAX", "500") or "500"),
+    dedupe_sec=int(_env("RTMP_WATCH_DEDUPE_SEC", "60") or "60"),
+)
+HEALTH = PublishHealthStore(_env("RTMP_PUBLISH_HEALTH_JSON", "/recordings/rtmp_publish_health.json"))
+ADMIN_KEY = _env("RTMP_GUARD_ADMIN_KEY")
+_BAN_DENY_LOG_LAST: dict[str, float] = {}
+
+
+def _ban_deny_log_interval_sec() -> float:
+    try:
+        return max(5.0, float(_env("RTMP_BAN_DENY_LOG_INTERVAL_SEC", "60") or "60"))
+    except ValueError:
+        return 60.0
+
+
+def _should_log_ban_deny(ip: str, motivo: str) -> bool:
+    if motivo != "ip_banido" or not ip or ip == "-":
+        return True
+    now = time.time()
+    key = ip
+    last = _BAN_DENY_LOG_LAST.get(key, 0.0)
+    if now - last >= _ban_deny_log_interval_sec():
+        _BAN_DENY_LOG_LAST[key] = now
+        return True
+    return False
+
+
+def _online_paths() -> set[str]:
+    data = listar_online(fallback_publishers=PARSER.publishers)
+    out: set[str] = set()
+    for item in data.get("dados") or []:
+        if isinstance(item, dict):
+            p = str(item.get("path") or "").strip().rstrip("/")
+            if p:
+                out.add(p)
+    return out
+
+
+class _WatchWithBan(RtmpLogParser):
+    """Falhas → auto-ban (limiar por motivo); publish OK → health + desban."""
+
+    def _camera_id_from_video_track_falha(self, falha, *, log_line: str = "") -> tuple[Optional[int], str]:
+        return self.resolve_stream_camera_id(
+            falha.path or "",
+            falha.ip or "",
+            log_line=log_line or (falha.motivo_raw or ""),
+        )
+
+    def _aplicar_pausa_video_track(self, falha, camera_id: int, path: str) -> None:
+        """Política existente: pause_analytic (Go/Postgres) + invalidar cache de auth."""
+        raw_err = (falha.motivo_raw or "").strip()[:500]
+        api_ok = pause_camera_video_track(
+            camera_id,
+            last_error=raw_err,
+            path=path,
+        )
+        if api_ok:
+            GUARD.cache.invalidate(camera_id)
+        elif not api_ok:
+            print(
+                f"[RTMP-GUARD] AVISO cache auth NAO invalidado camera_id={camera_id} "
+                "(pause_analytic falhou ou dedupe; proximo publish pode usar cache antigo)",
+                flush=True,
+            )
+        print(
+            "[RTMP-GUARD] STREAM PAUSADO\n"
+            f"camera_id={camera_id}\n"
+            f"path={path or '-'}\n"
+            f"motivo={PAUSE_REASON_VIDEO_TRACK}\n"
+            f"erro_classe={ERROR_CLASS_VIDEO_TRACK}\n"
+            f"acao=pause_analytic\n"
+            f"vis_worker_ping={'ok' if api_ok else 'falhou_ou_dedupe'}\n"
+            f"cache_auth={'invalidado' if api_ok else 'mantido_ate_go_ou_proximo_fetch'}",
+            flush=True,
+        )
+
+    def _handle_stream_diag(self, line: str, codigo: str):
+        falha = super()._handle_stream_diag(line, codigo)
+        if (
+            falha
+            and falha.motivo_codigo == "rtmp_video_track_nao_configurado"
+            and falha.vezes == 1
+        ):
+            camera_id, path = self._camera_id_from_video_track_falha(falha, log_line=line)
+            if path and not (falha.path or "").strip():
+                falha.path = path
+            if camera_id:
+                self._aplicar_pausa_video_track(falha, camera_id, path)
+            else:
+                print(
+                    "[RTMP-GUARD] video track: pause_analytic NAO acionado "
+                    f"(camera_id desconhecido ip={falha.ip or '-'} path={path or falha.path or '-'})",
+                    flush=True,
+                )
+        return falha
+
+    def _handle_rtmp_conn(self, ts: str, sub: str, msg: str):
+        from rtmp_watch import RE_CONN, RE_PUBLISH
+
+        cm = RE_CONN.match(sub) if sub else None
+        if cm:
+            pub = RE_PUBLISH.search(msg or "")
+            if pub:
+                HEALTH.registrar_publish(
+                    pub.group(1).rstrip("/"),
+                    ip=cm.group("ip"),
+                    fonte="log",
+                )
+                BANS.registrar_sucesso(cm.group("ip"), path=pub.group(1).rstrip("/"))
+
+        falha = super()._handle_rtmp_conn(ts, sub, msg)
+        if falha and falha.motivo_codigo in (
+            "eof_sem_publish",
+            "path_barra_final",
+            "auth_falhou",
+            "path_invalido",
+            "chave_invalida",
+        ):
+            motivo = falha.motivo_codigo
+            if motivo == "auth_falhou":
+                raw = (falha.motivo_raw or "").lower()
+                if "chave_invalida" in raw or "invalid credentials" in raw:
+                    motivo = "chave_invalida"
+                elif "path_invalido" in raw or "invalid path" in raw:
+                    motivo = "path_invalido"
+            BANS.registrar_falha(falha.ip, motivo=motivo, path=falha.path or None)
+        return falha
+
+
+PARSER = _WatchWithBan(STORE)
+
+
+def _admin_ok(handler: BaseHTTPRequestHandler) -> bool:
+    if not ADMIN_KEY:
+        return True
+    key = handler.headers.get("X-RTMP-Guard-Key") or ""
+    if key == ADMIN_KEY:
+        return True
+    u = urlparse(handler.path)
+    qs = parse_qs(u.query)
+    return (qs.get("key") or [""])[0] == ADMIN_KEY
+
+
+class Handler(BaseHTTPRequestHandler):
+    def log_message(self, fmt, *args):
+        return
+
+    def _json(self, code: int, payload: dict):
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _read_json(self) -> dict:
+        try:
+            n = int(self.headers.get("Content-Length") or "0")
+        except ValueError:
+            n = 0
+        raw = self.rfile.read(n) if n > 0 else b"{}"
+        try:
+            data = json.loads(raw.decode("utf-8") or "{}")
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-RTMP-Guard-Key")
+        self.end_headers()
+
+    def do_GET(self):
+        u = urlparse(self.path)
+        qs = parse_qs(u.query)
+        path = u.path.rstrip("/") or "/"
+
+        if path in ("/", "/health"):
+            self._json(
+                200,
+                {
+                    "status": "ok",
+                    "service": "confvision-rtmp-guard",
+                    "secret_configured": bool(publish_secret()),
+                    "bans": len(BANS.listar()),
+                },
+            )
+            return
+
+        if path == "/health/ready":
+            cp = confvision_api_base()
+            mtx_ok = mediamtx_api_reachable()
+            secret_ok = bool(publish_secret())
+            ready = secret_ok and mtx_ok
+            self._json(
+                200 if ready else 503,
+                {
+                    "status": "ready" if ready else "not_ready",
+                    "service": "confvision-rtmp-guard",
+                    "guard": "ok",
+                    "secret_configured": secret_ok,
+                    "control_plane_url_configured": bool(cp),
+                    "mediamtx_api": "ok" if mtx_ok else "indisponivel",
+                    "bans": len(BANS.listar()),
+                },
+            )
+            return
+
+        if path == "/falhas":
+            if not _admin_ok(self):
+                self._json(401, {"status": "nao autorizado"})
+                return
+            limit = int((qs.get("limit") or ["100"])[0] or "100")
+            ip = (qs.get("ip") or [""])[0]
+            stream = (qs.get("path") or [""])[0]
+            self._json(
+                200,
+                {
+                    "status": "ok",
+                    "dados": STORE.listar(limit=limit, ip=ip, path=stream),
+                    "resumo": STORE.resumo(),
+                },
+            )
+            return
+
+        if path == "/resumo":
+            if not _admin_ok(self):
+                self._json(401, {"status": "nao autorizado"})
+                return
+            self._json(200, {"status": "ok", "dados": STORE.resumo()})
+            return
+
+        if path == "/bans":
+            if not _admin_ok(self):
+                self._json(401, {"status": "nao autorizado"})
+                return
+            self._json(200, {"status": "ok", "dados": BANS.listar()})
+            return
+
+        if path == "/online":
+            if not _admin_ok(self):
+                self._json(401, {"status": "nao autorizado"})
+                return
+            self._json(200, listar_online(fallback_publishers=PARSER.publishers))
+            return
+
+        if path == "/health/publishers":
+            if not _admin_ok(self):
+                self._json(401, {"status": "nao autorizado"})
+                return
+            offline_apos = int((qs.get("offline_apos") or ["300"])[0] or "300")
+            online = _online_paths()
+            self._json(
+                200,
+                {
+                    "status": "ok",
+                    "dados": HEALTH.listar(online_paths=online, offline_apos_sec=offline_apos),
+                    "resumo": HEALTH.resumo(online_paths=online),
+                    "online_paths": sorted(online),
+                },
+            )
+            return
+
+        self._json(404, {"status": "nao encontrado"})
+
+    def do_POST(self):
+        u = urlparse(self.path)
+        path = u.path.rstrip("/") or "/"
+
+        if path == "/auth":
+            payload = self._read_json()
+            code, motivo, meta = GUARD.authorize(payload)
+            # MediaMTX: 2xx = ok; qualquer outro = fail
+            body = {
+                "status": "ok" if code < 300 else "negado",
+                "motivo": motivo,
+                "path": meta.get("path") or "",
+                "hash": meta.get("hash") or "",
+                "camera_id": meta.get("camera_id") or "",
+                "plano": meta.get("plano") or "",
+            }
+            raw = json.dumps(body).encode("utf-8")
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+            action = str(payload.get("action") or "").strip().lower()
+            ip = str(payload.get("ip") or "").strip() or "-"
+            path_v = meta.get("path") or payload.get("path") or "-"
+            hash_v = meta.get("hash") or "-"
+            cam_v = meta.get("camera_id") if meta.get("camera_id") != "" else "-"
+            plano_v = meta.get("plano") or "-"
+            if code >= 400:
+                if _should_log_ban_deny(ip, motivo):
+                    if motivo == "ip_banido":
+                        print(
+                            "[RTMP-GUARD] IP BANIDO\n"
+                            f"IP: {ip}\n"
+                            "MOTIVO: ip_banido\n"
+                            "AÇÃO: conexão rejeitada",
+                            flush=True,
+                        )
+                    elif motivo == "stream_pausado_sistema":
+                        print(
+                            f"[RTMP-GUARD] NEGADO action={action} ip={ip} path={path_v} "
+                            f"hash={hash_v} camera_id={cam_v} plano={plano_v} "
+                            f"motivo=stream_pausado_sistema",
+                            flush=True,
+                        )
+                    else:
+                        print(
+                            f"[RTMP-GUARD] NEGADO action={action} ip={ip} path={path_v} "
+                            f"hash={hash_v} camera_id={cam_v} plano={plano_v} motivo={motivo}",
+                            flush=True,
+                        )
+            elif action in ("publish", "read", "playback"):
+                print(
+                    f"[RTMP-GUARD] OK {action} ip={ip} path={path_v} "
+                    f"hash={hash_v} camera_id={cam_v} plano={plano_v} motivo={motivo}",
+                    flush=True,
+                )
+                if action == "publish" and code < 300 and ip and ip != "-":
+                    p = str(path_v or "").strip().rstrip("/")
+                    if p and p != "-":
+                        PARSER.register_publish_context(ip, p, fonte="auth")
+                        HEALTH.registrar_publish(
+                            p,
+                            ip=ip,
+                            camera_id=meta.get("camera_id"),
+                            fonte="auth",
+                        )
+                    BANS.registrar_sucesso(ip, path=p or None)
+            return
+
+        if path == "/ban":
+            if not _admin_ok(self):
+                self._json(401, {"status": "nao autorizado"})
+                return
+            data = self._read_json()
+            ip = str(data.get("ip") or "").strip()
+            if not ip:
+                self._json(400, {"status": "ip obrigatorio"})
+                return
+            motivo = str(data.get("motivo") or "manual").strip() or "manual"
+            ttl = data.get("ttl_sec")
+            entry = BANS.ban(
+                ip,
+                motivo=motivo,
+                manual=True,
+                ttl_sec=int(ttl) if ttl is not None else None,
+            )
+            self._json(200, {"status": "ok", "dados": entry.to_dict()})
+            return
+
+        if path == "/unban":
+            if not _admin_ok(self):
+                self._json(401, {"status": "nao autorizado"})
+                return
+            data = self._read_json()
+            ip = str(data.get("ip") or "").strip()
+            if not ip:
+                self._json(400, {"status": "ip obrigatorio"})
+                return
+            ok = BANS.unban(ip)
+            self._json(200, {"status": "ok", "desbanido": ok, "ip": ip})
+            return
+
+        if path == "/cache/invalidate":
+            if not _admin_ok(self):
+                self._json(401, {"status": "nao autorizado"})
+                return
+            data = self._read_json()
+            cid = data.get("vis_camera_id") or data.get("camera_id")
+            if cid is None:
+                self._json(400, {"status": "vis_camera_id obrigatorio"})
+                return
+            cid_int = int(cid)
+            GUARD.cache.invalidate(cid_int)
+            print(
+                f"[RTMP-GUARD] cache auth invalidado camera_id={cid_int}",
+                flush=True,
+            )
+            self._json(200, {"status": "ok"})
+            return
+
+        self._json(404, {"status": "nao encontrado"})
+
+
+def main():
+    log_file = _env("MTX_LOG_FILE", "/recordings/mediamtx.log")
+    json_out = _env("RTMP_WATCH_JSON", "/recordings/rtmp_falhas.json")
+    port = int(_env("RTMP_GUARD_HTTP_PORT", "8100") or "8100")
+
+    print(
+        f"[RTMP-GUARD] START | auth+ban+watch | log={log_file} | http=:{port} | secret={'sim' if publish_secret() else 'NAO'}",
+        flush=True,
+    )
+    print(
+        f"[RTMP-GUARD] ban hard={BANS.hard.max_fails}/{BANS.hard.window_sec}s "
+        f"soft_eof={BANS.soft.max_fails}/{BANS.soft.window_sec}s auto_unban={'sim' if BANS.auto_unban_on_publish else 'nao'}",
+        flush=True,
+    )
+    sh_ok = stream_health_configured()
+    print(
+        f"[RTMP-GUARD] stream_health pause_analytic={'ok' if sh_ok else 'DESLIGADO'} "
+        f"api={confvision_api_base() or '-'} vis_worker_key={'sim' if _env('VIS_WORKER_API_KEY') else 'NAO'}",
+        flush=True,
+    )
+    print(
+        f"[RTMP-GUARD] rtmp_auth bases (Go primeiro): {GUARD.auth_bases or ['-']}",
+        flush=True,
+    )
+
+    server = ThreadingHTTPServer(("0.0.0.0", port), Handler)
+    print(
+        f"[RTMP-GUARD] HTTP 0.0.0.0:{port}  POST /auth /ban /unban  "
+        f"GET /falhas /bans /online /health/publishers /health /health/ready",
+        flush=True,
+    )
+
+    t = threading.Thread(
+        target=follow_file,
+        args=(log_file, PARSER, STORE, json_out),
+        name="rtmp-log-follow",
+        daemon=True,
+    )
+    t.start()
+
+    server.serve_forever()
+
+
+if __name__ == "__main__":
+    main()

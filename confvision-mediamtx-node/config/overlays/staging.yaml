@@ -1,0 +1,3 @@
+# Overlay: staging — paridade produção, logs info
+logLevel: info
+hlsAlwaysRemux: false

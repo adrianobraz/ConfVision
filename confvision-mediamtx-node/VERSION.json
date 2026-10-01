@@ -1,0 +1,29 @@
+{
+  "product": "confvision-mediamtx-node",
+  "product_version": "2.0.0",
+  "config_version": "confvision-mtx-v2.0.0",
+  "mediamtx_version": "1.21.0",
+  "mediamtx_image": "bluenviron/mediamtx:1.21.0",
+  "legacy_mediamtx_image": "bluenviron/mediamtx:1",
+  "legacy_config_path": "confvision-python/mediamtx/mediamtx.yml",
+  "compatible_guard": "confvision-python/rtmp_guard (unchanged)",
+  "compatible_rust_rtsp_path": "cam/{hash12+}",
+  "changelog": {
+    "2.0.0": [
+      "MediaMTX + Guard V2 operational package (Dockerfile.v2)",
+      "Startup: Guard healthy -> MediaMTX -> API -> NODE READY",
+      "Guard GET /health/ready",
+      "Legacy EasyPanel: Dockerfile.mediamtx pinned to MTX 1.21.0",
+      "Overlay production-legacy-hls for hlsAlwaysRemux parity"
+    ],
+    "1.0.0": [
+      "Initial ConfVision MediaMTX Node — Streaming Plane V1",
+      "MediaMTX 1.21.0 pin",
+      "Native Prometheus metrics :9998",
+      "HLS on-demand (hlsAlwaysRemux: false)",
+      "Dynamic paths via all_others + DVR API v3 patch",
+      "HTTP auth delegated to RTMP-GUARD (127.0.0.1:8100/auth)",
+      "SRT/MoQ/WebRTC disabled in production baseline overlays"
+    ]
+  }
+}

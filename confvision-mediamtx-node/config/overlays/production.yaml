@@ -1,0 +1,7 @@
+# Overlay: production — baseline fleet (default já em mediamtx.confvision.yml)
+logLevel: info
+logStructured: false
+hlsAlwaysRemux: false
+webrtc: false
+srt: false
+moq: false

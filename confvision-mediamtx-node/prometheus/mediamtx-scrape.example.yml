@@ -1,0 +1,15 @@
+# Exemplo scrape Prometheus — por host/node (não global)
+# Auth: action=metrics via RTMP-GUARD (user MEDIAMTX_API_USER)
+scrape_configs:
+  - job_name: confvision-mediamtx-node
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["ingest-node-01:9998"]
+        labels:
+          confvision_cluster: foxpro-01
+          confvision_mediamtx_node_id: "1"
+          mediamtx_version: "1.21.0"
+          config_version: confvision-mtx-v1.0.0
+    basic_auth:
+      username: dvr
+      password: "<MEDIAMTX_API_PASS>"

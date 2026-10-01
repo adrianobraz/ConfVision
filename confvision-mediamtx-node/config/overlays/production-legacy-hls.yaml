@@ -1,0 +1,3 @@
+# Overlay foxpro legado: HLS com remux permanente (comportamento mediamtx.yml antigo)
+# Aplicar com scripts/render-config.ps1 se o painel dependia de hlsAlwaysRemux: yes
+hlsAlwaysRemux: true

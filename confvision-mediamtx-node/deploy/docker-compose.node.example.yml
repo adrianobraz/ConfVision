@@ -1,0 +1,25 @@
+# Exemplo: um MediaMTX Node (dev/staging)
+# Uso: docker compose -f confvision-mediamtx-node/deploy/docker-compose.node.example.yml up
+services:
+  confvision-mediamtx-node:
+    build:
+      context: ../..
+      dockerfile: confvision-mediamtx-node/deploy/Dockerfile.v1
+    image: confvision-mediamtx-node:1.0.0
+    ports:
+      - "1935:1935"
+      - "8554:8554"
+      - "8888:8888"
+      - "9997:9997"
+      - "9998:9998"
+      - "8100:8100"
+    env_file:
+      - ./easypanel.env.example
+    volumes:
+      - mtx-recordings:/recordings
+    environment:
+      CONFVISION_MEDIAMTX_NODE_ID: "1"
+      CONFVISION_NODE_STATUS: ONLINE
+
+volumes:
+  mtx-recordings:
