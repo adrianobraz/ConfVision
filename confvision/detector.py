@@ -7,7 +7,15 @@ import cv2
 from ultralytics import YOLO
 
 from area_utils import areas_ativas, find_area_for_box, normalize_modo_deteccao
-from config import FRAME_SKIP, YOLO_DEVICE, YOLO_MODEL
+from config import (
+    FRAME_SKIP,
+    YOLO_DEVICE,
+    YOLO_MODEL,
+    YOLO_MOTION_FRAME_SKIP,
+    YOLO_MOTION_MISS_FRAMES,
+    YOLO_ONLY_ON_MOTION,
+)
+from motion_detect import create_motion_detector, frame_has_motion
 
 os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
 
@@ -17,7 +25,11 @@ class PersonDetector:
         self.model = YOLO(YOLO_MODEL)
         self.device = self._resolve_device()
         self._infer_lock = threading.Lock()
-        print(f"[YOLO] model={YOLO_MODEL} device={self.device}")
+        gate = "sim" if YOLO_ONLY_ON_MOTION else "nao"
+        print(
+            f"[YOLO] model={YOLO_MODEL} device={self.device} "
+            f"motion_gate={gate} latch=sim miss={YOLO_MOTION_MISS_FRAMES}"
+        )
 
     def _resolve_device(self) -> str:
         if YOLO_DEVICE:
@@ -42,6 +54,13 @@ class PersonDetector:
         cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         return cap
+
+    def _reset_motion_gate(self):
+        return {
+            "yolo_ligado": False,
+            "motion_pending_verify": False,
+            "miss_streak": 0,
+        }
 
     def process_camera(
         self,
@@ -69,8 +88,15 @@ class PersonDetector:
             time.sleep(10)
             return
 
+        motion_fgbg = None
+        motion_kernel = None
+        gate = self._reset_motion_gate()
+        if YOLO_ONLY_ON_MOTION:
+            motion_fgbg, motion_kernel = create_motion_detector()
+
         print(
-            f"[OK] Stream aberto: {rtsp_url} areas={len(zonas)} modo={modo}"
+            f"[OK] Stream aberto: {rtsp_url} areas={len(zonas)} modo={modo} "
+            f"motion_gate={'sim' if YOLO_ONLY_ON_MOTION else 'nao'}"
         )
         frame_index = 0
         ultimo_evento = 0.0
@@ -93,11 +119,25 @@ class PersonDetector:
                     print(f"[ERRO] Reconexao falhou: {rtsp_url}")
                     time.sleep(10)
                     return
+                if YOLO_ONLY_ON_MOTION:
+                    motion_fgbg, motion_kernel = create_motion_detector()
+                    gate = self._reset_motion_gate()
                 continue
 
             falhas = 0
-
             frame_index += 1
+            agora = time.time()
+
+            if YOLO_ONLY_ON_MOTION:
+                if frame_index % max(1, YOLO_MOTION_FRAME_SKIP) == 0:
+                    if frame_has_motion(frame, motion_fgbg, motion_kernel):
+                        if not gate["yolo_ligado"]:
+                            gate["yolo_ligado"] = True
+                            gate["motion_pending_verify"] = True
+                            gate["miss_streak"] = 0
+                if not gate["yolo_ligado"]:
+                    continue
+
             if frame_index % FRAME_SKIP != 0:
                 continue
 
@@ -134,7 +174,20 @@ class PersonDetector:
                     best_area = area
 
             dentro_agora = best_conf >= conf_min and pessoas_match > 0
-            agora = time.time()
+
+            if YOLO_ONLY_ON_MOTION:
+                if dentro_agora:
+                    gate["motion_pending_verify"] = False
+                    gate["miss_streak"] = 0
+                elif gate["motion_pending_verify"]:
+                    gate["yolo_ligado"] = False
+                    gate["motion_pending_verify"] = False
+                    gate["miss_streak"] = 0
+                else:
+                    gate["miss_streak"] += 1
+                    if gate["miss_streak"] >= max(1, YOLO_MOTION_MISS_FRAMES):
+                        gate["yolo_ligado"] = False
+                        gate["miss_streak"] = 0
 
             if agora - ultimo_diag >= 15:
                 ultimo_diag = agora
@@ -149,9 +202,13 @@ class PersonDetector:
                         f"[DETECT] pessoa sem match modo={modo} pessoas={pessoas} "
                         f"conf_min={conf_min} url={rtsp_url}"
                     )
-                else:
+                elif gate["yolo_ligado"] or not YOLO_ONLY_ON_MOTION:
                     print(
                         f"[DETECT] nenhuma pessoa conf>={conf_min} modo={modo} url={rtsp_url}"
+                    )
+                elif YOLO_ONLY_ON_MOTION:
+                    print(
+                        f"[DETECT] movimento sem pessoa — gate off modo={modo} url={rtsp_url}"
                     )
 
             if dentro_agora and (agora - ultimo_evento >= cooldown_sec):

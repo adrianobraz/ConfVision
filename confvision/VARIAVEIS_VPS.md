@@ -145,7 +145,7 @@ RTMP_PUBLISH_SECRET=<igual Go e MediaMTX>
 # ...
 ```
 
-Ver template completo: [`.env.producao.example`](.env.producao.example)
+Ver template completo: [`confvision/.env`](.env) (arquivo real, pronto para colar no EasyPanel)
 
 ### Core4 Go (`/home/confmonit/v4.0/confvision/.env`)
 
@@ -156,15 +156,16 @@ BD_USER_MV4=...
 BD_PASS_MV4=...
 
 # Terminal CV01 (dispatch analítico)
-RECEPTOR_WEB_URL=http://185.130.61.3:5000
-RECEPTOR_WEB_SENHA=<SenhaWeb receptorWeb>
+# Core-4: receptorWeb no mesmo host — localhost, não 185.130.61.3:5000
+RECEPTOR_WEB_URL=http://127.0.0.1:5000
+RECEPTOR_WEB_SENHA=<SENHA_WEB do /home/confmonit/v4.0/receptorWeb/.env>
 TERMINAL_NOTIFY_ENABLED=true
 
 XANO_BASE_URL=https://xpcy-oyme-lno7.b2.xano.io/api:AC7rgWwW
 XANO_API_FRANQUEADO_PRO=...
 ```
 
-Template: [`../home/confmonit/v4.0/confvision/.env.producao.example`](../home/confmonit/v4.0/confvision/.env.producao.example)
+Template: [`../home/confmonit/v4.0/confvision/.env`](../home/confmonit/v4.0/confvision/.env) (arquivo real no servidor)
 
 **Não** coloque `EVENT_STORE` no Core4 Go — essa variável é só dos workers Python.
 

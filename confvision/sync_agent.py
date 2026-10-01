@@ -101,6 +101,16 @@ def run_sync_cycle() -> dict[str, Any]:
     return payload
 
 
+def refresh_rtmp_auth_cache() -> int:
+    try:
+        from rtmp_auth_sync import sync_rtmp_auth_cache
+
+        return sync_rtmp_auth_cache()
+    except Exception as exc:
+        print(f"[SYNC-AGENT] rtmp_auth_sync erro: {exc}")
+        return 0
+
+
 def get_cameras_ativas_cached() -> list:
     from config_cache import read_sync
 
@@ -139,6 +149,7 @@ def agent_loop(interval_sec: Optional[int] = None):
     while True:
         try:
             payload = run_sync_cycle()
+            refresh_rtmp_auth_cache()
             if payload.get("unchanged"):
                 print(f"[SYNC-AGENT] unchanged version={payload.get('config_version')}")
             else:

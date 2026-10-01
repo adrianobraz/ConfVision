@@ -13,7 +13,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Deque, Optional
 
-from log_rotate import maybe_rotate_log
 from rtmp_messages import classificar_motivo, mensagem_amigavel
 from rtmp_token import STREAM_APP, parse_chave_rtmp
 
@@ -31,7 +30,6 @@ RE_PATH_ONLINE = re.compile(r"^\[path (?P<path>[^\]]+)\] stream is available")
 RE_MUXER_DESTROY = re.compile(r"^\[HLS\] \[muxer (?P<path>[^\]]+)\] destroyed")
 RE_CLOSED = re.compile(r"^closed:\s*(?P<reason>.+)$")
 RE_STREAM_PATH = re.compile(rf"({STREAM_APP}/[0-9a-z]{{12,}})")
-RE_CONN_IN_LINE = re.compile(r"\[conn (?P<ip>\d{1,3}(?:\.\d{1,3}){3}):(?P<port>\d+)\]")
 
 
 def path_label(path: str) -> str:
@@ -200,56 +198,10 @@ class RtmpLogParser:
         # path -> {ip, since} para fallback da lista online
         self.publishers: dict[str, dict] = {}
 
-    def register_publish_context(self, ip: str, path: str, *, fonte: str = "auth") -> None:
-        """Vincula IP↔path (auth HTTP ou log RTMP) para resolver falhas sem path na linha."""
-        ip = (ip or "").strip()
-        path = (path or "").strip().rstrip("/")
-        if not ip or ip == "-" or not path:
-            return
-        self.last_path_by_ip[ip] = path
-        self.publishers[path] = {"ip": ip, "since": fonte}
-
-    def resolve_stream_camera_id(
-        self,
-        path: str,
-        ip: str,
-        *,
-        log_line: str = "",
-    ) -> tuple[Optional[int], str]:
-        """IP / último path / publishers / conns → cam/{hash} → camera_id."""
-        path = (path or "").strip().rstrip("/")
-        ip = (ip or "").strip()
-        if ip in ("?", "-", ""):
-            ip = ""
-        if not path and log_line:
-            path = self._path_from_reason(log_line)
-        if not path and ip:
-            path = (self.last_path_by_ip.get(ip) or "").strip().rstrip("/")
-        if not path and ip:
-            for p, meta in self.publishers.items():
-                if str(meta.get("ip") or "") == ip:
-                    path = p
-                    break
-        if not path and ip:
-            for st in self.conns.values():
-                if st.ip == ip and st.path:
-                    path = st.path.rstrip("/")
-                    break
-        camera_id = parse_chave_rtmp(path) if path else None
-        return camera_id, path
-
     def feed(self, line: str) -> Optional[Falha]:
         line = (line or "").rstrip("\n")
         if not line.strip():
             return None
-
-        low = line.lower()
-        if "dts is not monotonically" in low or "dts is not strictly increasing" in low:
-            return self._handle_stream_diag(line, "hls_dts_nao_monotono")
-        if "video track" in low and "not set up" in low:
-            return self._handle_stream_diag(line, "rtmp_video_track_nao_configurado")
-        if "no video frames" in low and "audio" in low:
-            return self._handle_stream_diag(line, "rtmp_so_audio_sem_video")
 
         # Formato alternativo: path online fora do RE_LINE padrão de conn
         m_online = re.search(
@@ -257,11 +209,6 @@ class RtmpLogParser:
             line,
         )
         if m_online:
-            p = m_online.group("path").strip().rstrip("/")
-            if p:
-                meta = self.publishers.get(p)
-                if meta and str(meta.get("ip") or "").strip():
-                    self.last_path_by_ip[str(meta["ip"]).strip()] = p
             return None
 
         m = RE_LINE.match(line)
@@ -278,52 +225,6 @@ class RtmpLogParser:
             return self._handle_rtmp_conn(ts, sub, msg)
 
         return None
-
-    def _resolve_path_and_ip_for_diag(self, line: str, path: str) -> tuple[str, str]:
-        path = (path or "").strip().rstrip("/")
-        ip = ""
-        if not path:
-            path = self._path_from_reason(line)
-        cm = RE_CONN_IN_LINE.search(line or "")
-        if cm:
-            ip = cm.group("ip")
-        if not path and ip:
-            path = (self.last_path_by_ip.get(ip) or "").strip().rstrip("/")
-        if not path and ip:
-            for p, meta in self.publishers.items():
-                if str(meta.get("ip") or "") == ip:
-                    path = p
-                    break
-        if not path and ip:
-            for st in self.conns.values():
-                if st.ip == ip and st.path:
-                    path = st.path.rstrip("/")
-                    break
-        if not ip and path and path in self.publishers:
-            ip = str(self.publishers[path].get("ip") or "")
-        return path, ip
-
-    def _handle_stream_diag(self, line: str, codigo: str) -> Optional[Falha]:
-        """HLS/muxer/RTMP — diagnóstico de encode (não auto-ban)."""
-        ts_m = re.match(r"^(?P<ts>\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})", line)
-        ts = ts_m.group("ts") if ts_m else datetime.now(timezone.utc).strftime("%Y/%m/%d %H:%M:%S")
-        path = ""
-        pm = re.search(r"\[(?:path|muxer)\s+([^\]]+)\]", line)
-        if pm:
-            path = pm.group(1).strip().rstrip("/")
-        path, ip = self._resolve_path_and_ip_for_diag(line, path)
-        falha = self.store.add(
-            ts=ts,
-            ip=ip or "?",
-            porta="",
-            protocolo="HLS/RTMP",
-            path=path,
-            motivo_raw=line.strip()[:500],
-            forcar_codigo=codigo,
-        )
-        if falha:
-            self._log_falha(falha)
-        return falha
 
     def _handle_rtmp_conn(self, ts: str, sub: str, msg: str) -> Optional[Falha]:
         cm = RE_CONN.match(sub)
@@ -343,7 +244,8 @@ class RtmpLogParser:
             st.published = True
             st.path = pub.group(1).rstrip("/")
             self.conns[key] = st
-            self.register_publish_context(ip, st.path, fonte=ts)
+            self.last_path_by_ip[ip] = st.path
+            self.publishers[st.path] = {"ip": ip, "since": ts}
             print(
                 f"[RTMP-WATCH] OK ip={ip} path={st.path} — publicando",
                 flush=True,
@@ -442,7 +344,6 @@ def follow_file(path: str, parser: RtmpLogParser, store: RtmpWatchStore, json_ou
     pos = 0
     inode = None
     last_save = 0.0
-    last_rotate = 0.0
     # Primeira abertura: começa no fim (evita replay/auto-ban do histórico)
     started = False
 
@@ -480,11 +381,6 @@ def follow_file(path: str, parser: RtmpLogParser, store: RtmpWatchStore, json_ou
             if json_out and now - last_save >= 5:
                 store.salvar_json(json_out)
                 last_save = now
-            if now - last_rotate >= 120:
-                if maybe_rotate_log(str(p)):
-                    last_rotate = now
-                else:
-                    last_rotate = now
 
             time.sleep(0.4)
         except Exception as exc:

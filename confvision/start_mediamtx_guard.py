@@ -10,8 +10,6 @@ import signal
 import subprocess
 import sys
 import time
-import urllib.error
-import urllib.request
 
 _procs: list[subprocess.Popen] = []
 
@@ -29,24 +27,6 @@ def _shutdown(*_args) -> None:
     sys.exit(0)
 
 
-def _wait_guard_http(guard: subprocess.Popen, timeout_sec: float = 20.0) -> None:
-    port = (os.getenv("RTMP_GUARD_HTTP_PORT") or "8100").strip()
-    url = f"http://127.0.0.1:{port}/health"
-    deadline = time.time() + timeout_sec
-    while time.time() < deadline:
-        if guard.poll() is not None:
-            print(f"[START] Guard saiu cedo code={guard.returncode}", flush=True)
-            sys.exit(guard.returncode or 1)
-        try:
-            with urllib.request.urlopen(url, timeout=1.5) as resp:
-                if 200 <= resp.status < 500:
-                    print(f"[START] Guard HTTP pronto ({url})", flush=True)
-                    return
-        except (urllib.error.URLError, TimeoutError, OSError):
-            time.sleep(0.25)
-    print("[START] WARN Guard HTTP timeout — MediaMTX pode ver auth refused no boot", flush=True)
-
-
 def main() -> None:
     signal.signal(signal.SIGTERM, _shutdown)
     signal.signal(signal.SIGINT, _shutdown)
@@ -57,7 +37,10 @@ def main() -> None:
     print("[START] Guard RTMP na :8100 ...", flush=True)
     guard = subprocess.Popen([sys.executable, "-u", "rtmp_guard_main.py"])
     _procs.append(guard)
-    _wait_guard_http(guard)
+    time.sleep(1.0)
+    if guard.poll() is not None:
+        print(f"[START] Guard saiu cedo code={guard.returncode}", flush=True)
+        sys.exit(guard.returncode or 1)
 
     print(f"[START] MediaMTX {mtx_bin} {cfg} ...", flush=True)
     mtx = subprocess.Popen([mtx_bin, cfg])

@@ -1,7 +1,6 @@
-# Deploy — Terminal via Go central (CV01)
+# Deploy — terminal CV01
 
-Eventos analíticos passam pelo **Go ConfVision** (`vision.confmonit2.com.br`).  
-O worker **não** avisa mais o terminal — o Go dispara goroutine após o snapshot.
+**Guia rápido:** [`SUBIR_AGORA.md`](SUBIR_AGORA.md) — arquivos `.env` reais, só subir.
 
 ---
 
@@ -60,14 +59,25 @@ BD_PASS_MV4=...
 BD_BASE_MV4=confmonitV4
 
 # Terminal — dispatch CV01
-RECEPTOR_WEB_URL=http://185.130.61.3:5000
-RECEPTOR_WEB_SENHA=<mesma senha do receptorWeb>
+# Core-4: receptorWeb escuta :5000 neste host (receptorWeb.sh) — use localhost
+RECEPTOR_WEB_URL=http://127.0.0.1:5000
+RECEPTOR_WEB_SENHA=<mesma senha do receptorWeb (SENHA_WEB)>
 TERMINAL_NOTIFY_ENABLED=true
 TERMINAL_NOTIFY_RETRIES=3
 TERMINAL_CONTACT_ID=CV01
 ```
 
-`RECEPTOR_WEB_SENHA` = variável `SenhaWeb` do receptorWeb (`.env` do serviço receptor).
+`RECEPTOR_WEB_SENHA` = variável `SENHA_WEB` em `/home/confmonit/v4.0/receptorWeb/.env`.
+
+**Não use `http://185.130.61.3:5000`** — o IP `185.130.61.3` é o DNS do receptor de alarme (TCP 2030/2031). O HTTP do receptorWeb (`/recebe-evento-confvision`) roda no **core-4** na porta 5000.
+
+Teste rápido no core-4:
+
+```bash
+ss -tlnp | grep 5000          # deve listar receptorWeb
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:5000/   # 404 = porta OK
+curl -s -o /dev/null -w "%{http_code}\n" http://185.130.61.3:5000/  # connection refused = URL errada no .env
+```
 
 ### Log esperado após detecção
 

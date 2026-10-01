@@ -1,10 +1,11 @@
 import time
 import traceback
 
+from config import SENSOR_POLL_INTERVAL_SEC
 from event_capture import processar_evento_sensor
 from xano_client import get_camera_by_id, get_eventos_sensor_pendentes
 
-POLL_INTERVAL_SEC = 3
+POLL_INTERVAL_SEC = SENSOR_POLL_INTERVAL_SEC
 
 
 def _camera_payload(raw):

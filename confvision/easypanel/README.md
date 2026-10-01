@@ -58,8 +58,7 @@ Log esperado:
 | Serviço EasyPanel | Arquivo local | Entry point |
 |-------------------|---------------|-------------|
 | **confvision** (MediaMTX + Guard) | `mediamtx.env` | `Dockerfile-mediamtx` |
-| **confvision-rust-processor** | `deploy/tenant-stack/env/rust-processor.env.example` + `confvision-rust-processor/easypanel.env.*.example` | binário Rust (ver `DEPLOY_EASYPANEL.md` no processor) |
-| **confvision-worker** | *(manter **STOPPED**)* — ver `worker.env.*.example` só referência | `python -u main.py` — **não** rodar junto com Rust na mesma câmera |
+| **confvision-worker** | `worker.env.vps-sem-gpu` ou `worker.env.gex44-gpu` | `python -u main.py` |
 | **confvision-sync-agent** | `sync-agent.env` | `python -u sync_agent_main.py` |
 | **confvision-dvr** | `dvr.env` | `python -u dvr_main.py` |
 | **confvision-motion** | `motion.env` | `python -u motion_main.py` |
@@ -102,8 +101,6 @@ Terminal CV01 fica no **Go central** (`TERMINAL_NOTIFY_ENABLED=true` no Proxmox)
 | Variável | Valor |
 |----------|-------|
 | `RTMP_GUARD_ADMIN_KEY` | igual Go `.env` |
-| `CONFVISION_API_URL` | URL **interna** da API Go (ex.: `http://10.x:8080`) — pause automático video track |
-| `VIS_WORKER_API_KEY` | mesma chave do Go/Rust (`POST /vis_worker_ping`) |
 | `MEDIAMTX_API_USER` / `MEDIAMTX_API_PASS` | credenciais API MediaMTX |
 | `MEDIAMTX_API_BASE` | `http://127.0.0.1:9997` |
 

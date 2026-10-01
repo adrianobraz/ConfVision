@@ -12,6 +12,7 @@ from config import (
     CONFIG_CACHE_TTL_SEC,
     MEDIAMTX_NODE_ID,
     REDIS_URL,
+    RTMP_AUTH_CACHE_SEC,
     SYNC_USE_UNIFIED_API,
 )
 from redis_client import get_redis, redis_available
@@ -19,6 +20,8 @@ from sharding import filter_cameras, filter_gravacao_cameras, query_params
 
 KEY_PREFIX = "confvision:sync"
 RTMP_AUTH_PREFIX = "confvision:rtmp_auth"
+RTMP_AUTH_HASH_PREFIX = "confvision:rtmp_hash"
+RTMP_AUTH_MISS_PREFIX = "confvision:rtmp_miss"
 
 
 def _backend() -> str:
@@ -124,13 +127,18 @@ def get_cached_version(kind: str) -> Optional[str]:
     return None
 
 
-def write_rtmp_auth(camera_id: int, cam: dict, ttl_sec: int) -> None:
+def write_rtmp_auth(camera_id: int, cam: dict, ttl_sec: int, *, hash_: str | None = None) -> None:
     if _backend() != "redis":
         return
     client = get_redis()
     assert client is not None
-    key = f"{RTMP_AUTH_PREFIX}:{camera_id}"
-    client.setex(key, max(5, ttl_sec), json.dumps(cam, ensure_ascii=False))
+    ttl = max(5, ttl_sec)
+    payload = json.dumps(cam, ensure_ascii=False)
+    pipe = client.pipeline()
+    pipe.setex(f"{RTMP_AUTH_PREFIX}:{camera_id}", ttl, payload)
+    if hash_:
+        pipe.setex(f"{RTMP_AUTH_HASH_PREFIX}:{hash_}", ttl, payload)
+    pipe.execute()
 
 
 def read_rtmp_auth(camera_id: int) -> Optional[dict]:
@@ -147,12 +155,79 @@ def read_rtmp_auth(camera_id: int) -> Optional[dict]:
         return None
 
 
-def invalidate_rtmp_auth(camera_id: int) -> None:
+def read_rtmp_auth_by_hash(hash_: str) -> Optional[dict]:
+    if _backend() != "redis" or not hash_:
+        return None
+    client = get_redis()
+    assert client is not None
+    raw = client.get(f"{RTMP_AUTH_HASH_PREFIX}:{hash_}")
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+
+
+def write_rtmp_auth_miss(camera_id: int, ttl_sec: int) -> None:
     if _backend() != "redis":
         return
     client = get_redis()
     assert client is not None
-    client.delete(f"{RTMP_AUTH_PREFIX}:{camera_id}")
+    client.setex(f"{RTMP_AUTH_MISS_PREFIX}:{camera_id}", max(60, ttl_sec), "1")
+
+
+def read_rtmp_auth_miss(camera_id: int) -> bool:
+    if _backend() != "redis":
+        return False
+    client = get_redis()
+    assert client is not None
+    return client.get(f"{RTMP_AUTH_MISS_PREFIX}:{camera_id}") is not None
+
+
+def write_rtmp_auth_batch(records: list[dict], ttl_sec: int | None = None) -> int:
+    """Grava lote RTMP auth no Redis (por id + hash). Retorna quantidade gravada."""
+    if _backend() != "redis" or not records:
+        return 0
+    from rtmp_token import chave_rtmp
+
+    client = get_redis()
+    assert client is not None
+    ttl = max(5, ttl_sec or RTMP_AUTH_CACHE_SEC)
+    pipe = client.pipeline()
+    count = 0
+    for cam in records:
+        if not isinstance(cam, dict):
+            continue
+        cid = cam.get("id")
+        if cid is None:
+            continue
+        try:
+            camera_id = int(cid)
+        except (TypeError, ValueError):
+            continue
+        payload = json.dumps(cam, ensure_ascii=False)
+        pipe.setex(f"{RTMP_AUTH_PREFIX}:{camera_id}", ttl, payload)
+        hash_ = chave_rtmp(camera_id, cam.get("id_franqueado"))
+        if hash_:
+            pipe.setex(f"{RTMP_AUTH_HASH_PREFIX}:{hash_}", ttl, payload)
+        count += 1
+    if count:
+        pipe.execute()
+    return count
+
+
+def invalidate_rtmp_auth(camera_id: int, hash_: str | None = None) -> None:
+    if _backend() != "redis":
+        return
+    client = get_redis()
+    assert client is not None
+    pipe = client.pipeline()
+    pipe.delete(f"{RTMP_AUTH_PREFIX}:{camera_id}")
+    pipe.delete(f"{RTMP_AUTH_MISS_PREFIX}:{camera_id}")
+    if hash_:
+        pipe.delete(f"{RTMP_AUTH_HASH_PREFIX}:{hash_}")
+    pipe.execute()
 
 
 def attach_areas(cameras: list, areas: list) -> list:
