@@ -8,6 +8,7 @@ from typing import Any, Callable, Optional
 
 from area_utils import areas_ativas, find_area_for_box, normalize_modo_deteccao
 from capture import write_detection_snapshot
+from detection_overlay import annotate_event_snapshot_frame
 from device_armed import is_dispositivo_armado
 from event_queue import EventJob
 
@@ -24,6 +25,9 @@ def evaluate_detections(
     best_area = None
     pessoas = 0
     pessoas_match = 0
+
+    if results.boxes is None:
+        return best_conf, best_area, pessoas, pessoas_match
 
     for box in results.boxes:
         if int(box.cls[0]) != 0:
@@ -139,10 +143,11 @@ class DetectionHandler:
             self.frame_store.mark_evidence_processed(job.camera_id, int(job.slot.split("_")[1]), job.session_id)
 
         if best_conf >= conf_min and pessoas_match > 0:
+            frame_out = annotate_event_snapshot_frame(frame, results, conf_min, zonas, modo)
             self.handle_match(
                 camera,
                 best_conf,
-                frame,
+                frame_out,
                 best_area,
                 job.motion_at,
                 job.slot,
