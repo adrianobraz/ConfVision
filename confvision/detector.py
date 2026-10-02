@@ -7,6 +7,7 @@ import cv2
 from ultralytics import YOLO
 
 from area_utils import areas_ativas, find_area_for_box, normalize_modo_deteccao
+from detection_overlay import annotate_event_snapshot_frame
 from config import (
     FRAME_SKIP,
     YOLO_DEVICE,
@@ -213,7 +214,10 @@ class PersonDetector:
 
             if dentro_agora and (agora - ultimo_evento >= cooldown_sec):
                 ultimo_evento = agora
-                on_person(best_conf, frame.copy(), best_area)
+                frame_snapshot = annotate_event_snapshot_frame(
+                    frame, results, conf_min, zonas, modo
+                )
+                on_person(best_conf, frame_snapshot, best_area)
                 area_nome = (best_area or {}).get("nome") or (best_area or {}).get("id") or modo
                 print(
                     f"[EVENTO] pessoa modo={modo} area={area_nome} "
