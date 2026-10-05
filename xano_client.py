@@ -146,6 +146,7 @@ def finalizar_evento(
     clip_count: int = 0,
     clip_duracao_seg: Optional[int] = None,
     processado: bool = False,
+    bbox_json: Optional[str] = None,
 ):
     """1 request: atualiza evento + cria clip (API 2400). Fallback legacy se 404."""
     url = f"{XANO_BASE_URL}/vis_evento_finalizar"
@@ -160,6 +161,8 @@ def finalizar_evento(
         "clip_duracao_seg": clip_duracao_seg,
         "clip_snapshot_url": snapshot_url,
     }
+    if bbox_json:
+        payload["bbox_json"] = bbox_json
     try:
         response = _api_post(url, json=payload, timeout=20)
         if response.status_code == 404:
@@ -176,16 +179,16 @@ def finalizar_evento(
                     "snapshot_url": snapshot_url,
                 }
             )
-        return put_evento(
-            evento_id,
-            {
-                "snapshot_url": snapshot_url,
-                "video_url": video_url,
-                "clip_count": clip_count,
-                "status": status,
-                "processado": processado,
-            },
-        )
+        campos = {
+            "snapshot_url": snapshot_url,
+            "video_url": video_url,
+            "clip_count": clip_count,
+            "status": status,
+            "processado": processado,
+        }
+        if bbox_json:
+            campos["bbox_json"] = bbox_json
+        return put_evento(evento_id, campos)
 
 
 def _merge_evento_payload(base: dict[str, Any], campos: dict[str, Any]) -> dict[str, Any]:

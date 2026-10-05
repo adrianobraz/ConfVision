@@ -19,6 +19,7 @@ class EventJob:
     confianca: float
     detected_at: float
     snapshot_path: Optional[str] = None
+    bbox_json: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
         data = {
@@ -28,6 +29,8 @@ class EventJob:
         }
         if self.snapshot_path:
             data["snapshot_path"] = self.snapshot_path
+        if self.bbox_json:
+            data["bbox_json"] = self.bbox_json
         return data
 
     @classmethod
@@ -37,6 +40,7 @@ class EventJob:
             confianca=float(data["confianca"]),
             detected_at=float(data.get("detected_at") or time.time()),
             snapshot_path=data.get("snapshot_path"),
+            bbox_json=data.get("bbox_json"),
         )
 
 

@@ -8,7 +8,7 @@ from typing import Any, Callable, Optional
 
 from area_utils import areas_ativas, find_area_for_box, normalize_modo_deteccao
 from capture import write_detection_snapshot
-from detection_overlay import annotate_event_snapshot_frame
+from detection_overlay import overlay_boxes_and_bbox_json
 from device_armed import is_dispositivo_armado
 from event_queue import EventJob
 
@@ -85,6 +85,7 @@ class DetectionHandler:
         motion_at: float,
         slot: str,
         session_id: int,
+        bbox_json: Optional[str] = None,
     ) -> None:
         camera_id = int(camera.get("id") or 0)
         cooldown = int(camera.get("cooldown_seg") or 30)
@@ -109,6 +110,7 @@ class DetectionHandler:
             confianca=conf,
             detected_at=time.time(),
             snapshot_path=snapshot_path,
+            bbox_json=bbox_json,
         )
         if not self.event_queue.publish(job):
             print(f"[FILA] cheia — evento descartado camera={camera_id} conf={conf:.2f}")
@@ -143,7 +145,9 @@ class DetectionHandler:
             self.frame_store.mark_evidence_processed(job.camera_id, int(job.slot.split("_")[1]), job.session_id)
 
         if best_conf >= conf_min and pessoas_match > 0:
-            frame_out = annotate_event_snapshot_frame(frame, results, conf_min, zonas, modo)
+            frame_out, bbox_json = overlay_boxes_and_bbox_json(
+                frame, results, conf_min, zonas, modo
+            )
             self.handle_match(
                 camera,
                 best_conf,
@@ -152,4 +156,5 @@ class DetectionHandler:
                 job.motion_at,
                 job.slot,
                 job.session_id,
+                bbox_json=bbox_json,
             )

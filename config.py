@@ -33,6 +33,12 @@ def _env_bool(name: str, default: str = "0") -> bool:
     return os.getenv(name, default).strip().lower() in ("1", "true", "yes", "on")
 
 
+# RTSP offline: apos N falhas de abrir, backoff local (nao altera cadastro)
+RTSP_BACKOFF_ENABLED = _env_bool("RTSP_BACKOFF_ENABLED", "1")
+RTSP_OPEN_FAIL_MAX = int(os.getenv("RTSP_OPEN_FAIL_MAX", "6"))
+RTSP_OPEN_BACKOFF_SEC = int(os.getenv("RTSP_OPEN_BACKOFF_SEC", "300"))
+RTSP_OPEN_RETRY_SEC = int(os.getenv("RTSP_OPEN_RETRY_SEC", "10"))
+
 # Arquitetura YOLO: legacy (main.py + _infer_lock) | distributed (capture + scheduler + batch GPU)
 YOLO_ARCH = os.getenv("YOLO_ARCH", "legacy").strip().lower()
 YOLO_BATCH_SIZE = int(os.getenv("YOLO_BATCH_SIZE", "16"))
@@ -56,6 +62,10 @@ YOLO_ONLY_ON_MOTION = _env_bool("YOLO_ONLY_ON_MOTION", "1")
 YOLO_MOTION_FRAME_SKIP = int(os.getenv("YOLO_MOTION_FRAME_SKIP", "2"))
 # Frames YOLO consecutivos sem pessoa na área para desligar (após já ter inferido)
 YOLO_MOTION_MISS_FRAMES = int(os.getenv("YOLO_MOTION_MISS_FRAMES", "2"))
+
+# Overlay nas fotos de evento (detection_overlay.py)
+DETECTION_DRAW_ALL = _env_bool("DETECTION_DRAW_ALL", "0")
+DETECTION_OVERLAY_LABELS = _env_bool("DETECTION_OVERLAY_LABELS", "1")
 
 CLIP_DURACAO_SEG = int(os.getenv("CLIP_DURACAO_SEG", "20"))
 SNAPSHOT_JPEG_QUALITY = int(os.getenv("SNAPSHOT_JPEG_QUALITY", "85"))

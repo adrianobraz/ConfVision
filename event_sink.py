@@ -72,6 +72,7 @@ def finalizar_evento(
     clip_count: int = 0,
     clip_duracao_seg: Optional[int] = None,
     processado: bool = False,
+    bbox_json: Optional[str] = None,
     edge: bool = False,
 ):
     campos = {
@@ -81,6 +82,8 @@ def finalizar_evento(
         "clip_count": clip_count,
         "processado": processado,
     }
+    if bbox_json:
+        campos["bbox_json"] = bbox_json
 
     if edge and _use_postgres_edge():
         import postgres_store
@@ -103,6 +106,7 @@ def finalizar_evento(
             clip_count=clip_count,
             clip_duracao_seg=clip_duracao_seg,
             processado=processado,
+            bbox_json=bbox_json,
         )
 
     if edge and _use_postgres_edge():
@@ -121,6 +125,7 @@ def finalizar_evento(
                 clip_count=clip_count,
                 clip_duracao_seg=clip_duracao_seg,
                 processado=processado,
+                bbox_json=bbox_json,
             )
         return row
 
@@ -134,6 +139,7 @@ def finalizar_evento(
         clip_count=clip_count,
         clip_duracao_seg=clip_duracao_seg,
         processado=processado,
+        bbox_json=bbox_json,
     )
 
 
