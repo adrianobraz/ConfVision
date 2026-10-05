@@ -120,6 +120,7 @@ def loop_camera(camera, detector: PersonDetector, event_queue):
                 zonas,
                 should_continue,
                 modo_deteccao=modo,
+                camera_id=int(camera_id),
             )
         except Exception as exc:
             print(f"[ERRO] camera {camera_id}: {exc}")

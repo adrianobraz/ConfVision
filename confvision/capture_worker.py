@@ -21,6 +21,7 @@ from config import (
 from frame_store import FrameStore
 from motion_detect import create_motion_detector, frame_has_motion
 from scheduler_queue import YoloJob, get_scheduler_queue
+from rtsp_backoff import after_open_failure, after_open_success, wait_if_backoff
 from urls import rtsp_url_for_camera
 
 os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
@@ -98,12 +99,15 @@ def run_capture_camera(
     if YOLO_ONLY_ON_MOTION:
         motion_fgbg, motion_kernel = create_motion_detector()
 
-    cap = _open_capture(url)
-    if not cap.isOpened():
-        print(f"[CAPTURE] nao abriu RTSP camera={camera_id} url={url}")
-        time.sleep(10)
+    if wait_if_backoff(camera_id, url, should_continue):
         return
 
+    cap = _open_capture(url)
+    if not cap.isOpened():
+        time.sleep(after_open_failure(camera_id, url))
+        return
+
+    after_open_success(camera_id, url)
     print(f"[CAPTURE] camera={camera_id} url={url} modo={modo} areas={len(zonas)}")
     frame_index = 0
     falhas = 0
@@ -120,7 +124,9 @@ def run_capture_camera(
             time.sleep(min(30, 2 * falhas))
             cap = _open_capture(url)
             if not cap.isOpened():
+                time.sleep(after_open_failure(camera_id, url))
                 return
+            after_open_success(camera_id, url)
             if YOLO_ONLY_ON_MOTION:
                 motion_fgbg, motion_kernel = create_motion_detector()
                 gate = _reset_gate()

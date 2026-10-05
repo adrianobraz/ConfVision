@@ -33,6 +33,12 @@ def _env_bool(name: str, default: str = "0") -> bool:
     return os.getenv(name, default).strip().lower() in ("1", "true", "yes", "on")
 
 
+# RTSP offline: apos N falhas de abrir, backoff local (nao altera cadastro)
+RTSP_BACKOFF_ENABLED = _env_bool("RTSP_BACKOFF_ENABLED", "1")
+RTSP_OPEN_FAIL_MAX = int(os.getenv("RTSP_OPEN_FAIL_MAX", "6"))
+RTSP_OPEN_BACKOFF_SEC = int(os.getenv("RTSP_OPEN_BACKOFF_SEC", "300"))
+RTSP_OPEN_RETRY_SEC = int(os.getenv("RTSP_OPEN_RETRY_SEC", "10"))
+
 # Arquitetura YOLO: legacy (main.py + _infer_lock) | distributed (capture + scheduler + batch GPU)
 YOLO_ARCH = os.getenv("YOLO_ARCH", "legacy").strip().lower()
 YOLO_BATCH_SIZE = int(os.getenv("YOLO_BATCH_SIZE", "16"))

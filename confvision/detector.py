@@ -17,6 +17,7 @@ from config import (
     YOLO_ONLY_ON_MOTION,
 )
 from motion_detect import create_motion_detector, frame_has_motion
+from rtsp_backoff import after_open_failure, after_open_success, wait_if_backoff
 
 os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
 
@@ -72,6 +73,7 @@ class PersonDetector:
         areas,
         should_continue: Optional[Callable[[], bool]] = None,
         modo_deteccao: str = "dentro",
+        camera_id: int = 0,
     ):
         if should_continue is None:
             should_continue = lambda: True
@@ -82,12 +84,16 @@ class PersonDetector:
             print(f"[AREA] sem area ativa — deteccao ignorada: {rtsp_url}")
             return
 
+        if wait_if_backoff(camera_id, rtsp_url, should_continue):
+            return
+
         cap = self._open_capture(rtsp_url)
 
         if not cap.isOpened():
-            print(f"[ERRO] Nao abriu stream RTSP: {rtsp_url}")
-            time.sleep(10)
+            time.sleep(after_open_failure(camera_id, rtsp_url))
             return
+
+        after_open_success(camera_id, rtsp_url)
 
         motion_fgbg = None
         motion_kernel = None
@@ -117,9 +123,9 @@ class PersonDetector:
                 time.sleep(min(30, 2 * falhas))
                 cap = self._open_capture(rtsp_url)
                 if not cap.isOpened():
-                    print(f"[ERRO] Reconexao falhou: {rtsp_url}")
-                    time.sleep(10)
+                    time.sleep(after_open_failure(camera_id, rtsp_url))
                     return
+                after_open_success(camera_id, rtsp_url)
                 if YOLO_ONLY_ON_MOTION:
                     motion_fgbg, motion_kernel = create_motion_detector()
                     gate = self._reset_motion_gate()
