@@ -71,7 +71,7 @@ def loop_camera(camera, detector: PersonDetector, event_queue):
                 return False
         return True
 
-    def on_person(conf, frame, area=None):
+    def on_person(conf, frame, area=None, bbox_json=None):
         if not thread_deve_continuar():
             return
         if camera.get("somente_armado"):
@@ -100,6 +100,7 @@ def loop_camera(camera, detector: PersonDetector, event_queue):
             confianca=conf,
             detected_at=time.time(),
             snapshot_path=snapshot_path,
+            bbox_json=bbox_json,
         )
         if not event_queue.publish(job):
             print(f"[FILA] cheia — evento descartado camera={camera_id} conf={conf:.2f}")

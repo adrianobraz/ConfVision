@@ -72,11 +72,14 @@ func FinalizarEvento(ctx context.Context, input map[string]any) (map[string]any,
 	if status == "" {
 		status = "pronto"
 	}
+	bboxJSON := strVal(input, "bbox_json")
 	_, err = db.ExecContext(ctx, `
 UPDATE vis_evento SET snapshot_url = $2, video_url = $3, status = $4,
-    clip_count = $5, processado = $6 WHERE id = $1`,
+    clip_count = $5, processado = $6,
+    bbox_json = CASE WHEN $7 <> '' THEN $7 ELSE bbox_json END
+WHERE id = $1`,
 		eventoID, strVal(input, "snapshot_url"), strVal(input, "video_url"), status,
-		intVal(input, "clip_count"), boolDefault(input, "processado", true))
+		intVal(input, "clip_count"), boolDefault(input, "processado", true), bboxJSON)
 	if err != nil {
 		return nil, err
 	}

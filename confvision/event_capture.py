@@ -85,6 +85,7 @@ def processar_deteccao(
     evento_base=None,
     evento_id=None,
     for_sensor: bool = False,
+    bbox_json: str | None = None,
 ):
     camera_id = camera.get("id")
     grava_foto = plan_grava_foto(camera)
@@ -274,6 +275,7 @@ def processar_deteccao(
                     status="pronto",
                     clip_count=0,
                     processado=False,
+                    bbox_json=bbox_json,
                     edge=edge,
                 )
                 print(f"[CAPTURA] evento={evento_id} pronto snapshot (sem video)")
@@ -321,6 +323,7 @@ def processar_deteccao(
             clip_count=1,
             clip_duracao_seg=CLIP_DURACAO_SEG,
             processado=False,
+            bbox_json=bbox_json,
             edge=edge,
         )
         print(f"[CAPTURA] evento={evento_id} pronto snapshot+video")
