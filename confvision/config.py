@@ -57,6 +57,10 @@ YOLO_MOTION_FRAME_SKIP = int(os.getenv("YOLO_MOTION_FRAME_SKIP", "2"))
 # Frames YOLO consecutivos sem pessoa na área para desligar (após já ter inferido)
 YOLO_MOTION_MISS_FRAMES = int(os.getenv("YOLO_MOTION_MISS_FRAMES", "2"))
 
+# Overlay nas fotos de evento (detection_overlay.py)
+DETECTION_DRAW_ALL = _env_bool("DETECTION_DRAW_ALL", "0")
+DETECTION_OVERLAY_LABELS = _env_bool("DETECTION_OVERLAY_LABELS", "1")
+
 CLIP_DURACAO_SEG = int(os.getenv("CLIP_DURACAO_SEG", "20"))
 SNAPSHOT_JPEG_QUALITY = int(os.getenv("SNAPSHOT_JPEG_QUALITY", "85"))
 CAPTURE_DIR = os.getenv("CAPTURE_DIR", "/tmp/confvision").rstrip("/")

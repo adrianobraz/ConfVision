@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="pt-br">
+
+<head>
+    {{ template "head" . }}
+</head>
+
+<body>
+    {{ template "variaveis-controle" . }}
+    {{ template "nav-bar" . }}
+
+    <div class="container container-principal">
+        <div class="row text-center">
+            <div class="col-lg-1"></div>
+
+            <div id="logo" class="col-lg-5 p-3 mt-lg-5"></div>
+
+            <div class="col-lg-1"></div>
+
+            <div class="col-lg-5 p-3">
+                <div class="row">
+                    <!-- carrega nome do monitoramento logado -->
+                    <div class="col-lg-12  text-start">
+                        <label for="display-nome-monitoramento" class="fs-3">
+                            <i class="bi bi-camera-video-fill fs-3"></i>
+                            &nbsp; Monitoramento
+                        </label>
+                    </div>
+
+                    <div class="col-lg-12 mb-2">
+                        <input id="display-nome-monitoramento" value="" type="text" disabled class="form-control">
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="col-lg-12 text-center fs-3 fw-bold fst-italic">
+                <span id="display-nome-usuario" class="text-capitalize"></span>,
+                bem vindo a sua Área Administrativa
+            </div>
+
+            <div class="col-lg-12">
+                <hr>
+            </div>
+
+            <!-- Informativo -->
+            <div class="col-lg-12 mb-2">
+                <textarea id="display-informativo" cols="30" rows="3" disabled class="form-control bg-vd-claro text-success fw-bold
+                        text-center" style="resize: none;"></textarea>
+            </div>
+
+            <!-- Menu -->
+            <div class="col-6 col-lg-3">
+                <a href="/carregar-menu-minha-empresa">
+                    <img src="/recursos/img/botao-menu/minhaempresa.png" alt="Minha Empresa" class="img-fluid">
+                </a>
+            </div>
+            <div class="col-6 col-lg-3">
+                <a href="/carregar-menu-relatorio">
+                    <img src="/recursos/img/botao-menu/relatorios.png" alt="Relatorios" class="img-fluid">
+                </a>
+            </div>
+            <div class="col-6 col-lg-3">
+                <a href="/carregar-menu-atendimento">
+                    <img src="/recursos/img/botao-menu/atendimento.png" alt="Atendimento" class="img-fluid">
+                </a>
+            </div>
+            <div class="col-6 col-lg-3">
+                <a href="/carregar-menu-configuracoes">
+                    <img src="/recursos/img/botao-menu/configuracoes.png" alt="configuracoes" class="img-fluid">
+                </a>
+            </div>
+
+            <div class="col-lg-12">
+                <hr>
+            </div>
+
+
+            <div class="col-6 col-lg-12 mb-2">
+                <hr>
+            </div>
+
+            <!-- Tabela sem comunicar -->
+            <div class="col-lg-12 table-responsive">
+                <table class="table table-sm table-striped
+                        table-hover table-bordered">
+                    <thead class="text-center bg-vd-claro fw-bold">
+                        <tr>
+                            <td colspan="7">
+                                HORÁRIO DE BRASILIA
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="7">
+                                Total de <span id="qtd-sem-comunicar"></span>
+                                Clientes sem comunicação a mais de 24HS
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="width: 5%;">Conta</td>
+                            <td style="width: 20%;">Dispositivo</td>
+                            <td style="width: 20%;">Cliente</td>
+                            <td style="width: 5%;">Cód</td>
+                            <td style="width: 25%;">Descrição do Evento</td>
+                            <td style="width: 15%;">Últ. Evento</td>
+                            <td style="width: 10%;">Hrs.</td>
+                        </tr>
+
+                    </thead>
+                    <tbody id="tab-sem-comunicacao"> <!-- preenchido via js -->
+                    </tbody>
+
+                </table>
+            </div>
+
+            <div class="col-lg-12">
+                <hr>
+            </div>
+
+            <!--div class="col-lg-12 table-responsive">
+                    <table class="table table-sm table-striped
+                        table-hover table-bordered">
+                        <thead class="text-center bg-vd-claro fw-bold">
+                            <tr>
+                                <td colspan="6">
+                                    TICKET
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Numero</th>
+                                <th>Assunto</th>
+                                <th>Status</th>
+                                <th>Ver</th>
+                                <th>Excluir</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tab-ticket">
+                            
+                        </tbody>
+
+                    </div>
+                </div--> <!-- row -->
+        </div><!-- container -->
+
+        {{ template "link-js" . }}
+        <script src="/recursos/modulos/menu-principal/menu-principal.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    {{ template "head" . }}
+    {{ template "confvision-head-extra" . }}
+</head>
+<body class="cv-app cv-grade-page">
+    {{ template "variaveis-controle" . }}
+    {{ template "confvision-config" . }}
+    {{ template "confvision-nav" . }}
+
+    <main class="cv-main cv-main-wide">
+        <div class="cv-panel cv-grade-panel">
+            <div class="cv-panel-toolbar cv-grade-toolbar-top">
+                <h1 class="cv-page-title mb-0">Grade horária</h1>
+            </div>
+
+            <div class="row g-3 cv-grade-layout">
+                <div class="col-lg-8">
+                    <div class="cv-grade-list-panel">
+                        <div class="cv-grade-list-header">
+                            <label class="cv-field mb-0 flex-grow-1">
+                                <span class="visually-hidden">Filtrar</span>
+                                <input type="search" id="grade-lista-filtro" class="form-control cv-grade-lista-filtro"
+                                    placeholder="Buscar cliente ou dispositivo..." autocomplete="off" />
+                            </label>
+                        </div>
+                        <div class="table-responsive cv-grade-list-wrap">
+                            <table class="cv-table cv-grade-list-table">
+                                <thead>
+                                    <tr>
+                                        <th>Cliente</th>
+                                        <th>Dispositivo</th>
+                                        <th class="text-center">Ativa</th>
+                                        <th class="text-end">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="grade-lista-body">
+                                    <tr class="cv-grade-list-empty">
+                                        <td colspan="4">Carregando...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="cv-grade-form-panel">
+                        <div class="cv-grade-form-head">
+                            <h2 class="cv-grade-form-title mb-0" id="grade-form-titulo">Nova grade</h2>
+                            <button type="button" id="btn-grade-nova" class="cv-btn-grade-nova" title="Limpar e cadastrar nova grade">
+                                <i class="bi bi-plus-circle"></i> Nova
+                            </button>
+                        </div>
+
+                        <div id="grade-cadastro-cliente" class="mb-3">
+                            <label class="cv-field cv-grade-field">
+                                <span>Cliente</span>
+                                <div class="position-relative">
+                                    <input type="search" id="busca-cliente-grade" class="form-control cv-grade-input"
+                                        placeholder="Pesquisar por nome, CPF, CNPJ ou nick..."
+                                        autocomplete="off" />
+                                    <input type="hidden" id="id-cliente-grade" value="" />
+                                    <ul id="lista-clientes-grade" class="cv-combo-list d-none"></ul>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div id="grade-cadastro-dispositivo" class="mb-3 d-none">
+                            <label class="cv-field cv-grade-field">
+                                <span>Dispositivo</span>
+                                <select id="sel-grade-dispositivo" class="form-select cv-grade-input">
+                                    <option value="">Todos os dispositivos</option>
+                                </select>
+                            </label>
+                        </div>
+
+                        <div id="grade-cadastro-horarios" class="d-none">
+                            <div class="cv-grade-horarios-toolbar mb-2">
+                                <button type="button" id="btn-grade-horario-comercial" class="cv-btn-grade-preset"
+                                    title="Preencher Segunda a Sexta: desativar 08:00 e ativar 18:00">
+                                    <i class="bi bi-briefcase"></i> Horário comercial
+                                </button>
+                            </div>
+                            <div class="table-responsive cv-grade-table-wrap">
+                                <table class="cv-table cv-grade-table" id="tab-grade-horario">
+                                    <thead>
+                                        <tr>
+                                            <th>Dia</th>
+                                            <th>Desativar</th>
+                                            <th>Ativar</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tab-grade-body"></tbody>
+                                </table>
+                            </div>
+
+                            <div class="cv-grade-form-actions mt-3">
+                                <button type="button" id="btn-grade-cancelar" class="cv-btn-grade-cancelar">
+                                    Cancelar
+                                </button>
+                                <button type="button" id="btn-grade-salvar" class="cv-btn-primary">
+                                    <i class="bi bi-save"></i> Salvar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    {{ template "link-js" . }}
+    <script src="/recursos/modulos/confvision/urls.js?v=20260727mob4"></script>
+    <script src="/recursos/modulos/confvision/grade-horario.js?v=20260731grade1"></script>
+</body>
+</html>

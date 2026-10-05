@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    {{ template "head" . }}
+    {{ template "confvision-head-extra" . }}
+    <link rel="stylesheet" href="/recursos/modulos/minha-empresa/whitelabel/whitelabel.css?v=20260731theme1">
+</head>
+<body class="cv-app">
+    {{ template "variaveis-controle" . }}
+    {{ template "confvision-config" . }}
+    {{ template "confvision-nav" . }}
+
+    <main class="cv-main cv-wl-main">
+        <div class="cv-page-header">
+            <p class="cv-page-eyebrow" id="display-nome-franqueado" data-eyebrow-suffix="Marca"></p>
+            <h2>Minha marca</h2>
+            <p class="cv-lic-muted small mb-0">Logo e cores compartilhados com o FranqueadoPro (mesmo franqueado).</p>
+        </div>
+
+        <div class="cv-lic-card mb-3">
+            <div id="wl-alerta" class="alert alert-warning d-none" role="alert"></div>
+            <div id="wl-info" class="cv-wl-info d-none"></div>
+
+            <h3 class="cv-wl-secao-titulo"><i class="bi bi-palette"></i> Cores do tema</h3>
+            <p class="cv-lic-muted small mb-3">Escolha um tema pronto. A pré-visualização é aplicada na hora; clique em <strong>Salvar</strong> para persistir.</p>
+            <div id="wl-theme-presets" class="cv-wl-presets mb-4" role="listbox" aria-label="Temas prontos"></div>
+
+            <h3 class="cv-wl-secao-titulo"><i class="bi bi-image"></i> Logotipo</h3>
+            <label class="cv-label" for="wl-logo-file">Arquivo do logo</label>
+            <p class="cv-lic-muted small mb-2">PNG, JPG ou WebP · recomendado 150×48 px (fundo transparente ou escuro).</p>
+            <input type="file" class="form-control cv-input mb-3" id="wl-logo-file" accept="image/png,image/jpeg,image/webp">
+
+            <div class="cv-wl-preview-box mb-3">
+                <img id="wl-logo-preview" class="cv-wl-logo-preview d-none" alt="Preview do logo">
+                <p id="wl-logo-vazio" class="cv-lic-muted mb-0">Nenhum logo cadastrado — será usado o logo padrão do sistema.</p>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="cv-btn-primary" id="wl-salvar">
+                    <i class="bi bi-check-lg"></i> Salvar personalização
+                </button>
+                <button type="button" class="cv-btn-ghost" id="wl-reset">Restaurar padrão</button>
+            </div>
+        </div>
+    </main>
+
+    {{ template "link-js" . }}
+    <script src="/recursos/modulos/confvision/urls.js?v=20260730wl1"></script>
+    <script src="/recursos/modulos/minha-empresa/whitelabel/whitelabel.js?v=20260731presets1"></script>
+</body>
+</html>

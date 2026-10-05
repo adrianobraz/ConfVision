@@ -1,0 +1,366 @@
+
+body {
+    background-color: #f3f4f2;
+    background-color: #D3D3D3;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.tam-body {
+    font-size: 15px;
+}
+
+.container-principal {
+    background-color: #fff;
+}
+
+.bg-vd-claro {
+    background-color: #dff0d8;
+}
+
+.font-gg {
+    font-size: 30px;
+}
+
+.bi {
+    width: 1rem;
+    height: 1rem;
+    font-size: 20px;
+}
+
+label {
+    font-size: 17px;
+    font-weight: bold;
+    font-style: italic;
+}
+
+tr {
+    font-size: 15px;
+}
+
+a {
+    text-decoration: none;
+}
+
+.bg-form {
+    background-color: #DCDCDC;
+    margin: 0;
+    padding: 0;
+}
+
+textarea {
+    resize: none;
+}
+
+/****************** Botoes do menu **********************/
+
+.botao {
+    font-size: 20px;
+    font-weight: bold;
+    line-height: 30px;
+    color: white;
+}
+
+.botao .botaoFrame {
+    cursor: pointer;
+    padding: 10px;
+    margin-bottom: 10px;
+    width: 100%;
+    border-width: 2px;
+    border-color: #9999;
+    border-style: solid;
+    border-radius: 20px;
+    height: 190px;
+    background-color: #A9A9A9;
+}
+
+.botao i {
+    font-size: 100px;
+}
+
+/* ===================================================================
+   ConfVision — tema escuro telas cadastro (clientes/dispositivos/setores)
+   Ativa automaticamente quando existe .bg-form na página
+   =================================================================== */
+
+body:has(.bg-form),
+body.cv-cadastro {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+    background: var(--cv-bg) !important;
+    background-image:
+        radial-gradient(ellipse 80% 50% at 50% -20%, var(--cv-bg-glow-1), transparent),
+        radial-gradient(ellipse 60% 40% at 100% 100%, var(--cv-bg-glow-2), transparent) !important;
+    color: var(--cv-text) !important;
+    min-height: 100vh;
+}
+
+body:has(.bg-form) .bi,
+body.cv-cadastro .bi,
+.cv-cadastro-root .bi {
+    width: auto !important;
+    height: auto !important;
+}
+
+body:has(.bg-form) .navbar.bg-dark,
+body.cv-cadastro .navbar.bg-dark,
+.cv-cadastro-root .navbar.bg-dark {
+    background: rgba(7, 11, 20, 0.95) !important;
+    border-bottom: 1px solid var(--cv-border);
+}
+
+body:has(.bg-form) .navbar-brand,
+body.cv-cadastro .navbar-brand,
+.cv-cadastro-root .navbar-brand {
+    color: var(--cv-text) !important;
+}
+
+body:has(.bg-form) .navbar .btn-outline-light,
+body.cv-cadastro .navbar .btn-outline-light,
+.cv-cadastro-root .navbar .btn-outline-light {
+    color: var(--cv-text-muted) !important;
+    border-color: var(--cv-border) !important;
+    background: transparent !important;
+}
+
+body:has(.bg-form) .navbar .btn-outline-light:hover,
+body.cv-cadastro .navbar .btn-outline-light:hover,
+.cv-cadastro-root .navbar .btn-outline-light:hover {
+    color: var(--cv-accent) !important;
+    background: var(--cv-accent-soft) !important;
+    border-color: var(--cv-border-hover) !important;
+}
+
+body:has(.bg-form) .cv-cadastro-subnav,
+body:has(.bg-form) .container-fluid.py-2,
+body.cv-cadastro .cv-cadastro-subnav,
+.cv-cadastro-root .cv-cadastro-subnav {
+    background: var(--cv-bg-elevated) !important;
+    border-bottom: 1px solid var(--cv-border) !important;
+}
+
+body:has(.bg-form) .cv-subnav-btn,
+body:has(.bg-form) .cv-cadastro-subnav .btn-outline-secondary,
+body.cv-cadastro .cv-subnav-btn,
+body.cv-cadastro .cv-cadastro-subnav .btn-outline-secondary,
+.cv-cadastro-root .cv-subnav-btn,
+.cv-cadastro-root .cv-cadastro-subnav .btn-outline-secondary {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border-radius: 8px;
+    border: 1px solid var(--cv-border) !important;
+    background: rgba(15, 23, 42, 0.6) !important;
+    color: var(--cv-text-muted) !important;
+    text-decoration: none !important;
+}
+
+body:has(.bg-form) .cv-subnav-btn:hover,
+body:has(.bg-form) .cv-cadastro-subnav .btn-outline-secondary:hover,
+body.cv-cadastro .cv-subnav-btn:hover,
+body.cv-cadastro .cv-cadastro-subnav .btn-outline-secondary:hover,
+.cv-cadastro-root .cv-subnav-btn:hover {
+    color: var(--cv-accent) !important;
+    background: var(--cv-accent-medium) !important;
+    border-color: var(--cv-border-hover) !important;
+}
+
+body:has(.bg-form) .container,
+body:has(.bg-form) .container-fluid,
+body:has(.bg-form) .container-principal,
+body:has(.bg-form) .row,
+body.cv-cadastro .container,
+body.cv-cadastro .container-fluid,
+body.cv-cadastro .container-principal,
+body.cv-cadastro .row,
+.cv-cadastro-root .container,
+.cv-cadastro-root .container-fluid,
+.cv-cadastro-root .container-principal,
+.cv-cadastro-root .row {
+    background: transparent !important;
+    color: var(--cv-text);
+}
+
+body:has(.bg-form) .container-principal,
+body.cv-cadastro .container-principal,
+.cv-cadastro-root .container-principal {
+    padding-bottom: 2rem;
+}
+
+body:has(.bg-form) .bg-form,
+body.cv-cadastro .bg-form,
+.cv-cadastro-root .bg-form {
+    background: var(--cv-bg-card) !important;
+    border: 1px solid var(--cv-border) !important;
+    border-radius: var(--cv-radius);
+}
+
+body:has(.bg-form) label,
+body.cv-cadastro label,
+.cv-cadastro-root label {
+    color: var(--cv-text-muted) !important;
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    font-style: normal !important;
+}
+
+body:has(.bg-form) .table,
+body.cv-cadastro .table,
+.cv-cadastro-root .table {
+    --bs-table-bg: transparent !important;
+    --bs-table-color: var(--cv-text) !important;
+    --bs-table-border-color: var(--cv-border) !important;
+    --bs-table-striped-bg: rgba(15, 23, 42, 0.65) !important;
+    --bs-table-striped-color: var(--cv-text) !important;
+    --bs-table-hover-bg: var(--cv-accent-faint) !important;
+    --bs-table-hover-color: var(--cv-text) !important;
+    color: var(--cv-text) !important;
+    border-color: var(--cv-border) !important;
+    margin-bottom: 0;
+}
+
+body:has(.bg-form) .table > :not(caption) > * > *,
+body.cv-cadastro .table > :not(caption) > * > *,
+.cv-cadastro-root .table > :not(caption) > * > * {
+    background-color: var(--cv-bg-card) !important;
+    color: var(--cv-text) !important;
+    border-color: var(--cv-border) !important;
+    box-shadow: none !important;
+}
+
+body:has(.bg-form) .table-striped > tbody > tr:nth-of-type(odd) > *,
+body.cv-cadastro .table-striped > tbody > tr:nth-of-type(odd) > *,
+.cv-cadastro-root .table-striped > tbody > tr:nth-of-type(odd) > * {
+    background-color: rgba(15, 23, 42, 0.85) !important;
+    color: var(--cv-text) !important;
+}
+
+body:has(.bg-form) .table-striped > tbody > tr:nth-of-type(even) > *,
+body.cv-cadastro .table-striped > tbody > tr:nth-of-type(even) > *,
+.cv-cadastro-root .table-striped > tbody > tr:nth-of-type(even) > * {
+    background-color: var(--cv-bg-card) !important;
+    color: var(--cv-text) !important;
+}
+
+body:has(.bg-form) .table thead.table-dark th,
+body:has(.bg-form) .table-dark th,
+body.cv-cadastro .table thead.table-dark th,
+body.cv-cadastro .table-dark th,
+.cv-cadastro-root .table thead.table-dark th,
+.cv-cadastro-root .table-dark th {
+    background-color: #0f172a !important;
+    color: var(--cv-accent) !important;
+    border-color: var(--cv-border) !important;
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+
+body:has(.bg-form) .table-responsive,
+body.cv-cadastro .table-responsive,
+.cv-cadastro-root .table-responsive {
+    background: var(--cv-bg-card) !important;
+    border: 1px solid var(--cv-border) !important;
+    border-radius: var(--cv-radius);
+}
+
+body:has(.bg-form) .form-control,
+body:has(.bg-form) .form-select,
+body:has(.bg-form) textarea,
+body.cv-cadastro .form-control,
+body.cv-cadastro .form-select,
+body.cv-cadastro textarea,
+.cv-cadastro-root .form-control,
+.cv-cadastro-root .form-select,
+.cv-cadastro-root textarea {
+    background-color: var(--cv-bg-input) !important;
+    border: 1px solid var(--cv-border) !important;
+    color: var(--cv-text) !important;
+    border-radius: 8px;
+}
+
+body:has(.bg-form) .form-control:focus,
+body:has(.bg-form) .form-select:focus,
+body:has(.bg-form) textarea:focus,
+body.cv-cadastro .form-control:focus,
+body.cv-cadastro .form-select:focus,
+body.cv-cadastro textarea:focus,
+.cv-cadastro-root .form-control:focus,
+.cv-cadastro-root .form-select:focus,
+.cv-cadastro-root textarea:focus {
+    background-color: var(--cv-bg-input) !important;
+    border-color: var(--cv-accent) !important;
+    color: var(--cv-text) !important;
+    box-shadow: 0 0 0 0.2rem var(--cv-accent-strong) !important;
+}
+
+body:has(.bg-form) .form-control:disabled,
+body:has(.bg-form) .form-select:disabled,
+body.cv-cadastro .form-control:disabled,
+body.cv-cadastro .form-select:disabled,
+.cv-cadastro-root .form-control:disabled,
+.cv-cadastro-root .form-select:disabled {
+    background-color: rgba(15, 23, 42, 0.6) !important;
+    color: var(--cv-text-muted) !important;
+}
+
+body:has(.bg-form) .btn-success,
+body.cv-cadastro .btn-success,
+.cv-cadastro-root .btn-success {
+    background: linear-gradient(135deg, var(--cv-accent-dim), var(--cv-accent)) !important;
+    border: none !important;
+    color: #0f172a !important;
+    font-weight: 600;
+}
+
+body:has(.bg-form) .btn-danger,
+body.cv-cadastro .btn-danger,
+.cv-cadastro-root .btn-danger {
+    background: rgba(248, 113, 113, 0.2) !important;
+    border: 1px solid rgba(248, 113, 113, 0.45) !important;
+    color: var(--cv-danger) !important;
+}
+
+body:has(.bg-form) .btn-primary,
+body.cv-cadastro .btn-primary,
+.cv-cadastro-root .btn-primary {
+    background: var(--cv-accent-strong) !important;
+    border: 1px solid var(--cv-border-hover) !important;
+    color: var(--cv-accent) !important;
+}
+
+body:has(.bg-form) .table .btn,
+body.cv-cadastro .table .btn,
+.cv-cadastro-root .table .btn {
+    font-size: 0.75rem;
+}
+
+body:has(.bg-form) .modal-content,
+body.cv-cadastro .modal-content,
+.cv-cadastro-root .modal-content {
+    background: var(--cv-bg-elevated) !important;
+    border: 1px solid var(--cv-border) !important;
+    color: var(--cv-text) !important;
+}
+
+body:has(.bg-form) .modal-header,
+body:has(.bg-form) .modal-footer,
+body.cv-cadastro .modal-header,
+body.cv-cadastro .modal-footer,
+.cv-cadastro-root .modal-header,
+.cv-cadastro-root .modal-footer {
+    border-color: var(--cv-border) !important;
+}
+
+body:has(.bg-form) .btn-close,
+body.cv-cadastro .btn-close,
+.cv-cadastro-root .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+body:has(.bg-form) .text-danger,
+body.cv-cadastro .text-danger,
+.cv-cadastro-root .text-danger {
+    color: var(--cv-danger) !important;
+}

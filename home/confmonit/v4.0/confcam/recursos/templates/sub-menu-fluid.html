@@ -1,0 +1,31 @@
+{{ define "sub-menu-fluid" }}
+<div class="container-fluid cv-cadastro-subnav py-2">
+    <div class="d-flex flex-wrap gap-2 justify-content-center">
+        <a href="/carregar-menu-confvision" class="cv-subnav-btn" title="Início" aria-label="Início">
+            <i class="bi bi-house"></i><span class="cv-subnav-label"> Início</span>
+        </a>
+        <a href="/CarregarPaginaGerenciarCliente" class="cv-subnav-btn" title="Clientes" aria-label="Clientes">
+            <i class="bi bi-people"></i><span class="cv-subnav-label"> Clientes</span>
+        </a>
+        <a href="/carregar-gerenciar-dispositivo" class="cv-subnav-btn" title="Dispositivos" aria-label="Dispositivos">
+            <i class="bi bi-hdd-network"></i><span class="cv-subnav-label"> Dispositivos</span>
+        </a>
+        <a href="/carregar-gerenciar-setores-alarme" class="cv-subnav-btn" title="Setores" aria-label="Setores">
+            <i class="bi bi-bounding-box"></i><span class="cv-subnav-label"> Setores</span>
+        </a>
+        <a href="/cameras" class="cv-subnav-btn" title="Câmeras" aria-label="Câmeras">
+            <i class="bi bi-camera-video"></i><span class="cv-subnav-label"> Câmeras</span>
+        </a>
+    </div>
+</div>
+<script>
+(function () {
+    document.body.classList.add('cv-cadastro');
+    var path = window.location.pathname;
+    document.querySelectorAll('.cv-subnav-btn').forEach(function (el) {
+        if (el.getAttribute('href') === path) el.classList.add('cv-subnav-active');
+    });
+})();
+</script>
+<script src="/recursos/js/auxiliares/cv-cadastro-mobile.js?v=20260727cad1" defer></script>
+{{end}}

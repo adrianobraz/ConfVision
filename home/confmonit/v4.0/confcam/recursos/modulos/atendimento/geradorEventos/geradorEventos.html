@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="pt-br">
+
+<head>
+    {{ template "head" . }}
+</head>
+
+<body>
+    {{ template "variaveis-controle" . }}
+    {{ template "nav-bar" . }}
+
+    {{ template "sub-menu-fluid" }}
+    <div class="container-fluid container-principal">
+        <div class="row text-center py-3">
+            
+            <div class="col-md-4 col-12 mb-2">
+                <label 
+                    for="cliente">
+                    CLIENTE:
+                </label>
+
+                <select 
+                    id="cliente" 
+                    class="form-control text-uppercase text-center">
+
+                    <option value="0">SELECIONE</option>
+                </select>
+
+            </div>
+
+            <div class="col-md-4 col-12 mb-2">
+                <label 
+                    for="dispositivo">
+                    DISPOSITIVO:
+                </label>
+
+                <select 
+                    id="dispositivo" 
+                    class="form-control text-uppercase text-center">
+
+                    <option value="0">SELECIONE</option>
+                </select>
+            </div>
+
+            <div class="col-md-4 col-12 mb-2">
+                <!-- CCCCENNNPPZZZ -->
+                <label 
+                    for="evento">
+                    EVENTO:
+                </label>
+
+                <select 
+                    id="evento" 
+                    class="form-control text-uppercase text-center">
+
+                    <option value="0">SELECIONE</option>                    
+                </select>
+            </div>            
+
+            <div class="col-md-4 col-12 mb-2">
+                <label 
+                    for="zoneUser">
+                    SETOR/USUARIO:
+                </label>
+
+                <select 
+                    id="zoneUser" 
+                    class="form-control text-uppercase text-center">
+
+                    <option value="0">SELECIONE</option>
+                </select>
+            </div>
+
+            <!-- botao -->
+            <div class="col-md-4 col-12 d-grid gap-2 mb-2">
+                <button 
+                    id="btnLimpar"
+                    class="btn btn-danger">
+                    LIMPAR
+                </button>
+            </div>
+
+            <div class="col-md-4 col-12 d-grid gap-2 mb-2">
+                <button 
+                    id="btnGerar"
+                    class="btn btn-success">
+
+                    GERAR EVENTO
+                </button>
+            </div>
+            <!-- /botao -->
+            <div class="col-12 d-grid gap-2 mb-2">
+            <hr>
+            </div>
+
+            <div class="col-12 mb-2 text-end">
+                <a 
+                    id="btnManual" 
+                    href="{{ .LinkManual }}"
+                    target="_blank"
+                    class="btn btn-primary"> 
+                    <i class="bi bi-youtube"></i>
+                    &nbsp; MANUAL
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {{ template "link-js" . }}
+    <script src="/recursos/js/biblioteca/jspdf.umd.min.js"></script>
+    <script src="/recursos/modulos/atendimento/geradorEventos/geradorEventos.js"></script>
+</body>
+
+</html>

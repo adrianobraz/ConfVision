@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    {{ template "head" . }}
+    {{ template "confvision-head-extra" . }}
+</head>
+<body class="cv-app">
+    {{ template "variaveis-controle" . }}
+    {{ template "confvision-config" . }}
+    {{ template "confvision-nav" . }}
+
+    <main class="cv-main cv-main-wide">
+        <div class="cv-panel">
+            <div id="panel-licencas" class="cv-licencas-resumo d-none">
+                <div class="cv-licencas-resumo-item">
+                    <span class="cv-licencas-resumo-num" id="lbl-lic-disponivel">0</span>
+                    <span class="cv-licencas-resumo-label">Disponíveis</span>
+                </div>
+                <div class="cv-licencas-resumo-item">
+                    <span class="cv-licencas-resumo-num" id="lbl-lic-em-uso">0</span>
+                    <span class="cv-licencas-resumo-label">Em uso</span>
+                </div>
+                <div class="cv-licencas-resumo-item cv-licencas-resumo-hint">
+                    <i class="bi bi-info-circle"></i>
+                    <span>Compre licenças na central para cadastrar novas câmeras</span>
+                </div>
+            </div>
+            <div class="cv-panel-toolbar">
+                <h1 class="cv-page-title mb-0">Câmeras e licenças</h1>
+                <a href="/cameras/nova" class="cv-btn-primary">
+                    <i class="bi bi-plus-lg"></i> Nova câmera
+                </a>
+            </div>
+            <div class="cv-cameras-filtros">
+                <div class="cv-cameras-filtro-busca">
+                    <label class="cv-label" for="busca-cameras">Pesquisar</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="search" id="busca-cameras" class="form-control"
+                            placeholder="Cliente ou nome da câmera..." autocomplete="off">
+                    </div>
+                </div>
+                <div class="cv-cameras-filtro-status">
+                    <label class="cv-label" for="filtro-ativo-cameras">Status</label>
+                    <select id="filtro-ativo-cameras" class="form-select form-select-sm">
+                        <option value="">Todos</option>
+                        <option value="ativo">Ativos</option>
+                        <option value="inativo">Inativos</option>
+                    </select>
+                </div>
+                <p id="lbl-cameras-total" class="cv-cameras-filtro-total mb-0"></p>
+            </div>
+            <div class="cv-panel-body table-responsive">
+                <table class="cv-table cv-table-cards">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Cliente</th>
+                            <th>Câmera</th>
+                            <th>Setor</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tab-cameras"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal fade" id="modal-detalhe-camera" tabindex="-1" aria-labelledby="modal-detalhe-camera-titulo" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modal-detalhe-camera-titulo">Detalhes da câmera</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body" id="modal-detalhe-camera-body">
+                    <div class="cv-detail-loading">
+                        <i class="bi bi-arrow-repeat"></i> Carregando…
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="cv-btn-ghost" data-bs-dismiss="modal">Fechar</button>
+                    <a href="#" id="modal-detalhe-btn-editar" class="cv-btn-ghost d-none">
+                        <i class="bi bi-pencil"></i> Editar
+                    </a>
+                    <a href="#" id="modal-detalhe-btn-ao-vivo" class="cv-btn-primary d-none">
+                        <i class="bi bi-play-fill"></i> Ao vivo
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{ template "link-js" . }}
+    <script src="/recursos/modulos/confvision/stream-public.js"></script>
+    <script src="/recursos/modulos/confvision/urls.js?v=20260727mob4"></script>
+    <script src="/recursos/modulos/confvision/armado.js?v=20260730pausa1"></script>
+    <script src="/recursos/modulos/confvision/cameras.js?v=20260730pausa3"></script>
+</body>
+</html>

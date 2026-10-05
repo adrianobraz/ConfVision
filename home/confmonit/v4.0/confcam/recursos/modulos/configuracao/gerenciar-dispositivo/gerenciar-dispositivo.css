@@ -1,0 +1,45 @@
+tr {
+    font-size: 12px;
+}
+
+.cv-campo-confvision-oculto {
+    display: none !important;
+}
+
+/* Combo pesquisável de cliente */
+.cv-combo-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1055;
+    margin-top: 2px;
+    max-height: 260px;
+    overflow-y: auto;
+    list-style: none;
+    padding: 4px;
+    background-color: var(--cv-bg-card, #0f172a);
+    border: 1px solid var(--cv-border, #334155);
+    border-radius: 8px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, .45);
+    text-align: left;
+}
+
+.cv-combo-item {
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--cv-text, #e2e8f0);
+    font-size: .9rem;
+}
+
+.cv-combo-item:hover {
+    background-color: rgba(34, 211, 238, 0.18);
+    color: var(--cv-accent, #22d3ee);
+}
+
+.cv-combo-empty {
+    padding: 8px 10px;
+    color: var(--cv-text-muted, #94a3b8);
+    font-size: .85rem;
+}

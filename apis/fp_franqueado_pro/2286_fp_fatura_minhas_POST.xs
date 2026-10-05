@@ -6,6 +6,7 @@ query fp_fatura_minhas verb=POST {
     text id_franqueado? filters=trim
     text status? filters=trim
     text tipo? filters=trim
+    bool incluir_itens?
   }
 
   stack {
@@ -46,7 +47,23 @@ query fp_fatura_minhas verb=POST {
         } as $lista
       }
     }
+
+    var $dados {
+      value = $lista
+    }
+
+    conditional {
+      if ($input.incluir_itens == true) {
+        function.run fn_fp_faturas_com_itens {
+          input = {faturas: $lista}
+        } as $com_itens
+
+        var.update $dados {
+          value = $com_itens.faturas|first_notempty:[]
+        }
+      }
+    }
   }
 
-  response = {dados: $lista, total: $lista|count}
+  response = {dados: $dados, total: $dados|count}
 }

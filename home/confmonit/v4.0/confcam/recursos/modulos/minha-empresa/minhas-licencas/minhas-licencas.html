@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    {{ template "head" . }}
+    {{ template "confvision-head-extra" . }}
+    <link rel="stylesheet" href="/recursos/modulos/minha-empresa/minhas-licencas/minhas-licencas.css?v=20260826cap1">
+</head>
+<body class="cv-app">
+    {{ template "variaveis-controle" . }}
+    {{ template "confvision-config" . }}
+    {{ template "confvision-nav" . }}
+
+    <main class="cv-main cv-lic-main">
+        <div class="cv-page-header">
+            <div class="cv-page-header-body">
+                <p class="cv-page-eyebrow" id="display-nome-franqueado" data-eyebrow-suffix="Licenciamento"></p>
+                <h2 class="cv-page-title">Minhas licenças</h2>
+                <p class="cv-page-subtitle cv-lic-muted">Capacidade de processamento · Licenças de câmera e gravação · Faturas</p>
+            </div>
+        </div>
+
+        <div id="cv-lic-alerta" class="cv-lic-alerta d-none" role="alert"></div>
+
+        <ul class="nav nav-tabs cv-lic-tabs mb-3" id="cv-lic-tabs">
+            <li class="nav-item"><button class="nav-link active" data-tab="resumo" type="button">Resumo</button></li>
+            <li class="nav-item"><button class="nav-link" data-tab="processamento" type="button">Processamento</button></li>
+            <li class="nav-item"><button class="nav-link" data-tab="renovacoes" type="button">Renovações</button></li>
+            <li class="nav-item"><button class="nav-link" data-tab="comprar" type="button">Comprar licenças</button></li>
+            <li class="nav-item"><button class="nav-link" data-tab="faturas" type="button">Faturas</button></li>
+        </ul>
+
+        <div id="tab-resumo">
+            <div class="cv-lic-card" id="cv-lic-resumo">
+                <div class="cv-lic-loading">Carregando...</div>
+            </div>
+            <div class="cv-lic-card mt-3" id="cv-lic-lista"></div>
+        </div>
+
+        <div id="tab-processamento" class="d-none">
+            <div class="cv-lic-card cv-lic-cap-card mb-3" id="cv-lic-cap-resumo">
+                <div class="cv-lic-loading">Carregando capacidade...</div>
+            </div>
+            <div class="cv-lic-card cv-lic-cap-contratar" id="cv-lic-cap-contratar">
+                <h5 class="mb-2">Contratar capacidade</h5>
+                <p class="cv-lic-muted mb-3">
+                    Você contrata <strong>vagas de câmera</strong> (online, sensor ou analítico — cada câmera usa 1 vaga).
+                </p>
+                <div class="row g-3 align-items-end">
+                    <div class="col-sm-4">
+                        <label class="form-label" for="cv-cap-qty">Quantidade de câmeras</label>
+                        <input type="number" min="1" max="9999" class="form-control" id="cv-cap-qty" value="10">
+                        <div class="form-text" id="cv-cap-min-hint"></div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="cv-lic-cap-calc" id="cv-lic-cap-calc">
+                            <span class="cv-lic-muted">Total mensal: —</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <button type="button" class="cv-btn-primary w-100" id="cv-cap-contratar-btn">Contratar e gerar fatura</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-renovacoes" class="d-none">
+            <div class="cv-lic-card mb-3">
+                <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                    <h5 class="mb-0 me-auto">Renovar licenças existentes</h5>
+                    <button type="button" class="cv-btn-ghost btn-sm" id="cv-renov-atualizar">Atualizar</button>
+                </div>
+                <p class="cv-lic-muted mb-3">
+                    Renova as licenças já vinculadas às câmeras — gera uma fatura sem criar licenças novas.
+                    Após o pagamento, as câmeras voltam automaticamente (mesmo vínculo).
+                </p>
+                <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+                    <button type="button" class="cv-btn-primary btn-sm" id="cv-renov-selecionar-todas">Selecionar todas</button>
+                    <button type="button" class="cv-btn-primary btn-sm" id="cv-renov-gerar-fatura" disabled>Gerar fatura de renovação</button>
+                </div>
+                <div id="cv-lic-renovacoes">
+                    <p class="cv-lic-muted mb-0">Carregando...</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-comprar" class="d-none">
+            <div class="cv-lic-card cv-lic-comprar-intro mb-3">
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <h5 class="mb-0 me-auto">Catálogo de planos</h5>
+                    <span id="cv-lic-desconto-badge" class="cv-lic-badge d-none">20% Pro+</span>
+                </div>
+                <p class="cv-lic-muted mb-0 mt-2">
+                    A licença só fica disponível após confirmar o pagamento.
+                    Licenças de câmera e de gravação são produtos diferentes — escolha conforme a necessidade de cada câmera.
+                </p>
+            </div>
+
+            <div id="cv-lic-planos-camera" class="cv-lic-card cv-lic-catalogo-card cv-lic-catalogo-camera mb-3">
+                <p class="cv-lic-muted mb-0">Carregando planos de câmera…</p>
+            </div>
+
+            <div id="cv-lic-planos-gravacao" class="cv-lic-card cv-lic-catalogo-card cv-lic-catalogo-gravacao">
+                <p class="cv-lic-muted mb-0">Carregando planos de gravação…</p>
+            </div>
+        </div>
+
+        <div id="tab-faturas" class="d-none">
+            <div class="cv-lic-card">
+                <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+                    <h5 class="mb-0 me-auto">Faturas</h5>
+                    <select class="form-select form-select-sm w-auto cv-lic-select" id="cv-fatura-filtro">
+                        <option value="aberta">Em aberto</option>
+                        <option value="paga">Pagas</option>
+                        <option value="">Todas</option>
+                    </select>
+                    <button type="button" class="cv-btn-ghost btn-sm" id="cv-fatura-atualizar">Atualizar</button>
+                </div>
+                <div id="cv-lic-faturas" class="table-responsive">
+                    <p class="text-muted">Carregando...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    {{ template "link-js" . }}
+    <script src="/recursos/modulos/confvision/urls.js?v=20260730wl1"></script>
+    <script src="/recursos/modulos/confvision/cameras-form.js"></script>
+    <script src="/recursos/modulos/minha-empresa/minhas-licencas/minhas-licencas.js?v=20261003fat1"></script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+package visdata
+
+import (
+	"database/sql/driver"
+	"errors"
+	"strings"
+)
+
+func isBadConn(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, driver.ErrBadConn) {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "bad connection") ||
+		strings.Contains(msg, "connection reset") ||
+		strings.Contains(msg, "broken pipe") ||
+		strings.Contains(msg, "connection refused") ||
+		strings.Contains(msg, "conn busy") ||
+		strings.Contains(msg, "unexpected eof")
+}
+
+func resetDB() {
+	dbMu.Lock()
+	defer dbMu.Unlock()
+	if dbInst != nil {
+		_ = dbInst.Close()
+		dbInst = nil
+	}
+	dbErr = nil
+}
+
+func humanizeDBErr(err error) error {
+	if err == nil {
+		return nil
+	}
+	if isBadConn(err) {
+		return errors.New("Falha de conexao Postgres na operacao (driver: bad connection) — confira POSTGRES_URL, reinicie ConfVision e aplique build ConfCam recente")
+	}
+	return err
+}

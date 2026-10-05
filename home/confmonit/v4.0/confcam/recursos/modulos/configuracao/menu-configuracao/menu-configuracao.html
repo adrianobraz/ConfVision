@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="pt-br">
+    <head>
+        {{ template "head" . }}
+    </head>
+    <body>
+        {{ template "variaveis-controle" . }}
+        {{ template "nav-bar" . }}
+
+        <div class="container container-principal">
+            {{ template "sub-menu" }}
+            <div class="row text-center">
+
+                <div class="col-lg-12"><hr></div>              
+               
+                
+                 <!--##### GERENCIAR CADASTRO DO ALARME  ######-->
+                 <div id="BtnGerenciarCadastroAlarme" 
+                    class="col-2 col-sm-3 col-6 botao">                    
+                    <div class="botaoFrame">
+                        <i class="bi bi-phone-vibrate"></i>
+                        <br>Gerenciar 
+                        <br>Cadastro Alarme
+                    </div>                                
+                </div>
+                <!--###########################################-->
+
+                <!--#### GERENCIAR USUARIOS DO ALARME ######-->
+                <div id="BtnGerenciarUsuarioAlarme" 
+                    class="col-2 col-sm-3 col-6 botao">                    
+                    <div class="botaoFrame">
+                        <i class="bi bi-person-vcard-fill"></i>
+                        <br>Gerenciar Cadastro
+                        <br>Usuário Alarme
+                    </div>
+                                   
+                </div>
+                <!--###########################################-->
+
+                <!--####### GERENCIAR SETORES DO ALARME #######-->
+                <div id="BtnGerenciarSetoresAlarme" 
+                    class="col-2 col-sm-3 col-6 botao">                    
+                    <div class="botaoFrame">
+                        <i class="bi bi-bounding-box"></i>
+                        <br>Gerenciar Cadastro
+                        <br>Setores Alarme
+                    </div>
+                                   
+                </div>
+                <!--###########################################-->
+                <!--### GERENCIAR PROCEDIMENTO ATENDIMENTO ####-->
+                <div id="BtnGerenciarProcedimentoAtendimento" 
+                    class="col-2 col-sm-3 col-6 botao">                    
+                    <div class="botaoFrame">
+                        <i class="bi bi-headset"></i>
+                        <br>Gerenciar 
+                        <br>Proced. Atendimento
+                    </div>
+                                   
+                </div>
+                <!--###########################################-->
+
+                <!--#### GERENCIAR CONTACTID PERSONALIZADO ####-->
+                <div id="BtnGerenciarContactidPersonalizado" 
+                    class="col-2 col-sm-3 col-6 botao">                    
+                    <div class="botaoFrame">
+                        <i class="bi bi-flag-fill"></i>
+                        <br>Gerenciar 
+                        <br>Contactid Personalizado
+                    </div>
+                                   
+                </div>
+                <!--###########################################-->
+
+                <!--######### GERENCIAR GRADE HORARIO #########-->
+                <div id="BtnGerenciarGradeHorario" 
+                    class="col-2 col-sm-3 col-6 botao">                    
+                    <div class="botaoFrame">
+                        <i class="bi bi-alarm-fill"></i>
+                        <br>Gerenciar 
+                        <br>Grade Horario
+                    </div>
+                                   
+                </div>
+                <!--###########################################-->
+                                
+                <!--####### GERENCIAR RELATORIO CLIENTE #######-->
+                <div id="BtnGerenciarRelatorioCliente" 
+                    class="col-2 col-sm-3 col-6 botao">                    
+                    <div class="botaoFrame">
+                        <i class="bi bi-printer-fill"></i>
+                        <br>Gerenciar 
+                        <br>Relatório Cliente
+                    </div>
+                                   
+                </div>
+                <!--###########################################-->
+
+                <!--########## GERENCIAR ENVIO EMAIL ##########-->
+                <div id="BtnGerenciarEnvioEvento" 
+                    class="col-2 col-sm-3 col-6 botao">                    
+                    <div class="botaoFrame">
+                        <i class="bi bi-envelope-arrow-up-fill"></i>
+                        <br>Gerenciar 
+                        <br>Email Evento
+                    </div>
+                                   
+                </div>
+                <!--###########################################-->
+               
+
+                <!--########## LISTAR CLIENTE E SEUS DISPOSITIVOS ##########-->
+                <div id="BtnListarClientesDispositivos" 
+                    class="col-2 col-sm-3 col-6 botao">                    
+                    <div class="botaoFrame">
+                        <i class="bi bi-card-list"></i>
+                        <br>Listar Clientes 
+                        <br>e Dispositivos
+                    </div>
+                                   
+                </div>
+                <!--###########################################-->
+               
+                           
+
+                <div class="col-lg-12"><hr></div>
+
+            </div>
+        </div><!-- container -->
+
+        {{ template "link-js" . }}
+        <script
+            src="/recursos/modulos/configuracao/menu-configuracao/menu-configuracao.js"></script>
+    </body>
+</html> 
