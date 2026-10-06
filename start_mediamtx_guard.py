@@ -59,14 +59,19 @@ def main() -> None:
         _procs.append(sync_proc)
 
     while True:
-        procs: list[tuple[str, subprocess.Popen]] = [("guard", guard), ("mediamtx", mtx)]
-        if sync_proc is not None:
-            procs.append(("rtsp-mtx-sync", sync_proc))
-        for name, p in procs:
-            rc = p.poll()
-            if rc is not None:
-                print(f"[START] {name} saiu code={rc} — derrubando o outro", flush=True)
-                _shutdown()
+        if guard.poll() is not None:
+            print(f"[START] guard saiu code={guard.returncode} — encerrando", flush=True)
+            _shutdown()
+        if mtx.poll() is not None:
+            print(f"[START] mediamtx saiu code={mtx.returncode} — encerrando", flush=True)
+            _shutdown()
+        if sync_proc is not None and sync_proc.poll() is not None:
+            print(
+                f"[START] rtsp-mtx-sync saiu code={sync_proc.returncode} "
+                f"(MediaMTX continua; corrija imagem/env ou RTSP_MTX_PATH_SYNC_ENABLED=0)",
+                flush=True,
+            )
+            sync_proc = None
         time.sleep(0.5)
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import threading
 import time
@@ -87,6 +88,16 @@ def path_reader_count(path: str) -> int:
     return 0
 
 
+def _sanitize_ffmpeg_stderr(raw: bytes | str, limit: int = 800) -> str:
+    text = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else (raw or "")
+    text = re.sub(r"rtsp://[^@\s/]+@", "rtsp://***@", text, flags=re.I)
+    text = re.sub(r"rtmp://[^\s]+", "rtmp://***", text, flags=re.I)
+    text = " ".join(text.split())
+    if len(text) > limit:
+        return text[:limit] + "..."
+    return text
+
+
 def fetch_rtsp_pull_cameras() -> list[dict[str, Any]]:
     base = XANO_BASE_URL.rstrip("/")
     if not base:
@@ -126,6 +137,23 @@ class RtspLiveRelay:
         self._running: dict[int, RelayProc] = {}
         self._ffmpeg = _env("FFMPEG_PATH", "ffmpeg")
 
+    def _log_ffmpeg_exit(self, rp: RelayProc) -> None:
+        code = rp.process.poll()
+        if code is None:
+            return
+        err_raw = b""
+        if rp.process.stderr:
+            try:
+                err_raw = rp.process.stderr.read() or b""
+            except OSError:
+                pass
+        msg = _sanitize_ffmpeg_stderr(err_raw) if err_raw else "(sem stderr)"
+        print(
+            f"[RTSP-RELAY] ffmpeg exit camera={rp.camera_id} path={rp.path} "
+            f"code={code} err={msg}",
+            flush=True,
+        )
+
     def _should_run(self, cam: dict[str, Any], now: float) -> bool:
         if _wake_active(cam, now):
             return True
@@ -144,6 +172,15 @@ class RtspLiveRelay:
         dest = _rtmp_dest(cam)
         path = _path_name(cam)
         if cid < 1 or not rtsp.lower().startswith("rtsp") or not dest:
+            if cid >= 1:
+                if not rtsp.lower().startswith("rtsp"):
+                    print(f"[RTSP-RELAY] skip camera={cid} rtsp_url_sec invalido", flush=True)
+                elif not dest:
+                    print(
+                        f"[RTSP-RELAY] skip camera={cid} destino RTMP vazio "
+                        f"(RTMP_PUBLISH_SECRET / mediamtx_rtmp_public)",
+                        flush=True,
+                    )
             return
         args = [
             self._ffmpeg,
@@ -173,8 +210,11 @@ class RtspLiveRelay:
         now = time.time()
         with self._lock:
             old = self._running.pop(cid, None)
-            if old and old.process.poll() is None:
-                old.process.terminate()
+            if old:
+                if old.process.poll() is not None:
+                    self._log_ffmpeg_exit(old)
+                elif old.process.poll() is None:
+                    old.process.terminate()
             self._running[cid] = RelayProc(
                 camera_id=cid, path=path, process=proc, started_at=now, last_demand_at=now
             )
@@ -191,6 +231,8 @@ class RtspLiveRelay:
                 rp.process.wait(timeout=8)
             except subprocess.TimeoutExpired:
                 rp.process.kill()
+        if rp.process.poll() not in (None, 0):
+            self._log_ffmpeg_exit(rp)
         print(f"[RTSP-RELAY] stop camera={camera_id} path={rp.path} reason={reason}", flush=True)
 
     def tick(self) -> None:
@@ -207,7 +249,12 @@ class RtspLiveRelay:
                 want.add(cid)
                 with self._lock:
                     running = self._running.get(cid)
-                if running is None or running.process.poll() is not None:
+                if running is not None and running.process.poll() is not None:
+                    self._log_ffmpeg_exit(running)
+                    with self._lock:
+                        self._running.pop(cid, None)
+                    running = None
+                if running is None:
                     self._start(cam)
                 else:
                     with self._lock:

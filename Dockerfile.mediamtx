@@ -31,6 +31,9 @@ COPY rtmp_ban.py \
      config_cache.py \
      redis_client.py \
      sharding.py \
+     mtx_config.py \
+     rtsp_mtx_path_sync.py \
+     rtsp_mtx_path_sync_main.py \
      start_mediamtx_guard.py \
      ./
 
