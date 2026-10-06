@@ -1,16 +1,15 @@
-"""Header de autenticação para API Go ConfVision (workerAuth)."""
+"""Headers para API vis (ConfCam / proxy Xano)."""
 
 from __future__ import annotations
 
-import os
+from typing import Any, Optional
+
+from config import VIS_WORKER_API_KEY
 
 
-def vis_api_headers(extra: dict[str, str] | None = None) -> dict[str, str]:
-    """Retorna headers com X-Vis-Worker-Key se VIS_WORKER_API_KEY estiver definido."""
-    headers: dict[str, str] = {}
-    key = (os.getenv("VIS_WORKER_API_KEY") or "").strip()
+def vis_api_headers(extra: Optional[dict[str, str]] = None) -> dict[str, str]:
+    out: dict[str, Any] = dict(extra or {})
+    key = (VIS_WORKER_API_KEY or "").strip()
     if key:
-        headers["X-Vis-Worker-Key"] = key
-    if extra:
-        headers.update(extra)
-    return headers
+        out["X-Vis-Worker-Key"] = key
+    return out

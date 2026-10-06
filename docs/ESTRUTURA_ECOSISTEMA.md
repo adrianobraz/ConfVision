@@ -244,6 +244,7 @@ Auditoria detalhada: [docs/AUDITORIA_ARVORES_GIT.md](./AUDITORIA_ARVORES_GIT.md)
 
 ## Referências cruzadas
 
+- `docs/CONFVISION_RTSP_AO_VIVO_PLANO.md` — RTSP pull, HLS ao vivo, fases de desenvolvimento
 - `docs/AUDITORIA_ARVORES_GIT.md`
 - `confvision/docs/AUDITORIA_CONSOLIDACAO_6_FASES.md`
 - `confvision/docs/ARCHITECTURE_FINAL.md`
