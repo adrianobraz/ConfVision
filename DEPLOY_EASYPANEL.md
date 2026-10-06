@@ -19,7 +19,6 @@ Documentação dos serviços Python/MediaMTX do ConfVision no EasyPanel.
 |---|---|---|---|
 | `confvision` | **MediaMTX + Guard** (RTMP/HLS/API + auth/ban) | GitHub `ConfVision` → `Dockerfile-mediamtx` | `start_mediamtx_guard.py` |
 | `confvision-worker` | Detecção de pessoas (YOLO) + eventos | GitHub `ConfVision` | `python -u main.py` |
-| `confvision-rtsp-relay` | RTSP pull → RTMP/HLS on-demand | GitHub `ConfVision` | `python -u rtsp_live_relay_main.py` |
 | `confvision-dvr` | Gravação contínua (DVR) | GitHub `ConfVision` | `python -u dvr_main.py` |
 | `confvision-motion` | Gravação por movimento | GitHub `ConfVision` | `python -u motion_main.py` |
 | `confvision-timelapse` | Timelapse inteligente | GitHub `ConfVision` | `python -u timelapse_main.py` |
@@ -78,6 +77,27 @@ Auth via `http://127.0.0.1:8100/auth` — **não depende** de rede Docker entre 
 
 > Não precisa mais de `MTX_AUTHHTTPADDRESS` apontando para outro container. O `/mediamtx.yml` embutido já usa `127.0.0.1:8100/auth`.
 
+---
+
+## 1b. RTSP pull nativo MediaMTX (Fase 3 — no serviço `confvision`)
+
+Com **`RTSP_MTX_PATH_SYNC_ENABLED=1`**, o `start_mediamtx_guard.py` sobe também o sync de paths: MediaMTX puxa RTSP **só quando há leitor HLS** (`sourceOnDemand`), sem ffmpeg no worker.
+
+| Variável | Valor | Descrição |
+|---|---|---|
+| `RTSP_MTX_PATH_SYNC_ENABLED` | `1` | Ativa sync no mesmo container MediaMTX |
+| `MEDIAMTX_NODE_ID` | ex. id de `vis_mediamtx_node` | Filtra câmeras `rtsp_pull` deste nó |
+| `XANO_BASE_URL` | `https://vision.confmonit2.com.br` | API vis (somente leitura) |
+| `VIS_WORKER_API_KEY` | *(igual workers)* | `vis_camera_query_rtsp_pull` |
+| `RTMP_PUBLISH_SECRET` | *(igual Guard)* | Monta path `cam/{hash12}` |
+| `MEDIAMTX_API_BASE` | `http://127.0.0.1:9997` | Já default na imagem |
+
+**Migração desde Fase 2:** pare ou defina `RTSP_LIVE_RELAY_ENABLED=0` no serviço `confvision-rtsp-relay` — não duplicar ingresso no mesmo path.
+
+Log esperado: `[RTSP-MTX] ativo node_id=…` e `[RTSP-MTX] add path=cam/… camera=…`.
+
+Alternativa: serviço separado com `python -u rtsp_mtx_path_sync_main.py` e `MEDIAMTX_API_BASE=http://foxpro_confvision:9997` (mesmas vars).
+
 ### Log de subida esperado
 
 ```text
@@ -125,6 +145,7 @@ Outros serviços referenciam este container como:
 - `hlsAlwaysRemux: no` — HLS/remux **só quando alguém abre** ao vivo (maior ganho de CPU)
 - Plano **online**: publish RTMP sob demanda; path `cam/{hash}` existe sem remux 24/7
 - `hls1.dnsid.com.br` → proxy `:8888` (EasyPanel/Caddy)
+- Câmeras **RTSP pull** (`fonte_ingresso=rtsp_pull`): HLS exige ingresso no path `cam/{hash}` (relay ou pull on-demand) — ver [CONFVISION_RTSP_AO_VIVO_PLANO.md](../docs/CONFVISION_RTSP_AO_VIVO_PLANO.md)
 
 **Worker analítico** (env):
 
@@ -200,7 +221,7 @@ Com gate desligado (`YOLO_ONLY_ON_MOTION=0`), inferência contínua — adequado
 
 Serviço **on-demand**: quando o portal chama `POST /api/cameras/{id}/rtsp-live-wake`, o Postgres grava `rtsp_live_wake_until`; este daemon inicia **ffmpeg** (RTSP cliente → RTMP `cam/{hash}`) e para após idle.
 
-- **Source:** GitHub → `adrianobraz/ConfVision` / `main` / `/`
+- **Source:** GitHub → `adrianobraz/ConfVision` / `main` / `confvision/`
 - **Comando:** `python`
 - **Arguments:** `-u rtsp_live_relay_main.py`
 - **Imagem:** mesma do worker (`Dockerfile` — inclui ffmpeg)
@@ -217,7 +238,7 @@ Serviço **on-demand**: quando o portal chama `POST /api/cameras/{id}/rtsp-live-
 | `MEDIAMTX_RTMP_PUBLISH_BASE` | Fallback se câmera sem `mediamtx_rtmp_public` |
 | `MEDIAMTX_API_BASE` | Ex.: `http://foxpro_confvision:9997` — contagem de leitores HLS |
 | `MEDIAMTX_API_USER` / `MEDIAMTX_API_PASS` | Basic auth API MediaMTX |
-| `RTSP_LIVE_RELAY_ENABLED` | `1` |
+| `RTSP_LIVE_RELAY_ENABLED` | `1` (default) |
 | `RTSP_LIVE_RELAY_POLL_SEC` | `5` |
 | `RTSP_LIVE_RELAY_IDLE_SEC` | `120` — para relay após último wake/leitor |
 
@@ -225,7 +246,7 @@ Serviço **on-demand**: quando o portal chama `POST /api/cameras/{id}/rtsp-live-
 
 Migration `confcam/sql/024_vis_camera_rtsp_live_wake.sql` (`rtsp_live_wake_until`).
 
-Doc: [CONFVISION_RTSP_AO_VIVO_PLANO.md](docs/CONFVISION_RTSP_AO_VIVO_PLANO.md) (monorepo `core4`).
+Doc: [CONFVISION_RTSP_AO_VIVO_PLANO.md](../docs/CONFVISION_RTSP_AO_VIVO_PLANO.md).
 
 ---
 
@@ -521,7 +542,6 @@ confvision (MediaMTX)  ← foxpro_confvision:8554 / :9997 / :1935
     │ log → /recordings/mediamtx.log
     │
     ├── confvision-worker     → main.py              (detecção YOLO / eventos)
-    ├── confvision-rtsp-relay → rtsp_live_relay_main.py (RTSP pull → HLS)
     ├── confvision-dvr        → dvr_main.py          (gravação contínua)
     ├── confvision-motion     → motion_main.py       (gravação por movimento)
     ├── confvision-timelapse  → timelapse_main.py    (timelapse inteligente)

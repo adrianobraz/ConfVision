@@ -45,9 +45,24 @@ def main() -> None:
     print(f"[START] MediaMTX {mtx_bin} {cfg} ...", flush=True)
     mtx = subprocess.Popen([mtx_bin, cfg])
     _procs.append(mtx)
+    time.sleep(1.5)
+
+    sync_proc: subprocess.Popen | None = None
+    if (os.getenv("RTSP_MTX_PATH_SYNC_ENABLED") or "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    ):
+        print("[START] RTSP-MTX path sync (Fase 3) ...", flush=True)
+        sync_proc = subprocess.Popen([sys.executable, "-u", "rtsp_mtx_path_sync_main.py"])
+        _procs.append(sync_proc)
 
     while True:
-        for name, p in (("guard", guard), ("mediamtx", mtx)):
+        procs: list[tuple[str, subprocess.Popen]] = [("guard", guard), ("mediamtx", mtx)]
+        if sync_proc is not None:
+            procs.append(("rtsp-mtx-sync", sync_proc))
+        for name, p in procs:
             rc = p.poll()
             if rc is not None:
                 print(f"[START] {name} saiu code={rc} — derrubando o outro", flush=True)
