@@ -19,6 +19,7 @@ Documentação dos serviços Python/MediaMTX do ConfVision no EasyPanel.
 |---|---|---|---|
 | `confvision` | **MediaMTX + Guard** (RTMP/HLS/API + auth/ban) | GitHub `ConfVision` → `Dockerfile-mediamtx` | `start_mediamtx_guard.py` |
 | `confvision-worker` | Detecção de pessoas (YOLO) + eventos | GitHub `ConfVision` | `python -u main.py` |
+| `confvision-rtsp-relay` | RTSP pull → RTMP/HLS on-demand | GitHub `ConfVision` | `python -u rtsp_live_relay_main.py` |
 | `confvision-dvr` | Gravação contínua (DVR) | GitHub `ConfVision` | `python -u dvr_main.py` |
 | `confvision-motion` | Gravação por movimento | GitHub `ConfVision` | `python -u motion_main.py` |
 | `confvision-timelapse` | Timelapse inteligente | GitHub `ConfVision` | `python -u timelapse_main.py` |
@@ -192,6 +193,39 @@ Processa câmeras com detecção de pessoas ativa. **Não** grava timelapse/DVR.
 
 Com `YOLO_ONLY_ON_MOTION=1`, CPU cresce só em câmeras com movimento (pico << total de licenças).
 Com gate desligado (`YOLO_ONLY_ON_MOTION=0`), inferência contínua — adequado só para poucas câmeras ou GPU.
+
+---
+
+## 2b. confvision-rtsp-relay (RTSP pull → ao vivo HLS)
+
+Serviço **on-demand**: quando o portal chama `POST /api/cameras/{id}/rtsp-live-wake`, o Postgres grava `rtsp_live_wake_until`; este daemon inicia **ffmpeg** (RTSP cliente → RTMP `cam/{hash}`) e para após idle.
+
+- **Source:** GitHub → `adrianobraz/ConfVision` / `main` / `/`
+- **Comando:** `python`
+- **Arguments:** `-u rtsp_live_relay_main.py`
+- **Imagem:** mesma do worker (`Dockerfile` — inclui ffmpeg)
+- **Deploy:** 1 réplica por VPS worker (`WORKER_ID` igual ao worker analítico)
+
+### Variáveis de ambiente
+
+| Variável | Descrição |
+|---|---|
+| `XANO_BASE_URL` | Base API vis (ConfCam proxy ou legado) — **somente leitura** |
+| `VIS_WORKER_API_KEY` | Header `X-Vis-Worker-Key` para `GET /vis_camera_query_rtsp_pull` |
+| `WORKER_ID` | Ex.: `worker-vps1` — filtra câmeras RTSP do nó |
+| `RTMP_PUBLISH_SECRET` | Hash `cam/{hash12}` (igual MediaMTX/Go) |
+| `MEDIAMTX_RTMP_PUBLISH_BASE` | Fallback se câmera sem `mediamtx_rtmp_public` |
+| `MEDIAMTX_API_BASE` | Ex.: `http://foxpro_confvision:9997` — contagem de leitores HLS |
+| `MEDIAMTX_API_USER` / `MEDIAMTX_API_PASS` | Basic auth API MediaMTX |
+| `RTSP_LIVE_RELAY_ENABLED` | `1` |
+| `RTSP_LIVE_RELAY_POLL_SEC` | `5` |
+| `RTSP_LIVE_RELAY_IDLE_SEC` | `120` — para relay após último wake/leitor |
+
+### Pré-requisito Postgres (ConfCam)
+
+Migration `confcam/sql/024_vis_camera_rtsp_live_wake.sql` (`rtsp_live_wake_until`).
+
+Doc: [CONFVISION_RTSP_AO_VIVO_PLANO.md](docs/CONFVISION_RTSP_AO_VIVO_PLANO.md) (monorepo `core4`).
 
 ---
 
@@ -487,6 +521,7 @@ confvision (MediaMTX)  ← foxpro_confvision:8554 / :9997 / :1935
     │ log → /recordings/mediamtx.log
     │
     ├── confvision-worker     → main.py              (detecção YOLO / eventos)
+    ├── confvision-rtsp-relay → rtsp_live_relay_main.py (RTSP pull → HLS)
     ├── confvision-dvr        → dvr_main.py          (gravação contínua)
     ├── confvision-motion     → motion_main.py       (gravação por movimento)
     ├── confvision-timelapse  → timelapse_main.py    (timelapse inteligente)
