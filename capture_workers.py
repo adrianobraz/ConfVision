@@ -3,6 +3,7 @@ import traceback
 from pathlib import Path
 
 from camera_state import is_camera_active
+from detection_metrics import note_event_dropped, note_event_processed
 from event_capture import processar_deteccao
 from event_queue import EventJob, EventQueue
 
@@ -32,6 +33,7 @@ def _capture_worker_loop(event_queue: EventQueue, worker_no: int):
             print(f"[CAPTURA] worker={worker_no} camera={camera_id} inativa — job descartado")
             if job.snapshot_path:
                 Path(job.snapshot_path).unlink(missing_ok=True)
+            note_event_dropped()
             continue
         try:
             print(
@@ -44,6 +46,7 @@ def _capture_worker_loop(event_queue: EventQueue, worker_no: int):
                 job.snapshot_path,
                 bbox_json=job.bbox_json,
             )
+            note_event_processed()
         except Exception as exc:
             print(f"[ERRO] capture worker={worker_no} camera={camera_id}: {exc}")
             traceback.print_exc()

@@ -16,6 +16,7 @@ from config import (
     CAPTURE_WORKERS,
     CLIP_DURACAO_SEG,
     CONFIG_CACHE_BACKEND,
+    DETECTION_METRICS,
     EVENT_QUEUE_BACKEND,
     EVENT_STORE,
     FRAME_STORE_DIR,
@@ -31,6 +32,7 @@ from config import (
 from area_utils import camera_deve_rodar_thread, camera_elegivel_analitico, normalize_modo_deteccao
 from device_armed import prefetch_armado
 from event_queue import get_event_queue
+from detection_metrics import note_active_cameras
 from frame_store import FrameStore
 from gpu_scheduler import start_gpu_pipeline
 from sharding import shard_label
@@ -127,6 +129,11 @@ def main():
     event_queue = get_event_queue()
     start_capture_workers(CAPTURE_WORKERS, event_queue)
     start_gpu_pipeline(event_queue, get_camera_config, frame_store)
+    if DETECTION_METRICS:
+        from detection_metrics import start_if_enabled
+        from scheduler_queue import get_scheduler_queue
+
+        start_if_enabled(event_queue, get_scheduler_queue())
 
     threads: dict[int, threading.Thread] = {}
 
@@ -147,6 +154,7 @@ def main():
 
             active_ids = [c["id"] for c in cameras_com_area]
             set_active_camera_ids(active_ids)
+            note_active_cameras(len(active_ids))
             post_ping(
                 len(cameras_com_area),
                 extra={

@@ -16,6 +16,16 @@ from config import (
     YOLO_MOTION_MISS_FRAMES,
     YOLO_ONLY_ON_MOTION,
 )
+from detection_metrics import (
+    mark_event,
+    mark_motion,
+    metrics_enabled,
+    record_discard,
+    record_gate,
+    record_infer,
+    record_mog2,
+    record_rtsp_read,
+)
 from motion_detect import create_motion_detector, frame_has_motion
 from rtsp_backoff import after_open_failure, after_open_success, wait_if_backoff
 
@@ -109,9 +119,26 @@ class PersonDetector:
         ultimo_evento = 0.0
         ultimo_diag = 0.0
         falhas = 0
+        measure = metrics_enabled()
+
+        def _observe_gate():
+            if not measure:
+                return
+            if not YOLO_ONLY_ON_MOTION:
+                record_gate(camera_id, "desligado")
+            elif not gate["yolo_ligado"]:
+                record_gate(camera_id, "ocioso")
+            elif gate["motion_pending_verify"]:
+                record_gate(camera_id, "verificando")
+            else:
+                record_gate(camera_id, "acompanhando")
 
         while should_continue():
+            if measure:
+                t_read = time.perf_counter()
             ok, frame = cap.read()
+            if measure and ok:
+                record_rtsp_read(camera_id, time.perf_counter() - t_read)
             if not should_continue():
                 break
             if not ok:
@@ -134,23 +161,45 @@ class PersonDetector:
             falhas = 0
             frame_index += 1
             agora = time.time()
+            ran_mog2 = False
 
             if YOLO_ONLY_ON_MOTION:
                 if frame_index % max(1, YOLO_MOTION_FRAME_SKIP) == 0:
-                    if frame_has_motion(frame, motion_fgbg, motion_kernel):
+                    ran_mog2 = True
+                    if measure:
+                        t_mog2 = time.perf_counter()
+                    moved = frame_has_motion(frame, motion_fgbg, motion_kernel)
+                    if measure:
+                        record_mog2(camera_id, time.perf_counter() - t_mog2)
+                    if moved:
                         if not gate["yolo_ligado"]:
                             gate["yolo_ligado"] = True
                             gate["motion_pending_verify"] = True
                             gate["miss_streak"] = 0
+                            if measure:
+                                mark_motion(camera_id, agora)
                 if not gate["yolo_ligado"]:
+                    if measure and not ran_mog2:
+                        record_discard(camera_id)
+                    _observe_gate()
                     continue
 
             if frame_index % FRAME_SKIP != 0:
+                if measure and not ran_mog2:
+                    record_discard(camera_id)
+                _observe_gate()
                 continue
 
             h, w = frame.shape[:2]
+            infer_dt = None
             with self._infer_lock:
+                if measure:
+                    t_infer = time.perf_counter()
                 results = self.model(frame, device=self.device, verbose=False)[0]
+                if measure:
+                    infer_dt = time.perf_counter() - t_infer
+            if infer_dt is not None:
+                record_infer(camera_id, infer_dt)
             best_conf = 0.0
             best_area = None
             pessoas = 0
@@ -223,11 +272,14 @@ class PersonDetector:
                 frame_snapshot, bbox_json = overlay_boxes_and_bbox_json(
                     frame, results, conf_min, zonas, modo
                 )
+                if measure:
+                    mark_event(camera_id, time.time())
                 on_person(best_conf, frame_snapshot, best_area, bbox_json)
                 area_nome = (best_area or {}).get("nome") or (best_area or {}).get("id") or modo
                 print(
                     f"[EVENTO] pessoa modo={modo} area={area_nome} "
                     f"conf={best_conf:.2f} url={rtsp_url}"
                 )
+            _observe_gate()
 
         cap.release()

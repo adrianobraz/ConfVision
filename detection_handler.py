@@ -8,6 +8,7 @@ from typing import Any, Callable, Optional
 
 from area_utils import areas_ativas, find_area_for_box, normalize_modo_deteccao
 from capture import write_detection_snapshot
+from detection_metrics import mark_event, metrics_enabled, note_event_dropped
 from detection_overlay import overlay_boxes_and_bbox_json
 from device_armed import is_dispositivo_armado
 from event_queue import EventJob
@@ -113,10 +114,14 @@ class DetectionHandler:
             bbox_json=bbox_json,
         )
         if not self.event_queue.publish(job):
+            note_event_dropped()
             print(f"[FILA] cheia — evento descartado camera={camera_id} conf={conf:.2f}")
             if snapshot_path:
                 Path(snapshot_path).unlink(missing_ok=True)
             return
+
+        if metrics_enabled():
+            mark_event(camera_id, time.time())
 
         area_label = (area or {}).get("nome") or (area or {}).get("id") or modo
         print(

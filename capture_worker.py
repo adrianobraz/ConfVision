@@ -18,6 +18,14 @@ from config import (
     YOLO_P3_FPS,
     YOLO_P4_FPS,
 )
+from detection_metrics import (
+    mark_motion,
+    metrics_enabled,
+    record_discard,
+    record_gate,
+    record_mog2,
+    record_rtsp_read,
+)
 from frame_store import FrameStore
 from motion_detect import create_motion_detector, frame_has_motion
 from scheduler_queue import YoloJob, get_scheduler_queue
@@ -111,9 +119,26 @@ def run_capture_camera(
     print(f"[CAPTURE] camera={camera_id} url={url} modo={modo} areas={len(zonas)}")
     frame_index = 0
     falhas = 0
+    measure = metrics_enabled()
+
+    def _observe_gate():
+        if not measure:
+            return
+        if not YOLO_ONLY_ON_MOTION:
+            record_gate(camera_id, "desligado")
+        elif not gate["yolo_ligado"]:
+            record_gate(camera_id, "ocioso")
+        elif gate["motion_pending_verify"]:
+            record_gate(camera_id, "verificando")
+        else:
+            record_gate(camera_id, "acompanhando")
 
     while should_continue():
+        if measure:
+            t_read = time.perf_counter()
         ok, frame = cap.read()
+        if measure and ok:
+            record_rtsp_read(camera_id, time.perf_counter() - t_read)
         if not should_continue():
             break
         if not ok:
@@ -135,10 +160,18 @@ def run_capture_camera(
         falhas = 0
         frame_index += 1
         agora = time.time()
+        ran_mog2 = False
+        sent = False
 
         if YOLO_ONLY_ON_MOTION:
             if frame_index % max(1, YOLO_MOTION_FRAME_SKIP) == 0:
-                if frame_has_motion(frame, motion_fgbg, motion_kernel):
+                ran_mog2 = True
+                if measure:
+                    t_mog2 = time.perf_counter()
+                moved = frame_has_motion(frame, motion_fgbg, motion_kernel)
+                if measure:
+                    record_mog2(camera_id, time.perf_counter() - t_mog2)
+                if moved:
                     if not gate["yolo_ligado"]:
                         gate["yolo_ligado"] = True
                         gate["motion_pending_verify"] = True
@@ -152,8 +185,14 @@ def run_capture_camera(
                         )
                         gate["evidence_idx"] = 1
                         gate["last_yolo_enqueue"] = agora
+                        if measure:
+                            mark_motion(camera_id, agora)
+                        _observe_gate()
                         continue
             if not gate["yolo_ligado"]:
+                if measure and not ran_mog2:
+                    record_discard(camera_id)
+                _observe_gate()
                 continue
 
         meta = store.read_meta(camera_id)
@@ -177,6 +216,7 @@ def run_capture_camera(
                 store, queue, camera_id, slot, 1,
                 gate["session_id"], meta.motion_at or agora,
             )
+            sent = True
             gate["evidence_idx"] += 1
             gate["last_yolo_enqueue"] = agora
 
@@ -189,7 +229,11 @@ def run_capture_camera(
                     store, queue, camera_id, "latest", pri,
                     gate["session_id"], meta.motion_at or agora,
                 )
+                sent = True
                 gate["last_yolo_enqueue"] = agora
+
+        if measure and not ran_mog2 and not sent:
+            record_discard(camera_id)
 
         if YOLO_ONLY_ON_MOTION and gate["yolo_ligado"]:
             if store.is_person_confirmed(camera_id, gate["session_id"]):
@@ -206,6 +250,8 @@ def run_capture_camera(
                     gate["yolo_ligado"] = False
                     gate["miss_streak"] = 0
                     store.reset_session(camera_id)
+
+        _observe_gate()
 
     cap.release()
     print(f"[CAPTURE] camera={camera_id} encerrada")

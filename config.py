@@ -63,6 +63,10 @@ YOLO_MOTION_FRAME_SKIP = int(os.getenv("YOLO_MOTION_FRAME_SKIP", "2"))
 # Frames YOLO consecutivos sem pessoa na área para desligar (após já ter inferido)
 YOLO_MOTION_MISS_FRAMES = int(os.getenv("YOLO_MOTION_MISS_FRAMES", "2"))
 
+# Observabilidade do motor. Desligado por padrao: nao muda deteccao, fila nem evento.
+DETECTION_METRICS = _env_bool("DETECTION_METRICS", "0")
+DETECTION_METRICS_INTERVAL_SEC = int(os.getenv("DETECTION_METRICS_INTERVAL_SEC", "30"))
+
 # Overlay nas fotos de evento (detection_overlay.py)
 DETECTION_DRAW_ALL = _env_bool("DETECTION_DRAW_ALL", "0")
 DETECTION_OVERLAY_LABELS = _env_bool("DETECTION_OVERLAY_LABELS", "1")
