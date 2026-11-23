@@ -101,6 +101,19 @@ def after_open_failure(camera_id: int, rtsp_url: str) -> float:
     return float(RTSP_OPEN_RETRY_SEC)
 
 
+def count_in_backoff() -> int:
+    """Cameras cujo backoff ainda nao expirou. Nao abre RTSP e nao escreve log."""
+    if not RTSP_BACKOFF_ENABLED:
+        return 0
+    now = time.time()
+    with _lock:
+        return sum(
+            1
+            for st in _state.values()
+            if float(st.get("backoff_until") or 0) > now
+        )
+
+
 def after_open_success(camera_id: int, rtsp_url: str = "") -> None:
     if camera_id <= 0:
         return

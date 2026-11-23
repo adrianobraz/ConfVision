@@ -6,9 +6,16 @@ retornam na hora.
 leitura_rtsp_ms_medio e o tempo de parede de cap.read(), que inclui espera
 do RTSP e o decode feito pelo FFmpeg. Nao e decode puro.
 
-yolo_ms e a duracao da chamada model() que incluiu o frame. No modo
-distributed essa chamada e um lote: o mesmo tempo entra em cada camera
-do lote. Somar as cameras conta o lote de novo.
+yolo_ms e yolo_inference_ms sao o tempo dentro de model().
+yolo_lock_wait_ms e so a espera do lock. yolo_fila_ms e o tempo parado
+no slot, antes de pedir o lock. yolo_total_ms soma fila, lock e model().
+No modo distributed, record_infer recebe o tempo do lote inteiro: o mesmo
+valor entra em cada camera do lote. Somar as cameras conta o lote de novo.
+
+cap_read_interval_ms e o intervalo entre leituras bem-sucedidas, nao a
+duracao de cap.read(). cameras_abertas e cameras_em_backoff sao gauges.
+inferencias_aguardando e o numero de cameras com frame na espera, ainda
+nao iniciado. Uma substituicao do ultimo frame conta em infer_descartados.
 
 cpu_pct e rss_mb vem de /proc/self. Fora do Linux ficam indisponivel.
 Falha aqui nao propaga para captura, MOG2, YOLO ou evento.
@@ -39,6 +46,7 @@ _jobs_dropped = 0
 _events_dropped = 0
 _events_processed = 0
 _active_cameras = 0
+_open_ids: set[int] = set()
 _queue_readers: dict[str, Callable[[], int]] = {}
 _proc_prev_ticks: Optional[int] = None
 _proc_prev_mono: float = 0.0
@@ -64,6 +72,7 @@ def reset() -> None:
     global _active_cameras, _proc_prev_ticks
     with _lock:
         _cameras.clear()
+        _open_ids.clear()
         _batches = 0
         _batch_s = 0.0
         _jobs_dropped = 0
@@ -105,6 +114,11 @@ def _cam(camera_id: int) -> dict:
             "motion_n": 0,
             "infer_n": 0,
             "infer_s": deque(maxlen=_SAMPLE_CAP),
+            "lock_wait_s": deque(maxlen=_SAMPLE_CAP),
+            "yolo_queue_s": deque(maxlen=_SAMPLE_CAP),
+            "yolo_total_s": deque(maxlen=_SAMPLE_CAP),
+            "read_interval_s": deque(maxlen=_SAMPLE_CAP),
+            "infer_dropped": 0,
             "motion_at": 0.0,
             "event_ms": deque(maxlen=_SAMPLE_CAP),
             "events": 0,
@@ -182,6 +196,7 @@ def record_motion_stages(camera_id: int, stages: dict) -> None:
 
 
 def record_infer(camera_id: int, seconds: float) -> None:
+    """Compatibilidade F0/distributed: so o tempo de model(), sem espera."""
     if not _enabled:
         return
     try:
@@ -189,6 +204,74 @@ def record_infer(camera_id: int, seconds: float) -> None:
             row = _cam(camera_id)
             row["infer_n"] += 1
             row["infer_s"].append(float(seconds))
+    except Exception as exc:
+        _report_fault(exc)
+
+
+def record_yolo_timing(
+    camera_id: int,
+    lock_wait_s: float,
+    infer_s: float,
+    queue_s: float = 0.0,
+) -> None:
+    """Separa fila, espera do lock e tempo dentro de model()."""
+    if not _enabled:
+        return
+    try:
+        wait = max(0.0, float(lock_wait_s))
+        infer = max(0.0, float(infer_s))
+        with _lock:
+            row = _cam(camera_id)
+            row["infer_n"] += 1
+            row["infer_s"].append(infer)
+            row["lock_wait_s"].append(wait)
+            row["yolo_queue_s"].append(max(0.0, float(queue_s)))
+            row["yolo_total_s"].append(wait + infer + max(0.0, float(queue_s)))
+    except Exception as exc:
+        _report_fault(exc)
+
+
+def record_read_interval(camera_id: int, seconds: float) -> None:
+    """Intervalo entre cap.read() bem-sucedidos. Nao e a duracao da leitura."""
+    if not _enabled:
+        return
+    try:
+        with _lock:
+            _cam(camera_id)["read_interval_s"].append(max(0.0, float(seconds)))
+    except Exception as exc:
+        _report_fault(exc)
+
+
+def record_infer_dropped(camera_id: int, count: int = 1) -> None:
+    """Frame elegivel substituido por um mais novo antes da inferencia."""
+    if not _enabled or count <= 0:
+        return
+    try:
+        with _lock:
+            _cam(camera_id)["infer_dropped"] += int(count)
+    except Exception as exc:
+        _report_fault(exc)
+
+
+def note_capture_opened(camera_id: int) -> None:
+    if not _enabled:
+        return
+    try:
+        cid = int(camera_id)
+        if cid <= 0:
+            return
+        with _lock:
+            _open_ids.add(cid)
+    except Exception as exc:
+        _report_fault(exc)
+
+
+def note_capture_closed(camera_id: int) -> None:
+    if not _enabled:
+        return
+    try:
+        with _lock:
+            _open_ids.discard(int(camera_id))
     except Exception as exc:
         _report_fault(exc)
 
@@ -384,6 +467,7 @@ def _snapshot_globals() -> dict:
         "events_dropped": _events_dropped,
         "events_processed": _events_processed,
         "active_cameras": _active_cameras,
+        "open_cameras": len(_open_ids),
         "readers": dict(_queue_readers),
     }
 
@@ -420,6 +504,10 @@ def collect_lines(elapsed_sec: float) -> list[str]:
         cameras = {cid: dict(row) for cid, row in _cameras.items()}
         for row in cameras.values():
             row["infer_s"] = list(row["infer_s"])
+            row["lock_wait_s"] = list(row.get("lock_wait_s") or [])
+            row["yolo_queue_s"] = list(row.get("yolo_queue_s") or [])
+            row["yolo_total_s"] = list(row.get("yolo_total_s") or [])
+            row["read_interval_s"] = list(row.get("read_interval_s") or [])
             row["event_ms"] = list(row["event_ms"])
         snap = _snapshot_globals()
         _reset_window_locked()
@@ -446,6 +534,9 @@ def _format_process(cpu, rss, snap: dict) -> str:
         f"fila_eventos={eventos}",
         f"eventos_descartados={int(snap['events_dropped'])}",
         f"eventos_processados={int(snap['events_processed'])}",
+        f"cameras_abertas={int(snap.get('open_cameras') or 0)}",
+        f"cameras_em_backoff={_backoff_count()}",
+        f"inferencias_aguardando={_waiting_count(readers)}",
     ]
     if "yolo" in readers or snap["batches"] or snap["jobs_dropped"]:
         yolo = _queue_value(readers["yolo"]) if "yolo" in readers else "-"
@@ -459,13 +550,54 @@ def _format_process(cpu, rss, snap: dict) -> str:
     return " ".join(parts)
 
 
+def _backoff_count() -> str:
+    try:
+        from rtsp_backoff import count_in_backoff
+
+        return str(int(count_in_backoff()))
+    except Exception:
+        return "indisponivel"
+
+
+def _waiting_count(readers: dict) -> str:
+    if "infer_wait" not in readers:
+        return "0"
+    return _queue_value(readers["infer_wait"])
+
+
+def _stats_ms(samples) -> tuple[Optional[float], Optional[float], Optional[float]]:
+    if not samples:
+        return None, None, None
+    values = [float(item) for item in samples]
+    avg = sum(values) / len(values) * 1000.0
+    p95 = percentile_95(values)
+    p95_ms = p95 * 1000.0 if p95 is not None else None
+    return avg, p95_ms, max(values) * 1000.0
+
+
+def _fmt_ms(value: Optional[float]) -> str:
+    if value is None:
+        return "-"
+    return _fmt(value, 1)
+
+
 def _format_camera(cid: int, row: dict, elapsed: float) -> Optional[str]:
     frames_ok = int(row["frames_ok"])
     mog2_n = int(row["mog2_n"])
     infer_n = int(row["infer_n"])
     discarded = int(row["discarded"])
     events = int(row["events"])
-    if frames_ok == 0 and mog2_n == 0 and infer_n == 0 and discarded == 0 and events == 0:
+    infer_dropped = int(row.get("infer_dropped") or 0)
+    intervals = row.get("read_interval_s") or []
+    if (
+        frames_ok == 0
+        and mog2_n == 0
+        and infer_n == 0
+        and discarded == 0
+        and events == 0
+        and infer_dropped == 0
+        and not intervals
+    ):
         return None
     rate = elapsed if elapsed > 0 else 1.0
     samples = row["infer_s"]
@@ -484,6 +616,11 @@ def _format_camera(cid: int, row: dict, elapsed: float) -> Optional[str]:
         return float(row.get(key) or 0.0) / motion_n * 1000.0
 
     gate = row.get("gate") or "-"
+    wait_avg, wait_p95, wait_max = _stats_ms(row.get("lock_wait_s"))
+    fila_avg, fila_p95, fila_max = _stats_ms(row.get("yolo_queue_s"))
+    inf_avg, inf_p95, inf_max = _stats_ms(samples)
+    total_avg, total_p95, total_max = _stats_ms(row.get("yolo_total_s"))
+    gap_avg, gap_p95, gap_max = _stats_ms(intervals)
     width = int(row.get("width") or 0)
     height = int(row.get("height") or 0)
     if width > 0 and height > 0:
@@ -498,6 +635,21 @@ def _format_camera(cid: int, row: dict, elapsed: float) -> Optional[str]:
         f"inferencias={infer_n} "
         f"yolo_ms_medio={_fmt(avg, 1) if avg is not None else '-'} "
         f"yolo_ms_p95={_fmt(p95_ms, 1) if p95_ms is not None else '-'} "
+        f"yolo_lock_wait_ms_medio={_fmt_ms(wait_avg)} "
+        f"yolo_lock_wait_ms_p95={_fmt_ms(wait_p95)} "
+        f"yolo_lock_wait_ms_max={_fmt_ms(wait_max)} "
+        f"yolo_fila_ms_medio={_fmt_ms(fila_avg)} "
+        f"yolo_fila_ms_p95={_fmt_ms(fila_p95)} "
+        f"yolo_fila_ms_max={_fmt_ms(fila_max)} "
+        f"yolo_inference_ms_medio={_fmt_ms(inf_avg)} "
+        f"yolo_inference_ms_p95={_fmt_ms(inf_p95)} "
+        f"yolo_inference_ms_max={_fmt_ms(inf_max)} "
+        f"yolo_total_ms_medio={_fmt_ms(total_avg)} "
+        f"yolo_total_ms_p95={_fmt_ms(total_p95)} "
+        f"yolo_total_ms_max={_fmt_ms(total_max)} "
+        f"cap_read_interval_ms_medio={_fmt_ms(gap_avg)} "
+        f"cap_read_interval_ms_p95={_fmt_ms(gap_p95)} "
+        f"cap_read_interval_max_ms={_fmt_ms(gap_max)} "
         f"leitura_rtsp_ms_medio={_fmt(read_avg, 1) if read_avg is not None else '-'} "
         f"mog2_ms_medio={_fmt(mog2_avg, 1) if mog2_avg is not None else '-'} "
         f"resize_ms_medio={_fmt(_stage('resize_s'), 1) if motion_n else '-'} "
@@ -507,6 +659,7 @@ def _format_camera(cid: int, row: dict, elapsed: float) -> Optional[str]:
         f"contours_ms_medio={_fmt(_stage('contour_s'), 1) if motion_n else '-'} "
         f"motion_total_ms_medio={_fmt(_stage('motion_total_s'), 1) if motion_n else '-'} "
         f"descartados={discarded} "
+        f"infer_descartados={infer_dropped} "
         f"gate={gate} "
         f"eventos={events} "
         f"movimento_ate_evento_ms={_fmt(ev_ms, 1) if ev_ms is not None else '-'}"

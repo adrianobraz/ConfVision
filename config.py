@@ -62,6 +62,8 @@ YOLO_ONLY_ON_MOTION = _env_bool("YOLO_ONLY_ON_MOTION", "1")
 YOLO_MOTION_FRAME_SKIP = int(os.getenv("YOLO_MOTION_FRAME_SKIP", "2"))
 # Frames YOLO consecutivos sem pessoa na área para desligar (após já ter inferido)
 YOLO_MOTION_MISS_FRAMES = int(os.getenv("YOLO_MOTION_MISS_FRAMES", "2"))
+# 1 = a leitura RTSP nao espera o YOLO. 0 = lock dentro do ciclo da camera.
+YOLO_INFER_DECOUPLED = _env_bool("YOLO_INFER_DECOUPLED", "1")
 
 # Observabilidade do motor. Desligado por padrao: nao muda deteccao, fila nem evento.
 DETECTION_METRICS = _env_bool("DETECTION_METRICS", "0")
