@@ -96,6 +96,13 @@ def _cam(camera_id: int) -> dict:
             "discarded": 0,
             "mog2_n": 0,
             "mog2_s": 0.0,
+            "resize_s": 0.0,
+            "apply_s": 0.0,
+            "threshold_s": 0.0,
+            "morph_s": 0.0,
+            "contour_s": 0.0,
+            "motion_total_s": 0.0,
+            "motion_n": 0,
             "infer_n": 0,
             "infer_s": deque(maxlen=_SAMPLE_CAP),
             "motion_at": 0.0,
@@ -152,6 +159,24 @@ def record_mog2(camera_id: int, seconds: float) -> None:
             row = _cam(camera_id)
             row["mog2_n"] += 1
             row["mog2_s"] += float(seconds)
+    except Exception as exc:
+        _report_fault(exc)
+
+
+def record_motion_stages(camera_id: int, stages: dict) -> None:
+    """Tempos ja medidos dentro de frame_has_motion. Nao altera a decisao."""
+    if not _enabled or not stages:
+        return
+    try:
+        with _lock:
+            row = _cam(camera_id)
+            row["resize_s"] += float(stages.get("resize_s") or 0.0)
+            row["apply_s"] += float(stages.get("apply_s") or 0.0)
+            row["threshold_s"] += float(stages.get("threshold_s") or 0.0)
+            row["morph_s"] += float(stages.get("morph_s") or 0.0)
+            row["contour_s"] += float(stages.get("contour_s") or 0.0)
+            row["motion_total_s"] += float(stages.get("total_s") or 0.0)
+            row["motion_n"] += 1
     except Exception as exc:
         _report_fault(exc)
 
@@ -451,6 +476,13 @@ def _format_camera(cid: int, row: dict, elapsed: float) -> Optional[str]:
     ev_ms = (sum(ev) / len(ev)) if ev else None
     read_avg = (row["read_s"] / frames_ok * 1000.0) if frames_ok else None
     mog2_avg = (row["mog2_s"] / mog2_n * 1000.0) if mog2_n else None
+    motion_n = int(row.get("motion_n") or 0)
+
+    def _stage(key: str):
+        if motion_n <= 0:
+            return None
+        return float(row.get(key) or 0.0) / motion_n * 1000.0
+
     gate = row.get("gate") or "-"
     width = int(row.get("width") or 0)
     height = int(row.get("height") or 0)
@@ -468,6 +500,12 @@ def _format_camera(cid: int, row: dict, elapsed: float) -> Optional[str]:
         f"yolo_ms_p95={_fmt(p95_ms, 1) if p95_ms is not None else '-'} "
         f"leitura_rtsp_ms_medio={_fmt(read_avg, 1) if read_avg is not None else '-'} "
         f"mog2_ms_medio={_fmt(mog2_avg, 1) if mog2_avg is not None else '-'} "
+        f"resize_ms_medio={_fmt(_stage('resize_s'), 1) if motion_n else '-'} "
+        f"mog2_apply_ms_medio={_fmt(_stage('apply_s'), 1) if motion_n else '-'} "
+        f"threshold_ms_medio={_fmt(_stage('threshold_s'), 1) if motion_n else '-'} "
+        f"morphology_ms_medio={_fmt(_stage('morph_s'), 1) if motion_n else '-'} "
+        f"contours_ms_medio={_fmt(_stage('contour_s'), 1) if motion_n else '-'} "
+        f"motion_total_ms_medio={_fmt(_stage('motion_total_s'), 1) if motion_n else '-'} "
         f"descartados={discarded} "
         f"gate={gate} "
         f"eventos={events} "

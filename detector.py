@@ -25,6 +25,7 @@ from detection_metrics import (
     record_infer,
     note_frame_size,
     record_mog2,
+    record_motion_stages,
     record_rtsp_read,
 )
 from motion_detect import create_motion_detector, frame_has_motion
@@ -109,6 +110,7 @@ class PersonDetector:
         motion_fgbg = None
         motion_kernel = None
         gate = self._reset_motion_gate()
+        motion_buffers = {}
         if YOLO_ONLY_ON_MOTION:
             motion_fgbg, motion_kernel = create_motion_detector()
 
@@ -160,6 +162,7 @@ class PersonDetector:
                 size_noted = False
                 if YOLO_ONLY_ON_MOTION:
                     motion_fgbg, motion_kernel = create_motion_detector()
+                    motion_buffers = {}
                     gate = self._reset_motion_gate()
                 continue
 
@@ -171,11 +174,19 @@ class PersonDetector:
             if YOLO_ONLY_ON_MOTION:
                 if frame_index % max(1, YOLO_MOTION_FRAME_SKIP) == 0:
                     ran_mog2 = True
+                    timings = {} if measure else None
                     if measure:
                         t_mog2 = time.perf_counter()
-                    moved = frame_has_motion(frame, motion_fgbg, motion_kernel)
+                    moved = frame_has_motion(
+                        frame,
+                        motion_fgbg,
+                        motion_kernel,
+                        buffers=motion_buffers,
+                        timings=timings,
+                    )
                     if measure:
                         record_mog2(camera_id, time.perf_counter() - t_mog2)
+                        record_motion_stages(camera_id, timings)
                     if moved:
                         if not gate["yolo_ligado"]:
                             gate["yolo_ligado"] = True
