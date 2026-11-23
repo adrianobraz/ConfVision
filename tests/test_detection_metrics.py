@@ -235,3 +235,138 @@ def test_sem_proc_marca_indisponivel(monkeypatch):
     line = detection_metrics.collect_lines(30)[0]
     assert "cpu_pct=indisponivel" in line
     assert "rss_mb=indisponivel" in line
+
+
+class _Frame:
+    def __init__(self, height, width):
+        self.shape = (height, width, 3)
+
+
+def test_resolucao_conhecida_entra_na_linha():
+    assert detection_metrics.note_frame_size(5, _Frame(1080, 1920)) is True
+    detection_metrics.record_rtsp_read(5, 0.064)
+    line = _camera_line(detection_metrics.collect_lines(30), 5)
+    assert "resolucao=1920x1080" in line
+    assert "largura=1920" in line
+    assert "altura=1080" in line
+    assert "fps_recebido=0.03" in line
+
+
+def test_resolucao_desconhecida_nao_interrompe():
+    assert detection_metrics.note_frame_size(5, None) is False
+    assert detection_metrics.note_frame_size(5, object()) is False
+    assert detection_metrics.note_frame_size(5, _Frame(0, 1920)) is False
+    detection_metrics.record_rtsp_read(5, 0.01)
+    line = _camera_line(detection_metrics.collect_lines(30), 5)
+    assert "resolucao=desconhecida" in line
+    assert "largura=desconhecida" in line
+    assert "altura=desconhecida" in line
+    assert "fps_recebido=0.03" in line
+
+
+def test_resolucao_sobrevive_a_janela_e_atualiza_na_reconexao():
+    assert detection_metrics.note_frame_size(5, _Frame(1080, 1920)) is True
+    detection_metrics.record_rtsp_read(5, 0.01)
+    first = _camera_line(detection_metrics.collect_lines(30), 5)
+    assert "resolucao=1920x1080" in first
+    detection_metrics.record_rtsp_read(5, 0.01)
+    kept = _camera_line(detection_metrics.collect_lines(30), 5)
+    assert "resolucao=1920x1080" in kept
+    assert detection_metrics.note_frame_size(5, _Frame(360, 640)) is True
+    detection_metrics.record_rtsp_read(5, 0.01)
+    second = _camera_line(detection_metrics.collect_lines(30), 5)
+    assert "resolucao=640x360" in second
+    assert "largura=640" in second
+    assert "altura=360" in second
+
+
+def test_flag_desligada_nao_grava_resolucao():
+    detection_metrics.configure(False, 30)
+    assert detection_metrics.note_frame_size(5, _Frame(1080, 1920)) is False
+    detection_metrics.configure(True, 30)
+    detection_metrics.record_rtsp_read(5, 0.01)
+    line = _camera_line(detection_metrics.collect_lines(30), 5)
+    assert "resolucao=desconhecida" in line
+
+
+def test_detector_mede_uma_vez_por_conexao_e_segue_o_frame(monkeypatch):
+    import sys
+    import threading
+    import types
+
+    ultralytics = types.ModuleType("ultralytics")
+    ultralytics.YOLO = object
+    monkeypatch.setitem(sys.modules, "ultralytics", ultralytics)
+    import detector as detector_mod
+
+    class Cap:
+        def __init__(self, items):
+            self.items = list(items)
+
+        def read(self):
+            if not self.items:
+                return False, None
+            return self.items.pop(0)
+
+        def release(self):
+            return None
+
+        def isOpened(self):
+            return True
+
+    caps = [
+        Cap(
+            [
+                (True, _Frame(1080, 1920)),
+                (True, _Frame(1080, 1920)),
+                (False, None),
+            ]
+        ),
+        Cap([(True, _Frame(360, 640))]),
+    ]
+    noted = []
+    real_note = detection_metrics.note_frame_size
+
+    def note(camera_id, frame):
+        ok = real_note(camera_id, frame)
+        if ok:
+            noted.append((frame.shape[1], frame.shape[0]))
+        return ok
+
+    monkeypatch.setattr(detector_mod.time, "sleep", lambda *_a, **_k: None)
+    monkeypatch.setattr(detector_mod, "wait_if_backoff", lambda *_a, **_k: False)
+    monkeypatch.setattr(detector_mod, "after_open_success", lambda *_a, **_k: None)
+    monkeypatch.setattr(detector_mod, "after_open_failure", lambda *_a, **_k: 0)
+    monkeypatch.setattr(detector_mod, "frame_has_motion", lambda *_a, **_k: False)
+    monkeypatch.setattr(detector_mod, "note_frame_size", note)
+    monkeypatch.setattr(
+        detector_mod.PersonDetector,
+        "_open_capture",
+        lambda _self, _url: caps.pop(0),
+    )
+    person = detector_mod.PersonDetector.__new__(detector_mod.PersonDetector)
+    person._infer_lock = threading.Lock()
+    person.model = None
+    person.device = "cpu"
+    calls = {"n": 0}
+
+    def should_continue():
+        calls["n"] += 1
+        return calls["n"] <= 8
+
+    person.process_camera(
+        "rtsp://camera.local/stream",
+        0.5,
+        30,
+        lambda *_a: None,
+        [],
+        should_continue,
+        "ambos",
+        5,
+    )
+    assert noted == [(1920, 1080), (640, 360)]
+    assert caps == []
+    line = _camera_line(detection_metrics.collect_lines(30), 5)
+    assert "resolucao=640x360" in line
+    assert "fps_recebido=0.10" in line
+    assert "rtsp://" not in line

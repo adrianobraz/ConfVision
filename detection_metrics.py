@@ -102,6 +102,8 @@ def _cam(camera_id: int) -> dict:
             "event_ms": deque(maxlen=_SAMPLE_CAP),
             "events": 0,
             "gate": "",
+            "width": 0,
+            "height": 0,
         }
         _cameras[cid] = row
     return row
@@ -234,6 +236,28 @@ def note_active_cameras(count: int) -> None:
         _report_fault(exc)
 
 
+def note_frame_size(camera_id: int, frame) -> bool:
+    """Grava largura e altura do frame ja lido. Nao copia o frame nem abre RTSP."""
+    if not _enabled:
+        return False
+    try:
+        shape = getattr(frame, "shape", None)
+        if shape is None or len(shape) < 2:
+            return False
+        height = int(shape[0])
+        width = int(shape[1])
+        if width <= 0 or height <= 0:
+            return False
+        with _lock:
+            row = _cam(camera_id)
+            row["width"] = width
+            row["height"] = height
+        return True
+    except Exception as exc:
+        _report_fault(exc)
+        return False
+
+
 def mark_motion(camera_id: int, at: float) -> None:
     if not _enabled:
         return
@@ -341,14 +365,21 @@ def _snapshot_globals() -> dict:
 
 def _reset_window_locked() -> None:
     global _batches, _batch_s, _jobs_dropped, _events_dropped, _events_processed
-    pending_motion = {
-        cid: float(row["motion_at"])
-        for cid, row in _cameras.items()
-        if row["motion_at"]
-    }
+    kept = []
+    for cid, row in _cameras.items():
+        width = int(row.get("width") or 0)
+        height = int(row.get("height") or 0)
+        motion_at = float(row["motion_at"] or 0.0)
+        if motion_at or (width > 0 and height > 0):
+            kept.append((cid, motion_at, width, height))
     _cameras.clear()
-    for cid, at in pending_motion.items():
-        _cam(cid)["motion_at"] = at
+    for cid, motion_at, width, height in kept:
+        row = _cam(cid)
+        if motion_at:
+            row["motion_at"] = motion_at
+        if width > 0 and height > 0:
+            row["width"] = width
+            row["height"] = height
     _batches = 0
     _batch_s = 0.0
     _jobs_dropped = 0
@@ -421,8 +452,15 @@ def _format_camera(cid: int, row: dict, elapsed: float) -> Optional[str]:
     read_avg = (row["read_s"] / frames_ok * 1000.0) if frames_ok else None
     mog2_avg = (row["mog2_s"] / mog2_n * 1000.0) if mog2_n else None
     gate = row.get("gate") or "-"
+    width = int(row.get("width") or 0)
+    height = int(row.get("height") or 0)
+    if width > 0 and height > 0:
+        resolucao = f"resolucao={width}x{height} largura={width} altura={height}"
+    else:
+        resolucao = "resolucao=desconhecida largura=desconhecida altura=desconhecida"
     return (
         f"[METRICS] camera={cid} "
+        f"{resolucao} "
         f"fps_recebido={frames_ok / rate:.2f} "
         f"fps_analisado={mog2_n / rate:.2f} "
         f"inferencias={infer_n} "

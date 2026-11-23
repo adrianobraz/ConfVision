@@ -23,6 +23,7 @@ from detection_metrics import (
     record_discard,
     record_gate,
     record_infer,
+    note_frame_size,
     record_mog2,
     record_rtsp_read,
 )
@@ -120,6 +121,7 @@ class PersonDetector:
         ultimo_diag = 0.0
         falhas = 0
         measure = metrics_enabled()
+        size_noted = False
 
         def _observe_gate():
             if not measure:
@@ -139,6 +141,8 @@ class PersonDetector:
             ok, frame = cap.read()
             if measure and ok:
                 record_rtsp_read(camera_id, time.perf_counter() - t_read)
+                if not size_noted:
+                    size_noted = note_frame_size(camera_id, frame)
             if not should_continue():
                 break
             if not ok:
@@ -153,6 +157,7 @@ class PersonDetector:
                     time.sleep(after_open_failure(camera_id, rtsp_url))
                     return
                 after_open_success(camera_id, rtsp_url)
+                size_noted = False
                 if YOLO_ONLY_ON_MOTION:
                     motion_fgbg, motion_kernel = create_motion_detector()
                     gate = self._reset_motion_gate()
