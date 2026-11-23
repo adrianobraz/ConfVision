@@ -9,6 +9,7 @@ from capture_workers import start_capture_workers
 from config import (
     CAPTURE_WORKERS,
     CLIP_DURACAO_SEG,
+    DETECTION_METRICS,
     EVENT_QUEUE_BACKEND,
     MAX_CAMERAS,
     SYNC_INTERVAL_SEC,
@@ -19,6 +20,7 @@ from area_utils import areas_ativas, camera_deve_rodar_thread, camera_elegivel_a
 from capture import cancel_camera_captures, write_detection_snapshot
 from device_armed import is_dispositivo_armado, prefetch_armado
 from detector import PersonDetector
+from detection_metrics import note_active_cameras, note_event_dropped, start_if_enabled
 from event_queue import EventJob, get_event_queue
 from sharding import shard_label
 from urls import rtsp_url_for_camera, stream_path
@@ -103,6 +105,7 @@ def loop_camera(camera, detector: PersonDetector, event_queue):
             bbox_json=bbox_json,
         )
         if not event_queue.publish(job):
+            note_event_dropped()
             print(f"[FILA] cheia — evento descartado camera={camera_id} conf={conf:.2f}")
             if snapshot_path:
                 Path(snapshot_path).unlink(missing_ok=True)
@@ -160,6 +163,8 @@ def main():
 
     event_queue = get_event_queue()
     start_capture_workers(CAPTURE_WORKERS, event_queue)
+    if DETECTION_METRICS:
+        start_if_enabled(event_queue)
 
     detector = PersonDetector()
     threads: dict[int, threading.Thread] = {}
@@ -178,6 +183,7 @@ def main():
                 prefetch_armado(ids_somente_armado)
             active_ids = [c["id"] for c in cameras_com_area]
             set_active_camera_ids(active_ids)
+            note_active_cameras(len(active_ids))
             post_ping(
                 len(cameras_com_area),
                 extra={

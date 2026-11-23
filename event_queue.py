@@ -51,6 +51,9 @@ class EventQueue:
     def pop(self, timeout_sec: float = 1.0) -> Optional[EventJob]:
         raise NotImplementedError
 
+    def size(self) -> int:
+        return 0
+
 
 class MemoryEventQueue(EventQueue):
     def __init__(self, max_size: int):
@@ -68,6 +71,9 @@ class MemoryEventQueue(EventQueue):
             return self._queue.get(timeout=timeout_sec)
         except queue.Empty:
             return None
+
+    def size(self) -> int:
+        return self._queue.qsize()
 
 
 class RedisEventQueue(EventQueue):
@@ -98,6 +104,13 @@ class RedisEventQueue(EventQueue):
         except Exception as exc:
             print(f"[FILA] erro ao consumir evento: {exc}")
             return None
+
+    def size(self) -> int:
+        try:
+            return int(self._client.llen(self._key))
+        except Exception as exc:
+            print(f"[FILA] erro ao medir fila: {exc}")
+            return 0
 
 
 _queue: EventQueue | None = None

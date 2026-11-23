@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import os
+import time
 from typing import Optional
 
 import cv2
 from ultralytics import YOLO
 
 from config import YOLO_DEVICE, YOLO_MODEL
+from detection_metrics import metrics_enabled, record_batch, record_infer
 from frame_store import FrameStore
 
 os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
@@ -60,7 +62,15 @@ class YoloGpuWorker:
         if not frames:
             return []
 
+        measure = metrics_enabled()
+        if measure:
+            t_infer = time.perf_counter()
         results_list = self.model(frames, device=self.device, verbose=False)
+        if measure:
+            infer_dt = time.perf_counter() - t_infer
+            record_batch(infer_dt, len(frames))
+            for job, _frame in loaded:
+                record_infer(int(job.camera_id), infer_dt)
         out = []
         for (job, frame), results in zip(loaded, results_list):
             out.append((job, results, frame))

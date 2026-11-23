@@ -8,6 +8,7 @@ from typing import Callable, Optional
 
 from config import YOLO_BATCH_SIZE, YOLO_BATCH_TIMEOUT_MS
 from detection_handler import DetectionHandler
+from detection_metrics import record_jobs_dropped
 from frame_store import FrameStore
 from scheduler_queue import get_scheduler_queue
 from yolo_gpu_worker import YoloGpuWorker
@@ -53,6 +54,9 @@ class GpuScheduler:
                     j for j in jobs
                     if self.frame_store.is_job_valid(j.camera_id, j.slot, j.session_id, j.motion_at)
                 ]
+                dropped = len(jobs) - len(valid_jobs)
+                if dropped:
+                    record_jobs_dropped(dropped)
                 if not valid_jobs:
                     continue
                 t0 = time.time()

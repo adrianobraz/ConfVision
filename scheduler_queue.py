@@ -81,6 +81,9 @@ class SchedulerQueue:
     def pop_batch(self, max_size: int, timeout_sec: float) -> list[YoloJob]:
         raise NotImplementedError
 
+    def size(self) -> int:
+        return 0
+
     def cancel_camera_session(self, camera_id: int, session_id: int) -> None:
         pass
 
@@ -122,6 +125,10 @@ class MemorySchedulerQueue(SchedulerQueue):
                 kept.append(job)
             self._heap = kept
             heapq.heapify(self._heap)
+
+    def size(self) -> int:
+        with self._lock:
+            return len(self._heap)
 
 
 class RedisSchedulerQueue(SchedulerQueue):
@@ -182,6 +189,13 @@ class RedisSchedulerQueue(SchedulerQueue):
                     self._client.zrem(self._key, raw)
         except Exception as exc:
             print(f"[SCHEDULER] cancel session camera={camera_id}: {exc}")
+
+    def size(self) -> int:
+        try:
+            return int(self._client.zcard(self._key))
+        except Exception as exc:
+            print(f"[SCHEDULER] size falhou: {exc}")
+            return 0
 
 
 _queue_singleton: Optional[SchedulerQueue] = None
