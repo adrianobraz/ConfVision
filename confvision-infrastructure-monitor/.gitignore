@@ -1,0 +1,4 @@
+dist/
+*.exe
+monitor-linux-amd64
+.env
