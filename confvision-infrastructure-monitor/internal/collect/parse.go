@@ -60,6 +60,33 @@ func ParseCPUStat(r io.Reader) (CPUSample, error) {
 	return CPUSample{}, io.EOF
 }
 
+// CountCPUCores conta as linhas cpu0, cpu1, ... de /proc/stat.
+// A linha agregada "cpu" não entra. Zero não é um núcleo medido.
+func CountCPUCores(text string) (int, bool) {
+	n := 0
+	for _, line := range strings.Split(text, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		name := fields[0]
+		if len(name) < 4 || !strings.HasPrefix(name, "cpu") {
+			continue
+		}
+		digit := true
+		for _, r := range name[3:] {
+			if r < '0' || r > '9' {
+				digit = false
+				break
+			}
+		}
+		if digit {
+			n++
+		}
+	}
+	return n, n > 0
+}
+
 func CPUPercent(prev, cur CPUSample) (model.Reading, bool) {
 	if prev.Total == 0 || cur.Total <= prev.Total {
 		return model.Unavailable("cpu_pct", "primeira amostra ou contador sem avanco"), false

@@ -216,6 +216,33 @@ func TestPapelNaoConfundeTimelapseComOutro(t *testing.T) {
 	}
 }
 
+func TestNucleosNaoViraramZero(t *testing.T) {
+	n, ok := CountCPUCores("cpu  1 0 0 1\ncpu0 1 0 0 1\ncpu1 1 0 0 1\n")
+	if !ok || n != 2 {
+		t.Fatalf("n=%d ok=%v", n, ok)
+	}
+	if _, ok := CountCPUCores("cpu  1 0 0 1\n"); ok {
+		t.Fatal("linha agregada nao e nucleo")
+	}
+}
+
+func TestGPUAusenteNaoBloqueia(t *testing.T) {
+	readings := ReadGPU(t.TempDir())
+	gpu := findReading(readings, "gpu_presente")
+	if gpu.Texto != "nao" || gpu.Origem != model.OrigemMedido {
+		t.Fatalf("%+v", gpu)
+	}
+	if findReading(readings, "gpu_util").Origem != model.OrigemIndisponivel {
+		t.Fatal("utilizacao inventada")
+	}
+	if UsoGPUNoLog("[YOLO] device=cpu").Texto != "nao" {
+		t.Fatal("cpu deveria ficar fora do calculo de gpu")
+	}
+	if UsoGPUNoLog("sem device").Origem != model.OrigemIndisponivel {
+		t.Fatal("device ausente virou valor")
+	}
+}
+
 func findReading(items []model.Reading, nome string) model.Reading {
 	for _, item := range items {
 		if item.Nome == nome {

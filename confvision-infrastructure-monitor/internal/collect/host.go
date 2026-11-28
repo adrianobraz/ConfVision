@@ -31,9 +31,16 @@ func ReadHost(root string, prev HostState, now time.Time) ([]model.Reading, Host
 
 	if raw, err := os.ReadFile(filepath.Join(root, "proc", "stat")); err != nil {
 		out = append(out, model.Unavailable("cpu_pct", "proc/stat indisponivel"))
+		out = append(out, model.Unavailable("cpu_nucleos", "proc/stat indisponivel"))
 	} else if sample, err := ParseCPUStat(strings.NewReader(string(raw))); err != nil {
 		out = append(out, model.Unavailable("cpu_pct", "proc/stat ilegivel"))
+		out = append(out, model.Unavailable("cpu_nucleos", "proc/stat ilegivel"))
 	} else {
+		if n, ok := CountCPUCores(string(raw)); ok {
+			out = append(out, model.Measured("cpu_nucleos", "nucleos", float64(n)))
+		} else {
+			out = append(out, model.Unavailable("cpu_nucleos", "proc/stat sem linhas cpuN"))
+		}
 		if prev.Seen {
 			reading, _ := CPUPercent(prev.CPU, sample)
 			out = append(out, reading)
@@ -139,11 +146,7 @@ func ReadHost(root string, prev HostState, now time.Time) ([]model.Reading, Host
 		out = append(out, model.Measured("temperatura_c", "c", n/1000))
 	}
 
-	if _, err := os.Stat(filepath.Join(root, "proc", "driver", "nvidia")); err != nil {
-		out = append(out, model.Unavailable("gpu", "gpu nao exposta em proc"))
-	} else {
-		out = append(out, model.Unavailable("gpu_vram", "gpu presente sem leitura de vram"))
-	}
+	out = append(out, ReadGPU(root)...)
 
 	next.Seen = true
 	return out, next

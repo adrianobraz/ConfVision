@@ -111,6 +111,7 @@ type Snapshot struct {
 	Servicos            []Container `json:"servicos"`
 	Processos           []Process   `json:"processos"`
 	Cameras             []Camera    `json:"cameras"`
+	Worker              []Reading   `json:"worker"`
 	MediaMTX            []Reading   `json:"mediamtx"`
 	Redis               []Reading   `json:"redis"`
 	Alertas             []Alert     `json:"alertas"`

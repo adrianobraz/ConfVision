@@ -113,18 +113,21 @@ func (e *Engine) collect(ctx context.Context) model.Snapshot {
 	}
 	procs, nextProc, procStatus := ReadProcesses(e.root, prevProc, seconds)
 	process, cameras, metricsStatus := ReadMetricsFile(e.cfg.MetricsLog)
-	if metricsStatus.Origem == model.OrigemIndisponivel {
-		for _, body := range logs {
-			decoded := DecodeDockerLog([]byte(body))
+	var logText strings.Builder
+	for _, body := range logs {
+		decoded := DecodeDockerLog([]byte(body))
+		logText.WriteString(decoded)
+		logText.WriteByte('\n')
+		if metricsStatus.Origem == model.OrigemIndisponivel {
 			p, c := ParseMetrics(decoded)
 			if len(p) > 0 || len(c) > 0 {
 				process, cameras = p, c
 				metricsStatus = model.Text("metrics_log", model.OrigemMedido, "log do container")
-				break
 			}
 		}
 	}
-	_ = process
+	worker := readingsDeMapa(process)
+	worker = append(worker, UsoGPUNoLog(logText.String()))
 
 	servicos := make([]model.Container, 0)
 	for _, item := range containers {
@@ -141,6 +144,7 @@ func (e *Engine) collect(ctx context.Context) model.Snapshot {
 		Servicos:            servicos,
 		Processos:           procs,
 		Cameras:             cameras,
+		Worker:              worker,
 		MediaMTX:            ReadMediaMTX(ctx, e.cfg.MediaMTXURL, e.cfg.MediaMTXUser, e.cfg.MediaMTXPass),
 		Redis:               ReadRedis(e.cfg.RedisURL, e.cfg.RedisKeys),
 		Capacidade:          capacity(host, e.cfg.CPUQuota, e.cfg.RAMQuotaMB),
@@ -301,6 +305,17 @@ func containersFromCgroup(samples []CgroupSample) []model.Container {
 		}
 		if sample.CPUMax != "" {
 			item.LimiteCPU = model.Text("limite_cpu", model.OrigemMedido, sample.CPUMax)
+		}
+		out = append(out, item)
+	}
+	return out
+}
+
+func readingsDeMapa(m map[string]model.Reading) []model.Reading {
+	out := make([]model.Reading, 0, len(m))
+	for _, item := range m {
+		if item.Nome == "" {
+			continue
 		}
 		out = append(out, item)
 	}
