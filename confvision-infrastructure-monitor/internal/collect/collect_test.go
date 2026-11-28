@@ -226,6 +226,21 @@ func TestNucleosNaoViraramZero(t *testing.T) {
 	}
 }
 
+func TestLinkSemVelocidadeFicaAusente(t *testing.T) {
+	dir := t.TempDir()
+	mustWrite(t, filepath.Join(dir, "sys", "class", "net", "lo", "speed"), "0\n")
+	mustWrite(t, filepath.Join(dir, "sys", "class", "net", "eth0", "speed"), "-1\n")
+	leitura := ReadLinkMbps(dir)
+	if leitura.Origem != model.OrigemIndisponivel || leitura.Valor != nil {
+		t.Fatalf("%+v", leitura)
+	}
+	mustWrite(t, filepath.Join(dir, "sys", "class", "net", "eth0", "speed"), "1000\n")
+	leitura = ReadLinkMbps(dir)
+	if leitura.Origem != model.OrigemMedido || leitura.Valor == nil || *leitura.Valor != 1000 {
+		t.Fatalf("%+v", leitura)
+	}
+}
+
 func TestGPUAusenteNaoBloqueia(t *testing.T) {
 	readings := ReadGPU(t.TempDir())
 	gpu := findReading(readings, "gpu_presente")

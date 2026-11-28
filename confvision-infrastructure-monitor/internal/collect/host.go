@@ -147,6 +147,7 @@ func ReadHost(root string, prev HostState, now time.Time) ([]model.Reading, Host
 	}
 
 	out = append(out, ReadGPU(root)...)
+	out = append(out, ReadLinkMbps(root))
 
 	next.Seen = true
 	return out, next
